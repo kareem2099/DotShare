@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Compiled output
+out/
+*.js.map
+
+# Webview compiled files
+media/app.js
+media/app.js.map
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# VS Code test output
+.vscode-test/
+
+# Extension publishing
+*.vsix
+
+# Temporary files
+temp/
+.tmp/
+
+# IDE settings
+.idea/
+.vscode/settings.json
+.vscode/launch.json.bak

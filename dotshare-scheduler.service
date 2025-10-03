@@ -1,0 +1,14 @@
+[Unit]
+Description=DotShare Social Media Scheduler
+After=network.target
+
+[Service]
+Type=simple
+User=kareem
+WorkingDirectory=/home/kareem/StudioProjects/DotShare
+ExecStart=/usr/bin/node bin/dotshare-scheduler.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

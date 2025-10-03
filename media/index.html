@@ -1,0 +1,351 @@
+n<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DotShare</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="header-text">
+                <h1 data-key="title">DotShare</h1>
+                <p data-key="subtitle">Share your ideas across multiple platforms with AI-powered posts</p>
+            </div>
+            <div class="header-controls">
+                <select id="languageSelect" class="control-select">
+                    <option value="en">English</option>
+                    <option value="ar">العربية</option>
+                    <option value="ru">Русский</option>
+                </select>
+                <button id="themeToggle" class="theme-toggle">
+                    <span class="icon">🌙</span>
+                    <span class="text">Dark Mode</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <section class="api-settings">
+        <h2 data-key="socialMedia">Social Media</h2>
+        <div class="platform-settings">
+            <div class="platform-card linkedin">
+                <h3>LinkedIn <span class="badge optional" data-key="optional">Optional</span></h3>
+                <p data-key="linkedinDesc">Share directly to your LinkedIn feed</p>
+                <div class="input-group">
+                    <label for="linkedinToken" data-key="accessTokenLabel">Access Token</label>
+                    <input type="password" id="linkedinToken" placeholder="" data-key="linkedinTokenPlaceholder">
+                </div>
+                <details class="guidelines">
+                    <summary data-key="howToGetLinkedinToken">How to get a LinkedIn Access Token</summary>
+                    <ol>
+                        <li>Go to <a href="https://developer.linkedin.com/" target="_blank">LinkedIn Developers</a></li>
+                        <li>Create an app and get your app credentials</li>
+                        <li>Use OAuth 2.0 to generate a user access token</li>
+                        <li>Note: Requires approval for certain scopes</li>
+                    </ol>
+                    <p><em data-key="linkedinNote">Without token, sharing will open LinkedIn in your browser</em></p>
+                </details>
+            </div>
+
+            <div class="platform-card telegram">
+                <h3>Telegram <span class="badge required" data-key="required">Required</span></h3>
+                <p data-key="telegramDesc">Send posts to Telegram channels or groups</p>
+                <div class="input-group">
+                    <label for="telegramBot" data-key="botTokenLabel">Bot Token</label>
+                    <input type="password" id="telegramBot" placeholder="" data-key="telegramBotPlaceholder">
+                </div>
+                <div class="input-group">
+                    <label for="telegramChat" data-key="chatIdLabel">Chat ID</label>
+                    <input type="text" id="telegramChat" placeholder="" data-key="telegramChatPlaceholder">
+                </div>
+                <details class="guidelines">
+                    <summary data-key="howToGetTelegramBot">How to get a Telegram Bot</summary>
+                    <ol>
+                        <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram</li>
+                        <li>Send <code>/newbot</code> and follow the instructions</li>
+                        <li>Copy the bot token provided</li>
+                        <li>For Chat ID: Add your bot to a group or channel, or use your user ID</li>
+                    </ol>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <section class="actions">
+        <h2 data-key="postGen">Post Generation</h2>
+        <div class="action-buttons">
+            <button id="generateBtn" class="primary-btn">
+                <span class="icon">✨</span>
+                <span data-key="generateAI">Generate AI Post</span>
+            </button>
+            <button id="scheduleBtn" class="success-btn">
+                <span class="icon">⏰</span>
+                <span data-key="schedulePost">Schedule Post</span>
+            </button>
+            <button id="shareLinkedInBtn" disabled>
+                <span class="icon">💼</span>
+                <span data-key="shareLinkedIn">Share to LinkedIn</span>
+            </button>
+            <button id="shareTelegramBtn" disabled>
+                <span class="icon">📱</span>
+                <span data-key="shareTelegram">Share to Telegram</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="media-attachment" id="mediaAttachment" style="display: none;">
+        <h3 data-key="mediaAttachment">Media Attachment</h3>
+        <div id="uploadArea" class="upload-area">
+            <div class="upload-content">
+                <div class="upload-icon">📎</div>
+                <p data-key="dragDropFiles">Drag & drop files here or</p>
+                <button id="uploadBtn" class="upload-btn">Choose File</button>
+                <p class="upload-hint" data-key="supportedFormats">Supported: Images (JPG, PNG, GIF) and Videos (MP4)</p>
+            </div>
+            <input type="file" id="fileInput" accept="image/*,video/mp4" style="display: none;">
+        </div>
+        <div id="attachedFile" class="attached-file" style="display: none;">
+            <div class="file-info">
+                <div class="file-icon">📄</div>
+                <div class="file-details">
+                    <span id="fileName" class="file-name"></span>
+                    <span id="fileSize" class="file-size"></span>
+                </div>
+            </div>
+            <button id="removeMediaBtn" class="remove-btn" data-key="removeMedia">Remove</button>
+        </div>
+    </section>
+
+    <section class="post-output">
+        <div class="post-header">
+            <label for="postText">Generated Post</label>
+            <button id="editPostBtn" class="secondary-btn" style="display: none;">Edit Post</button>
+        </div>
+        <textarea id="postText" readonly placeholder="Your AI-generated post will appear here..."></textarea>
+        <div id="editControls" style="display: none;">
+            <button id="savePostBtn" class="primary-btn">Save Changes</button>
+            <button id="cancelPostBtn" class="secondary-btn">Cancel</button>
+        </div>
+        <div id="status" class="status-message" style="display: none;"></div>
+    </section>
+
+    <section class="post-history" id="postHistory" style="display: none;">
+        <details class="history-accordion">
+            <summary data-key="postHistory">Post History & Analytics</summary>
+
+            <div class="analytics-summary">
+                <div class="analytics-grid">
+                    <div class="analytics-item">
+                        <span class="analytics-label" data-key="totalPosts">Total Posts:</span>
+                        <span class="analytics-value" id="totalPostsValue">0</span>
+                    </div>
+                    <div class="analytics-item">
+                        <span class="analytics-label" data-key="successRate">Success Rate:</span>
+                        <span class="analytics-value" id="successRateValue">0%</span>
+                    </div>
+                    <div class="analytics-item">
+                        <span class="analytics-label" data-key="linkedinShares">LinkedIn Shares:</span>
+                        <span class="analytics-value" id="linkedinSharesValue">0</span>
+                    </div>
+                    <div class="analytics-item">
+                        <span class="analytics-label" data-key="telegramShares">Telegram Shares:</span>
+                        <span class="analytics-value" id="telegramSharesValue">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="history-list" id="historyList">
+                <p data-key="noHistory">No posts in history yet. Generate your first post!</p>
+            </div>
+        </details>
+    </section>
+
+    <section class="scheduled-posts" id="scheduledPosts" style="display: none;">
+        <details class="history-accordion">
+            <summary data-key="scheduledPosts">📅 Scheduled Posts</summary>
+            <div class="scheduled-list" id="scheduledList">
+                <p data-key="noScheduled">No scheduled posts yet. Schedule your first post!</p>
+            </div>
+        </details>
+    </section>
+
+    <section class="model-selection">
+        <button id="configureAIBtn" class="model-select-btn">
+            <span class="icon">🧠</span>
+            <span data-key="chooseAIModel">Choose AI Model</span>
+        </button>
+        <div id="selectedAIDisplay" class="selected-model-display"></div>
+    </section>
+
+    <!-- Schedule Post Modal -->
+    <div id="scheduleModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-key="scheduleModalTitle">Schedule Post</h3>
+                <span id="closeScheduleModal" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="scheduleDate" data-key="scheduleDate">Date & Time</label>
+                    <input type="datetime-local" id="scheduleDate" required>
+                </div>
+                <div class="input-group">
+                    <label data-key="platforms">Platforms</label>
+                    <div class="platform-checkboxes">
+                        <label>
+                            <input type="checkbox" id="scheduleLinkedIn" value="linkedin"> 💼 LinkedIn
+                        </label>
+                        <label>
+                            <input type="checkbox" id="scheduleTelegram" value="telegram"> 📱 Telegram
+                        </label>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="scheduledPostText" data-key="postContent">Post Content</label>
+                    <textarea id="scheduledPostText" placeholder="Your post content..." readonly></textarea>
+                </div>
+                <div id="scheduledMediaPreview" class="media-preview">
+                    <p data-key="noMediaPreview">No media attached</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelScheduleBtn" class="secondary-btn" data-key="cancel">Cancel</button>
+                <button id="confirmScheduleBtn" class="primary-btn" data-key="schedulePost">Schedule Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Scheduled Post Modal -->
+    <div id="editScheduledModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Scheduled Post</h3>
+                <span id="closeEditScheduledModal" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="editScheduleDate">Date & Time</label>
+                    <input type="datetime-local" id="editScheduleDate" required>
+                </div>
+                <div class="input-group">
+                    <label>Platforms</label>
+                    <div class="platform-checkboxes">
+                        <label>
+                            <input type="checkbox" id="editScheduleLinkedIn" value="linkedin"> 💼 LinkedIn
+                        </label>
+                        <label>
+                            <input type="checkbox" id="editScheduleTelegram" value="telegram"> 📱 Telegram
+                        </label>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="editScheduledPostText">Post Content</label>
+                    <textarea id="editScheduledPostText" placeholder="Your post content..." rows="4"></textarea>
+                </div>
+                <div id="editScheduledMediaPreview" class="media-preview">
+                    <p data-key="noMediaPreview">No media attached</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelEditScheduledBtn" class="secondary-btn">Cancel</button>
+                <button id="saveEditScheduledBtn" class="primary-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Selection Modal -->
+    <div id="modelModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-key="selectAiModel">Select AI Model</h3>
+                <span id="closeModal" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="provider-tabs">
+                    <button class="tab-btn active" data-provider="gemini">Gemini</button>
+                    <button class="tab-btn" data-provider="openai">ChatGPT</button>
+                    <button class="tab-btn" data-provider="xai">X-AI</button>
+                </div>
+
+                <div id="geminiPanel" class="provider-panel active">
+                    <h4>Google Gemini</h4>
+                    <div class="input-group">
+                        <label for="geminiKeyModal" data-key="apiKey">API Key</label>
+                        <input type="password" id="geminiKeyModal" placeholder="" data-key="enterGeminiApiKey">
+                    </div>
+                    <div class="input-group">
+                        <label for="geminiModel" data-key="modelLabel">Model</label>
+                        <select id="geminiModel">
+                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                            <option value="gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash Lite Preview</option>
+                        </select>
+                    </div>
+                    <details class="guidelines">
+                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
+                        <ol>
+                            <li>Visit <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+                            <li>Sign in with your Google account</li>
+                            <li>Create a new API key</li>
+                        </ol>
+                    </details>
+                </div>
+
+                <div id="openaiPanel" class="provider-panel">
+                    <h4>OpenAI ChatGPT</h4>
+                    <div class="input-group">
+                        <label for="openaiKey" data-key="apiKey">API Key</label>
+                        <input type="password" id="openaiKey" placeholder="" data-key="enterOpenaiApiKey">
+                    </div>
+                    <div class="input-group">
+                        <label for="openaiModel" data-key="modelLabel">Model</label>
+                        <select id="openaiModel">
+                            <option value="gpt-5-2025-08-07">GPT-5 (2025-08-07)</option>
+                            <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (2025-08-07)</option>
+                            <option value="gpt-nano-5-2025-08-07">GPT-Nano-5 (2025-08-07)</option>
+                        </select>
+                    </div>
+                    <details class="guidelines">
+                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
+                        <ol>
+                            <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a></li>
+                            <li>Create a new secret key</li>
+                            <li>Copy and paste the key above</li>
+                            <li>Note: You'll need credits in your OpenAI account</li>
+                        </ol>
+                    </details>
+                </div>
+
+                <div id="xaiPanel" class="provider-panel">
+                    <h4>xAI Grok</h4>
+                    <div class="input-group">
+                        <label for="xaiKey" data-key="apiKey">API Key</label>
+                        <input type="password" id="xaiKey" placeholder="" data-key="enterXaiApiKey">
+                    </div>
+                    <div class="input-group">
+                        <label for="xaiModel" data-key="modelLabel">Model</label>
+                        <select id="xaiModel">
+                            <option value="grok-beta">Grok Beta</option>
+                            <option value="grok-1">Grok-1</option>
+                        </select>
+                    </div>
+                    <details class="guidelines">
+                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
+                        <ol>
+                            <li>Visit <a href="https://console.x.ai/" target="_blank">xAI Console</a></li>
+                            <li>Create an account and generate an API key</li>
+                        </ol>
+                    </details>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="applyModelBtn" class="primary-btn" data-key="applySelection">Apply Selection</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>

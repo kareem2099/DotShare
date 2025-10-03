@@ -1,0 +1,86 @@
+{
+  "name": "dotshare",
+  "displayName": "DotShare",
+  "description": "Share project updates to social media using AI",
+  "version": "0.0.1",
+  "publisher": "freerave",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "icon": "assets/icons/icon.png",
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dotshare-container",
+          "title": "DotShare",
+          "icon": "assets/icons/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "dotshare-container": [
+        {
+          "id": "dotshareView",
+          "name": "DotShare",
+          "type": "webview",
+          "icon": "assets/icons/icon.png"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "dotshare.generatePost",
+        "title": "Generate Social Media Post with Gemini"
+      },
+      {
+        "command": "dotshare.shareToLinkedIn",
+        "title": "Share to LinkedIn"
+      },
+      {
+        "command": "dotshare.shareToTelegram",
+        "title": "Share to Telegram"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile && npm run compile:webview",
+    "compile": "tsc -p ./",
+    "compile:webview": "tsc media/app.ts --outDir media --lib DOM,ES2020 --target ES2020 --module none --skipLibCheck",
+    "scheduler": "node bin/dotshare-scheduler.js",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^9.1.0",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.57.1",
+    "@typescript-eslint/parser": "^5.57.1",
+    "eslint": "^8.28.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.2.0",
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0",
+    "openai": "^6.0.1"
+  },
+  "keywords": [
+    "share",
+    "social",
+    "linkedin",
+    "telegram",
+    "ai"
+  ],
+  "author": "FreeRave",
+  "license": "MIT"
+}
