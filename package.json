@@ -82,5 +82,10 @@
     "ai"
   ],
   "author": "FreeRave",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kareem2099/DotShare.git"
+  },
+  "homepage": "https://github.com/kareem2099/DotShare"
 }
