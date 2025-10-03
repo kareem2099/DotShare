@@ -99,4 +99,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - 📧 Create an issue on GitHub
-- 💝 Support the project: [GitHub Sponsors](https://github.com/sponsors/kareem2099)
+- � Get your Telegram User ID using [FreeID Bot](https://github.com/kareem2099/FreeID)
+- �💝 Support the project: [GitHub Sponsors](https://github.com/sponsors/kareem2099)
