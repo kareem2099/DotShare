@@ -82,7 +82,7 @@ async function scanProjectFiles(workspacePath: string, projectType: string): Pro
                 }
 
                 content += `${file}:\n${fileContent.substring(0, 1000)}${fileContent.length > 1000 ? '...[truncated]' : ''}\n\n`;
-            } catch (e) {
+            } catch {
                 // Skip if can't read
             }
         }
@@ -124,7 +124,7 @@ async function getGitInfo(workspacePath: string): Promise<{latestCommit: string,
     }
 }
 
-export async function generatePost(apiKey: string, model: string = 'gpt-4'): Promise<PostData | null> {
+export async function generatePost(apiKey: string, model = 'gpt-4'): Promise<PostData | null> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         vscode.window.showErrorMessage('No workspace folder found.');
@@ -182,17 +182,18 @@ Post should be engaging, under 280 characters, and include 1-2 relevant hashtags
             text: generatedText.trim(),
             media: undefined
         };
-    } catch (error: any) {
-        let errorMessage = `OpenAI API Error: ${error.message}`;
-        if (error.message?.includes('quota')) {
-            errorMessage = 'API quota exceeded. Check your OpenAI credit balance.';
-        } else if (error.message?.includes('key')) {
-            errorMessage = 'Invalid API key. Please check your OpenAI API key.';
-        } else if (error.message?.includes('model')) {
-            errorMessage = 'Model not available. Try a different ChatGPT model.';
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let detailedMessage = `OpenAI API Error: ${errorMessage}`;
+        if (errorMessage?.includes('quota')) {
+            detailedMessage = 'API quota exceeded. Check your OpenAI credit balance.';
+        } else if (errorMessage?.includes('key')) {
+            detailedMessage = 'Invalid API key. Please check your OpenAI API key.';
+        } else if (errorMessage?.includes('model')) {
+            detailedMessage = 'Model not available. Try a different ChatGPT model.';
         }
 
-        vscode.window.showErrorMessage(errorMessage);
+        vscode.window.showErrorMessage(detailedMessage);
         throw error;
     }
 }
@@ -204,8 +205,9 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
         // Sort by created date descending to get latest first
         const sortedModels = models.data.sort((a, b) => (b.created || 0) - (a.created || 0));
         return sortedModels.map(model => model.id);
-    } catch (error: any) {
-        vscode.window.showErrorMessage(`OpenAI API Error fetching models: ${error.message}`);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`OpenAI API Error fetching models: ${errorMessage}`);
         throw error; // Re-throw to be caught by extension.ts
     }
 }

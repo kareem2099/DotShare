@@ -1,18 +1,26 @@
 # DotShare
 
-[![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/kareem2099/DotShare)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/kareem2099/DotShare)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A VS Code extension that helps you share your project updates to social media using AI-powered content generation.
 
 ## Features
 
-- 🤖 **AI-Powered Content Generation**: Generate engaging social media posts using Gemini AI
+- 🤖 **AI-Powered Content Generation**: Generate engaging social media posts using Gemini AI, OpenAI, or xAI
+- ✏️ **Manual Post Creation**: Write and post content manually without AI assistance
+- 📎 **Enhanced Media Upload**: Drag-and-drop and click-to-browse functionality for images and videos
 - 🔗 **LinkedIn Integration**: Share posts directly to LinkedIn
 - 📱 **Telegram Support**: Post to Telegram channels and groups
-- ⏰ **Scheduled Posting**: CLI tool for automated posting
+- 🐦 **X/Twitter Integration**: Post directly to X (formerly Twitter)
+- 📘 **Facebook Support**: Share to Facebook profiles and pages
+- 🔵 **Discord Webhooks**: Post updates to Discord channels
+- 🟠 **Reddit Integration**: Submit posts to Reddit communities and user profiles (r/ and u/)
+- 🌅 **BlueSky Support**: Early adopter integration with BlueSky social
+- ⏰ **Scheduled Posting**: CLI tool for automated cross-platform posting
 - 🌐 **Multi-language Support**: English, Arabic, and Russian
-- 🎨 **Interactive UI**: Built-in webview for managing your posts
+- 🎨 **Interactive UI**: Built-in webview for managing your posts with improved user experience
+- 📊 **Analytics Dashboard**: Track posting performance across platforms
 
 ## Installation
 
@@ -46,6 +54,15 @@ dotshare-scheduler --help
 - Use "DotShare: Share to LinkedIn" to post to LinkedIn
 - Use "DotShare: Share to Telegram" to post to Telegram groups/channels
 
+The extension now supports sharing to multiple platforms including:
+- LinkedIn (profiles)
+- Telegram (bots, channels, groups)
+- X/Twitter (tweets)
+- Facebook (profiles and pages)
+- Discord (webhooks)
+- Reddit (submissions)
+- BlueSky (posts)
+
 ### Scheduled Posting
 
 Use the CLI tool to schedule posts:
@@ -71,8 +88,22 @@ Set up your API keys in VS Code settings or environment variables:
 
 - `dotshare.geminiApiKey`: For Gemini AI
 - `dotshare.openaiApiKey`: For OpenAI
+- `dotshare.xaiApiKey`: For xAI
 - `dotshare.linkedinToken`: LinkedIn access token
-- `dotshare.telegramToken`: Telegram bot token
+- `dotshare.telegramBot`: Telegram bot token
+- `dotshare.telegramChat`: Telegram chat ID
+- `dotshare.xAccessToken`: X/Twitter access token
+- `dotshare.xAccessSecret`: X/Twitter access secret
+- `dotshare.facebookToken`: Facebook access token
+- `dotshare.facebookPageToken`: Facebook page access token
+- `dotshare.facebookPageId`: Facebook page ID
+- `dotshare.discordWebhookUrl`: Discord webhook URL
+- `dotshare.redditClientId`: Reddit client ID
+- `dotshare.redditClientSecret`: Reddit client secret
+- `dotshare.redditAccessToken`: Reddit access token
+- `dotshare.redditRefreshToken`: Reddit refresh token
+- `dotshare.blueskyIdentifier`: BlueSky username/handle
+- `dotshare.blueskyPassword`: BlueSky app password
 
 ## Development
 

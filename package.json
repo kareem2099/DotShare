@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "Share project updates to social media using AI",
-  "version": "0.0.1",
+  "version": "2.0.0",
   "publisher": "freerave",
   "engines": {
     "vscode": "^1.74.0"
@@ -48,9 +48,9 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run compile:webview",
+    "vscode:prepublish": "npm run compile && npm run build:webview",
     "compile": "tsc -p ./",
-    "compile:webview": "tsc media/app.ts --outDir media --lib DOM,ES2020 --target ES2020 --module none --skipLibCheck",
+    "build:webview": "esbuild media/main.ts --bundle --outfile=media/app.js --format=iife --global-name=DotShare --platform=browser --minify",
     "scheduler": "node bin/dotshare-scheduler.js",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
@@ -63,6 +63,7 @@
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "@typescript-eslint/parser": "^5.57.1",
+    "esbuild": "^0.25.11",
     "eslint": "^8.28.0",
     "glob": "^8.0.3",
     "mocha": "^10.1.0",
@@ -79,7 +80,16 @@
     "social",
     "linkedin",
     "telegram",
-    "ai"
+    "twitter",
+    "x",
+    "facebook",
+    "discord",
+    "reddit",
+    "bluesky",
+    "ai",
+    "gemini",
+    "openai",
+    "xai"
   ],
   "author": "FreeRave",
   "license": "MIT",
