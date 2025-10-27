@@ -1,30 +1,32 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { generatePost as generateGeminiPost, getAvailableModels as getGeminiModels } from './gemini';
-import { generatePost as generateOpenAIPost, getAvailableModels as getOpenAIModels } from './openai';
-import { generatePost as generateXAIPost, getAvailableModels as getXAIModels } from './xai';
-import { shareToLinkedIn } from './linkedin';
-import { shareToTelegram } from './telegram';
-import { ScheduledPostsStorage, generateScheduledPostId } from './scheduled-posts';
+import * as os from 'os';
+// Basic imports needed for current functionality
+import { generatePost as generateGeminiPost } from './gemini';
+import { generatePost as generateOpenAIPost } from './openai';
+import { generatePost as generateXAIPost } from './xai';
+import { /* shareToLinkedIn */ } from './linkedin';
+import { /* shareToTelegram */ } from './telegram';
+import { ScheduledPostsStorage } from './scheduled-posts';
 import { Scheduler } from './scheduler';
-import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary, ScheduledPost } from './types';
+import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary } from './types';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('DotShare extension is now active!');
 
     // Command for generating post
-    let generateDisposable = vscode.commands.registerCommand('dotshare.generatePost', () => {
+    const generateDisposable = vscode.commands.registerCommand('dotshare.generatePost', () => {
         vscode.window.showInformationMessage('Please use the DotShare activity bar panel to enter API keys and generate posts.');
     });
 
     // Command for LinkedIn
-    let linkedinDisposable = vscode.commands.registerCommand('dotshare.shareToLinkedIn', () => {
+    const linkedinDisposable = vscode.commands.registerCommand('dotshare.shareToLinkedIn', () => {
         vscode.window.showInformationMessage('Please use the DotShare activity bar panel to share to LinkedIn.');
     });
 
     // Command for Telegram
-    let telegramDisposable = vscode.commands.registerCommand('dotshare.shareToTelegram', () => {
+    const telegramDisposable = vscode.commands.registerCommand('dotshare.shareToTelegram', () => {
         vscode.window.showInformationMessage('Please use the DotShare activity bar panel to share to Telegram.');
     });
 
@@ -73,7 +75,7 @@ class DotShareProvider implements vscode.WebviewViewProvider {
         } catch (error) {
             console.warn('Could not create storage directory, using temp:', error);
             // Final fallback to temp directory
-            storagePath = path.join(require('os').tmpdir(), 'dotshare-scheduled');
+            storagePath = path.join(os.tmpdir(), 'dotshare-scheduled');
             try {
                 if (!fs.existsSync(storagePath)) {
                     fs.mkdirSync(storagePath, { recursive: true });
@@ -81,7 +83,7 @@ class DotShareProvider implements vscode.WebviewViewProvider {
             } catch (tempError) {
                 console.error('Even temp directory creation failed:', tempError);
                 // Last resort - use system temp
-                storagePath = require('os').tmpdir();
+                storagePath = os.tmpdir();
             }
         }
 
@@ -91,8 +93,10 @@ class DotShareProvider implements vscode.WebviewViewProvider {
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
         context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken,
+        token: vscode.CancellationToken,
     ) {
+        void context; // Suppress unused parameter warning
+        void token; // Suppress unused parameter warning
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -102,21 +106,21 @@ class DotShareProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        // Load initial data when webview is ready
-        setImmediate(async () => {
-            try {
-                // Load saved configuration (API keys and social media tokens)
-                await this._loadConfiguration(webviewView);
+                // Load initial data when webview is ready
+                setImmediate(async () => {
+                    try {
+                        // Load scheduled posts
+                        await this._loadScheduledPosts(webviewView);
 
-                // Load scheduled posts
-                await this._loadScheduledPosts(webviewView);
+                        // Load post history and analytics
+                        await this._loadPostHistory(webviewView);
 
-                // Load post history and analytics
-                await this._loadPostHistory(webviewView);
-            } catch (error) {
-                console.error('Error loading initial data:', error);
-            }
-        });
+                        // Load all saved configuration (tokens, model settings, etc.)
+                        await this._loadConfiguration(webviewView);
+                    } catch (error) {
+                        console.error('Error loading initial data:', error);
+                    }
+                });
 
         webviewView.webview.onDidReceiveMessage(
             async (message) => {
@@ -146,7 +150,7 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                                         return;
                                     }
                                     break; // Success, exit retry loop
-                                } catch (retryError: any) {
+                                } catch (retryError: unknown) {
                                     retryCount++;
                                     if (retryCount > maxRetries) {
                                         throw retryError; // Re-throw after max retries
@@ -157,28 +161,36 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                             }
 
                             if (post) {
-                            // Save post to history with AI metadata
-                            this._savePostToHistory(provider as 'gemini' | 'openai' | 'xai', model, post);
-                            webviewView.webview.postMessage({ command: 'updatePost', post: post.text });
+                                // Save post to history with AI metadata
+                                this._savePostToHistory(provider as 'gemini' | 'openai' | 'xai', model, post);
+                                webviewView.webview.postMessage({ command: 'updatePost', post: post.text });
 
-                            // Securely store API keys and save model selection for persistence
-                            if (message.selectedModel) {
-                                await this._context.secrets.store(`${message.selectedModel.provider}ApiKey`, message.selectedModel.apiKey);
-                                // Also save model selection (without API key for security)
-                                const modelForStorage = { provider, model, apiKey: '' };
-                                this._context.globalState.update('selectedModel', modelForStorage);
+                                // Refresh analytics after posting
+                                const updatedAnalytics = this._calculateAnalytics();
+                                webviewView.webview.postMessage({
+                                    command: 'updateAnalytics',
+                                    analytics: updatedAnalytics
+                                });
+
+                                // Securely store API keys and save model selection for persistence
+                                if (message.selectedModel) {
+                                    await this._context.secrets.store(`${message.selectedModel.provider}ApiKey`, message.selectedModel.apiKey);
+                                    // Also save model selection (without API key for security)
+                                    const modelForStorage = { provider, model, apiKey: '' };
+                                    this._context.globalState.update('selectedModel', modelForStorage);
+                                }
                             }
-                            }
-                        } catch (error: any) {
+                        } catch (error: unknown) {
+                            const errorMessageObj = error instanceof Error ? error : { message: String(error) };
                             let errorMessage = 'Error generating post.';
-                            if (error.message.includes('API key')) {
+                            if (errorMessageObj.message.includes('API key')) {
                                 errorMessage = 'Invalid API key. Check your credentials.';
-                            } else if (error.message.includes('rate limit')) {
+                            } else if (errorMessageObj.message.includes('rate limit')) {
                                 errorMessage = 'API rate limit exceeded. Try again later.';
-                            } else if (error.message.includes('network')) {
+                            } else if (errorMessageObj.message.includes('network')) {
                                 errorMessage = 'Network error. Check your connection.';
                             } else {
-                                errorMessage = `AI service error: ${error.message}`;
+                                errorMessage = `AI service error: ${errorMessageObj.message}`;
                             }
                             webviewView.webview.postMessage({ command: 'status', status: errorMessage, type: 'error' });
                         }
@@ -194,8 +206,9 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                         try {
                             await this._context.secrets.store('linkedinToken', message.linkedinToken || '');
                             webviewView.webview.postMessage({ command: 'status', status: 'LinkedIn token saved!', type: 'success' });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error saving LinkedIn token: ${error.message}`, type: 'error' });
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving LinkedIn token: ${errorMessage}`, type: 'error' });
                         }
                         return;
                     case 'saveTelegramCredentials':
@@ -203,403 +216,596 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                             await this._context.secrets.store('telegramBot', message.telegramBot || '');
                             await this._context.secrets.store('telegramChat', message.telegramChat || '');
                             webviewView.webview.postMessage({ command: 'status', status: 'Telegram credentials saved!', type: 'success' });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error saving Telegram credentials: ${error.message}`, type: 'error' });
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving Telegram credentials: ${errorMessage}`, type: 'error' });
                         }
                         return;
-                    case 'loadConfiguration':
-                        const savedModel = this._context.globalState.get('selectedModel') as any;
-                        let apiKey = '';
-                        if (savedModel) {
-                            apiKey = await this._context.secrets.get(`${savedModel.provider}ApiKey`) || '';
+                    case 'saveFacebookToken': {
+                        try {
+                            await this._context.secrets.store('facebookToken', message.facebookToken || '');
+                            await this._context.secrets.store('facebookPageToken', message.facebookPageToken || '');
+                            await this._context.secrets.store('facebookPageId', message.facebookPageId || '');
+                            webviewView.webview.postMessage({ command: 'status', status: 'Facebook credentials saved!', type: 'success' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving Facebook credentials: ${error}`, type: 'error' });
                         }
-                        // Get social media tokens from secrets
+                        return;
+                    }
+                    case 'saveDiscordWebhook': {
+                        try {
+                            await this._context.secrets.store('discordWebhook', message.discordWebhookUrl || '');
+                            webviewView.webview.postMessage({ command: 'status', status: 'Discord webhook saved!', type: 'success' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving Discord webhook: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'saveXCredentials': {
+                        try {
+                            await this._context.secrets.store('xAccessToken', message.xAccessToken || '');
+                            await this._context.secrets.store('xAccessSecret', message.xAccessSecret || '');
+                            webviewView.webview.postMessage({ command: 'status', status: 'X/Twitter credentials saved!', type: 'success' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving X/Twitter credentials: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'saveRedditCredentials': {
+                        try {
+                            await this._context.secrets.store('redditAccessToken', message.redditAccessToken || '');
+                            await this._context.secrets.store('redditRefreshToken', message.redditRefreshToken || '');
+                            webviewView.webview.postMessage({ command: 'status', status: 'Reddit credentials saved!', type: 'success' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving Reddit credentials: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'saveBlueSkyCredentials': {
+                        try {
+                            await this._context.secrets.store('blueskyIdentifier', message.blueskyIdentifier || '');
+                            await this._context.secrets.store('blueskyPassword', message.blueskyPassword || '');
+                            webviewView.webview.postMessage({ command: 'status', status: 'BlueSky credentials saved!', type: 'success' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving BlueSky credentials: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'loadConfiguration': {
+                        const savedModel = this._context.globalState.get('selectedModel');
+                        let apiKey = '';
+                        if (savedModel && typeof savedModel === 'object' && 'provider' in savedModel && typeof (savedModel as { provider?: unknown }).provider === 'string') {
+                            const validModel = savedModel as { provider: 'gemini' | 'openai' | 'xai' };
+                            apiKey = await this._context.secrets.get(`${validModel.provider}ApiKey`) || '';
+                        }
+                        // Get all social media tokens from secrets
                         const savedLinkedInToken = await this._context.secrets.get('linkedinToken') || '';
                         const savedTelegramBot = await this._context.secrets.get('telegramBot') || '';
                         const savedTelegramChat = await this._context.secrets.get('telegramChat') || '';
+                        const savedXToken = await this._context.secrets.get('xAccessToken') || '';
+                        const savedXSecret = await this._context.secrets.get('xAccessSecret') || '';
+                        const savedFacebookToken = await this._context.secrets.get('facebookToken') || '';
+                        const savedFacebookPageToken = await this._context.secrets.get('facebookPageToken') || '';
+                        const savedFacebookPageId = await this._context.secrets.get('facebookPageId') || '';
+                        const savedDiscordWebhook = await this._context.secrets.get('discordWebhook') || '';
+                        const savedRedditToken = await this._context.secrets.get('redditAccessToken') || '';
+                        const savedRedditRefresh = await this._context.secrets.get('redditRefreshToken') || '';
+                        // Load Reddit configuration details
+                        const savedRedditClientId = await this._context.secrets.get('redditClientId') || '';
+                        const savedRedditClientSecret = await this._context.secrets.get('redditClientSecret') || '';
+                        const savedRedditUsername = await this._context.secrets.get('redditUsername') || '';
+                        const savedRedditPassword = await this._context.secrets.get('redditPassword') || '';
+                        const savedRedditApiName = this._context.globalState.get('redditApiName', 'Reddit Account');
+                        const savedBlueSkyIdentifier = await this._context.secrets.get('blueskyIdentifier') || '';
+                        const savedBlueSkyPassword = await this._context.secrets.get('blueskyPassword') || '';
+
                         webviewView.webview.postMessage({
                             command: 'updateConfiguration',
                             selectedModel: savedModel ? { ...savedModel, apiKey } : savedModel,
                             linkedinToken: savedLinkedInToken,
                             telegramBot: savedTelegramBot,
-                            telegramChat: savedTelegramChat
+                            telegramChat: savedTelegramChat,
+                            xAccessToken: savedXToken,
+                            xAccessSecret: savedXSecret,
+                            facebookToken: savedFacebookToken,
+                            facebookPageToken: savedFacebookPageToken,
+                            facebookPageId: savedFacebookPageId,
+                            discordWebhookUrl: savedDiscordWebhook,
+                            redditAccessToken: savedRedditToken,
+                            redditRefreshToken: savedRedditRefresh,
+                            redditClientId: savedRedditClientId,
+                            redditClientSecret: savedRedditClientSecret,
+                            redditUsername: savedRedditUsername,
+                            redditPassword: savedRedditPassword,
+                            redditApiName: savedRedditApiName,
+                            blueskyIdentifier: savedBlueSkyIdentifier,
+                            blueskyPassword: savedBlueSkyPassword
                         });
                         return;
-                    case 'fetchModels':
+                    }
+                    case 'shareToFacebook': {
                         try {
-                            const { provider, apiKey } = message;
-                            let models: string[] = [];
-                            if (provider === 'gemini') {
-                                models = apiKey ? await getGeminiModels(apiKey) : [];
-                            } else if (provider === 'openai') {
-                                models = apiKey ? await getOpenAIModels(apiKey) : [];
-                            } else if (provider === 'xai') {
-                                models = apiKey ? await getXAIModels(apiKey) : [];
+                            const facebookPost = this._context.globalState.get('lastPost') as PostData;
+                            if (!facebookPost) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Error: No post generated. Generate first.', type: 'error' });
+                                return;
                             }
+
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            await this.shareToFacebookWithUpdate(webviewView, facebookPost, message, postId);
+                        } catch (error: unknown) {
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            if (postId) {
+                                this._recordShare(postId, 'facebook', false, String(error));
+                            }
+
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to Facebook: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'shareToDiscord': {
+                        try {
+                            const discordPost = this._context.globalState.get('lastPost') as PostData;
+                            if (!discordPost) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Error: No post generated. Generate first.', type: 'error' });
+                                return;
+                            }
+
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            await this.shareToDiscordWithUpdate(webviewView, discordPost, message, postId);
+                        } catch (error: unknown) {
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            if (postId) {
+                                this._recordShare(postId, 'discord', false, String(error));
+                            }
+
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to Discord: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'shareToX': {
+                        try {
+                            const xPost = this._context.globalState.get('lastPost') as PostData;
+                            if (!xPost) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Error: No post generated. Generate first.', type: 'error' });
+                                return;
+                            }
+
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            await this.shareToXWithUpdate(webviewView, xPost, message, postId);
+                        } catch (error: unknown) {
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            if (postId) {
+                                this._recordShare(postId, 'x', false, String(error));
+                            }
+
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to X/Twitter: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'shareToReddit': {
+                        try {
+                            const msg = message as { redditAccessToken?: string; redditRefreshToken?: string; post?: string; mediaFilePaths?: string[] };
+                            const postText = msg.post || '';
+                            const mediaPaths = msg.mediaFilePaths || [];
+
+                            const redditPost: PostData = {
+                                text: postText,
+                                media: mediaPaths
+                            };
+
+                            await this.shareToRedditWithUpdate(webviewView, redditPost, message, undefined);
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to Reddit: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'shareToLinkedIn': {
+                        try {
+                            const msg = message as { linkedinToken?: string; post?: string; mediaFilePaths?: string[] };
+                            const linkedinToken = msg.linkedinToken || await this._context.secrets.get('linkedinToken') || '';
+                            const postText = msg.post || '';
+                            const mediaPaths = msg.mediaFilePaths || [];
+
+                            const linkedinPost: PostData = {
+                                text: postText,
+                                media: mediaPaths
+                            };
+
+                            await this.shareToLinkedInWithUpdate(webviewView, linkedinPost, message, undefined);
+                        } catch (error: unknown) {
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            if (postId) {
+                                this._recordShare(postId, 'linkedin', false, String(error));
+                            }
+
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to LinkedIn: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'shareToTelegram': {
+                        try {
+                            const msg = message as { telegramBot?: string; telegramChat?: string; post?: string; mediaFilePaths?: string[] };
+                            const telegramBot = msg.telegramBot || await this._context.secrets.get('telegramBot') || '';
+                            const telegramChat = msg.telegramChat || await this._context.secrets.get('telegramChat') || '';
+                            const postText = msg.post || '';
+                            const mediaPaths = msg.mediaFilePaths || [];
+
+                            const telegramPost: PostData = {
+                                text: postText,
+                                media: mediaPaths
+                            };
+
+                            await this.shareToTelegramWithUpdate(webviewView, telegramPost, message, undefined);
+                        } catch (error: unknown) {
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            if (postId) {
+                                this._recordShare(postId, 'telegram', false, String(error));
+                            }
+
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to Telegram: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'shareToBlueSky': {
+                        try {
+                            const blueskyPost = this._context.globalState.get('lastPost') as PostData;
+                            if (!blueskyPost) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Error: No post generated. Generate first.', type: 'error' });
+                                return;
+                            }
+
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            await this.shareToBlueSkyWithUpdate(webviewView, blueskyPost, message, postId);
+                        } catch (error: unknown) {
+                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                            const mostRecentPost = history[0];
+                            const postId = mostRecentPost?.id;
+
+                            if (postId) {
+                                this._recordShare(postId, 'bluesky', false, String(error));
+                            }
+
+                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to BlueSky: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'generateRedditTokens': {
+                        try {
+                            // Validate all required Reddit credentials
+                            if (!message.redditClientId || !message.redditClientSecret ||
+                                !message.redditUsername || !message.redditPassword ||
+                                message.redditClientId.trim() === '' || message.redditClientSecret.trim() === '' ||
+                                message.redditUsername.trim() === '' || message.redditPassword.trim() === '') {
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: 'All Reddit credentials are required. Please fill in Client ID, Secret, Username, and Password.',
+                                    type: 'error'
+                                });
+                                return;
+                            }
+
+                            // Get current saved configuration for comparison
+                            const savedClientId = await this._context.secrets.get('redditClientId') || '';
+                            const savedClientSecret = await this._context.secrets.get('redditClientSecret') || '';
+                            const savedUsername = await this._context.secrets.get('redditUsername') || '';
+                            const savedPassword = await this._context.secrets.get('redditPassword') || '';
+                            const savedApiName = this._context.globalState.get('redditApiName', '');
+                            const savedAccessToken = await this._context.secrets.get('redditAccessToken') || '';
+
+                            const currentClientId = message.redditClientId.trim();
+                            const currentClientSecret = message.redditClientSecret.trim();
+                            const currentUsername = message.redditUsername.trim();
+                            const currentPassword = message.redditPassword.trim();
+                            const currentApiName = message.redditApiName || 'Reddit Account';
+
+                            // Check if configuration has changed or token needs regeneration
+                            const configChanged = (
+                                savedClientId !== currentClientId ||
+                                savedClientSecret !== currentClientSecret ||
+                                savedUsername !== currentUsername ||
+                                savedPassword !== currentPassword ||
+                                savedApiName !== currentApiName
+                            );
+
+                            // Check if user has already entered an access token in the UI (not just saved in storage)
+                            const userEnteredAccessToken = message.redditAccessToken?.trim();
+                            if (userEnteredAccessToken && !configChanged) {
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: 'You already have a Reddit access token in the field. Clear the access token field if you want to generate a new one.',
+                                    type: 'error'
+                                });
+                                return;
+                            }
+
+                            // Save the Reddit configuration details for persistence
+                            await this._context.secrets.store('redditClientId', currentClientId);
+                            await this._context.secrets.store('redditClientSecret', currentClientSecret);
+                            await this._context.secrets.store('redditUsername', currentUsername);
+                            await this._context.secrets.store('redditPassword', currentPassword);
+                            // Store in globalState for config name (non-sensitive data)
+                            this._context.globalState.update('redditApiName', currentApiName);
+
+                            // Import the existing function and use proper parameters
+                            const { generateRedditTokens } = await import('./reddit');
+                            const tokenData = await generateRedditTokens(
+                                currentClientId,
+                                currentClientSecret,
+                                currentUsername,
+                                currentPassword
+                            );
+
+                            // Store the generated tokens (only store refresh token if it exists)
+                            await this._context.secrets.store('redditAccessToken', tokenData.access_token || '');
+                            if (tokenData.refresh_token) {
+                                await this._context.secrets.store('redditRefreshToken', tokenData.refresh_token);
+                            } else {
+                                // For script apps, remove any stored refresh token
+                                await this._context.secrets.delete('redditRefreshToken');
+                            }
+
+                            // Send success message with indication if this was a regeneration
+                            const successMessage = configChanged && savedAccessToken
+                                ? 'Reddit tokens regenerated successfully! Old token replaced.'
+                                : 'Reddit tokens generated successfully!';
 
                             webviewView.webview.postMessage({
-                                command: 'updateModels',
-                                [`${provider}Models`]: models,
-                                provider: provider // Send back the provider to update the correct dropdown
-                            });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error fetching models: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'shareToLinkedIn':
-                        try {
-                            const linkedinPost = this._context.globalState.get('lastPost') as PostData;
-                            if (!linkedinPost) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'Error: No post generated. Generate first.', type: 'error' });
-                                return;
-                            }
-
-                            // Get the most recent post ID from history
-                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
-                            const mostRecentPost = history[0];
-                            const postId = mostRecentPost?.id;
-
-                            await shareToLinkedIn(linkedinPost, message.linkedinToken);
-                            await this._context.secrets.store('linkedinToken', message.linkedinToken);
-
-                            // Record successful share
-                            if (postId) {
-                                this._recordShare(postId, 'linkedin', true);
-                            }
-
-                            webviewView.webview.postMessage({ command: 'status', status: 'Shared to LinkedIn!', type: 'success' });
-                        } catch (error: any) {
-                            // Get the most recent post ID from history for error recording
-                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
-                            const mostRecentPost = history[0];
-                            const postId = mostRecentPost?.id;
-
-                            // Record failed share
-                            if (postId) {
-                                this._recordShare(postId, 'linkedin', false, error.message);
-                            }
-
-                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to LinkedIn: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'shareToTelegram':
-                        try {
-                            const telegramPost = this._context.globalState.get('lastPost') as PostData;
-                            if (!telegramPost) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'Error: No post generated. Generate first.', type: 'error' });
-                                return;
-                            }
-
-                            // Get the most recent post ID from history
-                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
-                            const mostRecentPost = history[0];
-                            const postId = mostRecentPost?.id;
-
-                            await shareToTelegram(telegramPost, message.telegramBot, message.telegramChat);
-                            await this._context.secrets.store('telegramBot', message.telegramBot);
-                            await this._context.secrets.store('telegramChat', message.telegramChat);
-
-                            // Record successful share
-                            if (postId) {
-                                this._recordShare(postId, 'telegram', true);
-                            }
-
-                            webviewView.webview.postMessage({ command: 'status', status: 'Shared to Telegram!', type: 'success' });
-                        } catch (error: any) {
-                            // Get the most recent post ID from history for error recording
-                            const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
-                            const mostRecentPost = history[0];
-                            const postId = mostRecentPost?.id;
-
-                            // Record failed share
-                            if (postId) {
-                                this._recordShare(postId, 'telegram', false, error.message);
-                            }
-
-                            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to Telegram: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'updatePost':
-                        const previousPost = this._context.globalState.get('lastPost') as PostData;
-                        if (message.post && previousPost) {
-                            this._context.globalState.update('lastPost', { ...previousPost, text: message.post });
-                        }
-                        return;
-                    case 'selectMediaFile':
-                        try {
-                            const uris = await vscode.window.showOpenDialog({
-                                canSelectFiles: true,
-                                canSelectFolders: false,
-                                canSelectMany: true,
-                                defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
-                                filters: {
-                                    'Images and Videos': ['jpg', 'jpeg', 'png', 'gif', 'mp4']
-                                },
-                                openLabel: 'Select Media Files'
-                            });
-
-                            if (uris && uris.length > 0) {
-                                const mediaFiles = [];
-                                const tempDir = path.join(this._context.extensionPath, 'temp');
-                                await vscode.workspace.fs.createDirectory(vscode.Uri.file(tempDir));
-
-                                for (let i = 0; i < uris.length; i++) {
-                                    const fileUri = uris[i];
-                                    const fileName = path.basename(fileUri.fsPath);
-                                    const stats = await vscode.workspace.fs.stat(fileUri);
-                                    const fileSize = stats.size;
-
-                                    // Copy file to extension's temp directory for web access
-                                    const tempFileUri = vscode.Uri.file(path.join(tempDir, `${Date.now()}_${i}_${fileName}`));
-                                    await vscode.workspace.fs.copy(fileUri, tempFileUri, { overwrite: true });
-
-                                    // Create webview accessible URI for display
-                                    const mediaUri = webviewView.webview.asWebviewUri(tempFileUri);
-
-                                    mediaFiles.push({
-                                        mediaPath: mediaUri.toString(), // For webview display
-                                        mediaFilePath: tempFileUri.fsPath, // For file operations
-                                        fileName: fileName,
-                                        fileSize: fileSize
-                                    });
+                                command: 'redditTokensGenerated',
+                                tokens: {
+                                    accessToken: tokenData.access_token,
+                                    refreshToken: tokenData.refresh_token
                                 }
+                            });
 
-                                // Send array of media files
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: successMessage,
+                                type: 'success'
+                            });
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            // Provide more helpful error message for authentication issues
+                            let userMessage = errorMessage;
+                            if (errorMessage.includes('401')) {
+                                userMessage = 'Invalid Reddit credentials. Please check your Client ID, Secret, Username, and Password.';
+                            } else if (errorMessage.includes('unsupported_grant_type')) {
+                                userMessage = 'Reddit password authentication is not supported. Please use Reddit app with "script" OAuth type.';
+                            } else if (errorMessage.includes('invalid_client')) {
+                                userMessage = 'Invalid Reddit Client ID or Secret. Please check your app credentials.';
+                            }
+                            webviewView.webview.postMessage({ command: 'status', status: `Error generating Reddit tokens: ${userMessage}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'getRedditFlairs': {
+                        try {
+                            const { getRedditFlairs } = await import('./reddit');
+                            const accessToken = await this._context.secrets.get('redditAccessToken') || '';
+
+                            if (!accessToken) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Reddit access token required.', type: 'error' });
+                                return;
+                            }
+
+                            const flairs = await getRedditFlairs(accessToken, message.subreddit);
+                            webviewView.webview.postMessage({
+                                command: 'redditFlairsLoaded',
+                                subreddit: message.subreddit,
+                                flairs: flairs
+                            });
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({ command: 'status', status: `Error loading Reddit flairs: ${errorMessage}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'getRedditUserPosts': {
+                        try {
+                            const { getRedditUserPosts } = await import('./reddit');
+                            const accessToken = await this._context.secrets.get('redditAccessToken') || '';
+
+                            if (!accessToken) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Reddit access token required.', type: 'error' });
+                                return;
+                            }
+
+                            const posts = await getRedditUserPosts(accessToken, message.username, message.limit);
+                            webviewView.webview.postMessage({
+                                command: 'redditUserPostsRetrieved',
+                                posts: posts
+                            });
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({ command: 'status', status: `Error loading Reddit posts: ${errorMessage}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'editRedditPost': {
+                        try {
+                            const { editRedditPost } = await import('./reddit');
+                            const accessToken = await this._context.secrets.get('redditAccessToken') || '';
+
+                            if (!accessToken) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Reddit credentials required.', type: 'error' });
+                                return;
+                            }
+
+                            const success = await editRedditPost(accessToken, message.postId, message.newText);
+
+                            if (success) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Reddit post updated successfully!', type: 'success' });
+                            } else {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Failed to update Reddit post.', type: 'error' });
+                            }
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({ command: 'status', status: `Error updating Reddit post: ${errorMessage}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'deleteRedditPost': {
+                        try {
+                            const { deleteRedditPost } = await import('./reddit');
+                            const accessToken = await this._context.secrets.get('redditAccessToken') || '';
+
+                            if (!accessToken) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Reddit credentials required.', type: 'error' });
+                                return;
+                            }
+
+                            const success = await deleteRedditPost(accessToken, message.postId);
+
+                            if (success) {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Reddit post deleted successfully!', type: 'success' });
+                            } else {
+                                webviewView.webview.postMessage({ command: 'status', status: 'Failed to delete Reddit post.', type: 'error' });
+                            }
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({ command: 'status', status: `Error deleting Reddit post: ${errorMessage}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'loadSavedApis': {
+                        try {
+                            const storageManager = new (await import('./storage-manager')).StorageManager(this._context);
+                            const savedApis = storageManager.loadSavedApis(message.platform);
+                            webviewView.webview.postMessage({
+                                command: 'savedApisLoaded',
+                                savedApis: savedApis
+                            });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error loading saved APIs: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'saveApiConfiguration': {
+                        try {
+                            const { StorageManager } = await import('./storage-manager');
+                            const storageManager = new StorageManager(this._context);
+                            storageManager.saveApiConfiguration(message.apiConfig);
+                            webviewView.webview.postMessage({ command: 'status', status: 'API configuration saved!', type: 'success' });
+                            webviewView.webview.postMessage({ command: 'apiConfigurationSaved' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error saving API configuration: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'deleteApiConfiguration': {
+                        try {
+                            const { StorageManager } = await import('./storage-manager');
+                            const storageManager = new StorageManager(this._context);
+                            storageManager.deleteApiConfiguration(message.apiId);
+                            webviewView.webview.postMessage({ command: 'status', status: 'API configuration deleted!', type: 'success' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error deleting API configuration: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'setDefaultApiConfiguration': {
+                        try {
+                            const { StorageManager } = await import('./storage-manager');
+                            const storageManager = new StorageManager(this._context);
+                            storageManager.setDefaultApiConfiguration(message.platform, message.apiId);
+                            webviewView.webview.postMessage({ command: 'status', status: `${message.platform.charAt(0).toUpperCase() + message.platform.slice(1)} default configuration updated!`, type: 'success' });
+                            webviewView.webview.postMessage({ command: 'defaultConfigurationSet' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error setting default configuration: ${error}`, type: 'error' });
+                        }
+                        return;
+                    }
+                    case 'loadApiConfiguration': {
+                        try {
+                            const { StorageManager } = await import('./storage-manager');
+                            const storageManager = new StorageManager(this._context);
+                            const apiConfig = storageManager.loadApiConfiguration(message.apiId);
+                            if (apiConfig) {
                                 webviewView.webview.postMessage({
-                                    command: 'mediaSelected',
-                                    mediaFiles: mediaFiles
+                                    command: 'apiConfigurationLoaded',
+                                    apiConfig: apiConfig
                                 });
+                            } else {
+                                webviewView.webview.postMessage({ command: 'status', status: 'API configuration not found', type: 'error' });
                             }
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error selecting files: ${error.message}`, type: 'error' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({ command: 'status', status: `Error loading API configuration: ${error}`, type: 'error' });
                         }
                         return;
-                    case 'attachMedia':
-                        if (message.mediaFilePaths && message.mediaFilePaths.length > 0) {
-                            const currentPost = this._context.globalState.get('lastPost') as PostData;
-                            if (currentPost) {
-                                // Store array of filesystem paths for file operations, not webview URLs
-                                const updatedPost = { ...currentPost, media: message.mediaFilePaths };
-                                this._context.globalState.update('lastPost', updatedPost);
-                            }
-                        }
-                        return;
-                    case 'removeMedia':
-                        const currentPost = this._context.globalState.get('lastPost') as PostData;
-                        if (currentPost) {
-                            const updatedPost = { ...currentPost, media: undefined };
-                            this._context.globalState.update('lastPost', updatedPost);
-                        }
-                        return;
-                    case 'removeSingleMedia':
-                        if (message.mediaFilePath) {
-                            const currentPost = this._context.globalState.get('lastPost') as PostData;
-                            if (currentPost && currentPost.media && Array.isArray(currentPost.media)) {
-                                // Remove the specific file from the media array
-                                const updatedMedia = currentPost.media.filter(path => path !== message.mediaFilePath);
-                                const updatedPost = {
-                                    ...currentPost,
-                                    media: updatedMedia.length > 0 ? updatedMedia : undefined
-                                };
-                                this._context.globalState.update('lastPost', updatedPost);
-                            }
-                        }
-                        return;
+                    }
                     case 'loadPostHistory':
-                        const postHistory = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
-                        webviewView.webview.postMessage({
-                            command: 'updatePostHistory',
-                            postHistory: postHistory
-                        });
+                        await this._loadPostHistory(webviewView);
                         return;
-                    case 'loadAnalytics':
+                    case 'loadAnalytics': {
                         const analytics = this._calculateAnalytics();
                         webviewView.webview.postMessage({
                             command: 'updateAnalytics',
                             analytics: analytics
                         });
                         return;
-                    case 'loadScheduledPosts':
-                        const scheduledPosts = this._scheduledPostsStorage.loadScheduledPosts();
-                        webviewView.webview.postMessage({
-                            command: 'updateScheduledPosts',
-                            scheduledPosts: scheduledPosts
-                        });
-                        return;
-                    case 'schedulePost':
+                    }
+                    case 'uploadFile': {
                         try {
-                            if (!message.scheduledTime || !message.selectedPlatforms || message.selectedPlatforms.length === 0) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'Please select date/time and at least one platform.', type: 'error' });
-                                return;
-                            }
+                            // Handle file upload from webview
+                            // Since webviews can't directly save files, we create a virtual attachment
+                            // that can be used for posting to platforms that support media
+                            if (message.file) {
+                                const file = message.file;
+                                console.log('File uploaded:', file.name, file.size, file.type);
 
-                            const currentPost = this._context.globalState.get('lastPost') as PostData;
-                            if (!currentPost || !currentPost.text) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'No post to schedule. Generate a post first.', type: 'error' });
-                                return;
-                            }
-
-                            const selectedModel = this._context.globalState.get('selectedModel') as any;
-
-                            const scheduledPost: ScheduledPost = {
-                                id: generateScheduledPostId(),
-                                scheduledTime: message.scheduledTime,
-                                postData: currentPost,
-                                aiProvider: selectedModel?.provider || 'gemini',
-                                aiModel: selectedModel?.model || 'gemini-2.5-flash',
-                                platforms: message.selectedPlatforms,
-                                status: 'scheduled',
-                                created: new Date().toISOString()
-                            };
-
-                            this._scheduledPostsStorage.addScheduledPost(scheduledPost);
-
-                            // Initialize scheduler if not already done
-                            if (!this._scheduler) {
-                                const storagePath = this._context.globalStorageUri?.fsPath || this._context.extensionPath;
-                                const credentialsGetter = async () => ({
-                                    linkedinToken: await this._context.secrets.get('linkedinToken') || '',
-                                    telegramBot: await this._context.secrets.get('telegramBot') || '',
-                                    telegramChat: await this._context.secrets.get('telegramChat') || ''
-                                });
-                                this._scheduler = new Scheduler(storagePath, undefined, credentialsGetter);
-                                this._scheduler.start();
-                            }
-
-                            webviewView.webview.postMessage({ command: 'status', status: 'Post scheduled successfully!', type: 'success' });
-
-                            // Reload scheduled posts to update the UI
-                            const updatedPosts = this._scheduledPostsStorage.loadScheduledPosts();
-                            webviewView.webview.postMessage({
-                                command: 'updateScheduledPosts',
-                                scheduledPosts: updatedPosts
-                            });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error scheduling post: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'deleteScheduledPost':
-                        try {
-                            if (!message.scheduledPostId) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'No post selected for deletion.', type: 'error' });
-                                return;
-                            }
-
-                            this._scheduledPostsStorage.removeScheduledPost(message.scheduledPostId);
-                            webviewView.webview.postMessage({ command: 'status', status: 'Scheduled post deleted successfully!', type: 'success' });
-
-                            // Reload scheduled posts
-                            const updatedPosts = this._scheduledPostsStorage.loadScheduledPosts();
-                            webviewView.webview.postMessage({
-                                command: 'updateScheduledPosts',
-                                scheduledPosts: updatedPosts
-                            });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error deleting scheduled post: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'retryScheduledPost':
-                        try {
-                            if (!message.scheduledPostId) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'No post selected for retry.', type: 'error' });
-                                return;
-                            }
-
-                            // Reset the post to scheduled status and clear error messages
-                            this._scheduledPostsStorage.updateScheduledPost(message.scheduledPostId, {
-                                status: 'scheduled',
-                                errorMessage: undefined,
-                                platformResults: undefined,
-                                postedTime: undefined
-                            });
-
-                            webviewView.webview.postMessage({ command: 'status', status: 'Scheduled post queued for retry!', type: 'success' });
-
-                            // Reload scheduled posts to refresh UI
-                            const updatedPosts = this._scheduledPostsStorage.loadScheduledPosts();
-                            webviewView.webview.postMessage({
-                                command: 'updateScheduledPosts',
-                                scheduledPosts: updatedPosts
-                            });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error retrying scheduled post: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'editScheduledPost':
-                        try {
-                            if (!message.scheduledPostId) {
-                                webviewView.webview.postMessage({ command: 'status', status: 'No post selected for editing.', type: 'error' });
-                                return;
-                            }
-
-                            const updates: Partial<ScheduledPost> = {};
-
-                            // Update scheduled time if provided
-                            if (message.scheduledTime) {
-                                updates.scheduledTime = message.scheduledTime;
-                            }
-
-                            // Update platforms if provided
-                            if (message.selectedPlatforms) {
-                                updates.platforms = message.selectedPlatforms;
-                            }
-
-                            // Update post text if provided
-                            if (message.postText !== undefined) {
-                                // Get the existing post to preserve media if not changing it
-                                const existingPost = this._scheduledPostsStorage.loadScheduledPosts().find(p => p.id === message.scheduledPostId);
-                                if (existingPost) {
-                                    updates.postData = {
-                                        text: message.postText,
-                                        media: existingPost.postData.media // Preserve existing media
-                                    };
-                                } else {
-                                    updates.postData = { text: message.postText };
-                                }
-                            }
-
-                            // Always reset status to scheduled and clear errors when editing
-                            updates.status = 'scheduled';
-                            updates.errorMessage = undefined;
-                            updates.platformResults = undefined;
-                            updates.postedTime = undefined;
-
-                            this._scheduledPostsStorage.updateScheduledPost(message.scheduledPostId, updates);
-
-                            webviewView.webview.postMessage({ command: 'status', status: 'Scheduled post updated successfully!', type: 'success' });
-
-                            // Reload scheduled posts to refresh UI
-                            const updatedPosts = this._scheduledPostsStorage.loadScheduledPosts();
-                            webviewView.webview.postMessage({
-                                command: 'updateScheduledPosts',
-                                scheduledPosts: updatedPosts
-                            });
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error updating scheduled post: ${error.message}`, type: 'error' });
-                        }
-                        return;
-                    case 'confirmDeleteScheduledPost':
-                        try {
-                            const result = await vscode.window.showWarningMessage(
-                                'Are you sure you want to delete this scheduled post?',
-                                { modal: true },
-                                'Delete'
-                            );
-
-                            if (result === 'Delete') {
-                                this._scheduledPostsStorage.removeScheduledPost(message.scheduledPostId!);
-                                webviewView.webview.postMessage({ command: 'status', status: 'Scheduled post deleted successfully!', type: 'success' });
-
-                                // Reload scheduled posts
-                                const updatedPosts = this._scheduledPostsStorage.loadScheduledPosts();
+                                // Simulate attaching the file (create a temporary reference)
                                 webviewView.webview.postMessage({
-                                    command: 'updateScheduledPosts',
-                                    scheduledPosts: updatedPosts
+                                    command: 'mediaSelected',
+                                    mediaPath: file.url, // temp URL for display
+                                    mediaFilePath: file.url, // same for now
+                                    fileName: file.name,
+                                    fileSize: file.size
+                                });
+
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: `File "${file.name}" uploaded successfully!`,
+                                    type: 'success'
                                 });
                             }
-                        } catch (error: any) {
-                            webviewView.webview.postMessage({ command: 'status', status: `Error deleting scheduled post: ${error.message}`, type: 'error' });
+                        } catch (error: unknown) {
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: `Error uploading file: ${error}`,
+                                type: 'error'
+                            });
                         }
+                        return;
+                    }
+                    default:
+                        console.log('Unhandled message:', message.command);
                         return;
                 }
             },
@@ -635,7 +841,7 @@ class DotShareProvider implements vscode.WebviewViewProvider {
         this._context.globalState.update('lastPost', postData);
     }
 
-    private _recordShare(postId: string, platform: 'linkedin' | 'telegram', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
+    private _recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
         const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
         const postIndex = history.findIndex(post => post.id === postId);
 
@@ -653,29 +859,37 @@ class DotShareProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    private async _loadFromSecretsOrDefault(secretKey: string): Promise<string> {
+        const storageManager = new (await import('./storage-manager')).StorageManager(this._context);
+        return await storageManager.loadFromSecretsOrDefault(secretKey);
+    }
+
     private async _loadConfiguration(webviewView: vscode.WebviewView): Promise<void> {
         try {
-            const savedModel = this._context.globalState.get('selectedModel') as any;
-            let apiKey = '';
-            if (savedModel) {
-                try {
-                    apiKey = await this._context.secrets.get(`${savedModel.provider}ApiKey`) || '';
-                } catch (error) {
-                    console.warn('Failed to retrieve API key from secrets:', error);
-                }
-            }
-
-            // Get social media tokens from secrets
-            const savedLinkedInToken = await this._context.secrets.get('linkedinToken') || '';
-            const savedTelegramBot = await this._context.secrets.get('telegramBot') || '';
-            const savedTelegramChat = await this._context.secrets.get('telegramChat') || '';
+            const storageManager = new (await import('./storage-manager')).StorageManager(this._context);
+            const config = await storageManager.loadConfiguration();
 
             webviewView.webview.postMessage({
                 command: 'updateConfiguration',
-                selectedModel: savedModel ? { ...savedModel, apiKey } : savedModel,
-                linkedinToken: savedLinkedInToken,
-                telegramBot: savedTelegramBot,
-                telegramChat: savedTelegramChat
+                selectedModel: config.selectedModel ? { ...config.selectedModel, apiKey: config.apiKey } : config.selectedModel,
+                linkedinToken: config.linkedinToken,
+                telegramBot: config.telegramBot,
+                telegramChat: config.telegramChat,
+                xAccessToken: config.xAccessToken,
+                xAccessSecret: config.xAccessSecret,
+                facebookToken: config.facebookToken,
+                facebookPageToken: config.facebookPageToken,
+                facebookPageId: config.facebookPageId,
+                discordWebhookUrl: config.discordWebhookUrl,
+                redditAccessToken: config.redditAccessToken,
+                redditRefreshToken: config.redditRefreshToken,
+                redditClientId: config.redditClientId,
+                redditClientSecret: config.redditClientSecret,
+                redditUsername: config.redditUsername,
+                redditPassword: config.redditPassword,
+                redditApiName: config.redditApiName,
+                blueskyIdentifier: config.blueskyIdentifier,
+                blueskyPassword: config.blueskyPassword
             });
         } catch (error) {
             console.error('Error loading configuration:', error);
@@ -730,16 +944,42 @@ class DotShareProvider implements vscode.WebviewViewProvider {
     private _calculateAnalytics(): AnalyticsSummary {
         const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
 
-        let totalPosts = history.length;
+        const totalPosts = history.length;
         let successfulShares = 0;
         let failedShares = 0;
         let linkedinShares = 0;
         let telegramShares = 0;
+        let xShares = 0;
+        let facebookShares = 0;
+        let discordShares = 0;
+        let redditShares = 0;
+        let blueskyShares = 0;
 
         for (const post of history) {
             for (const share of post.shares) {
-                if (share.platform === 'linkedin') linkedinShares++;
-                if (share.platform === 'telegram') telegramShares++;
+                switch (share.platform) {
+                    case 'linkedin':
+                        linkedinShares++;
+                        break;
+                    case 'telegram':
+                        telegramShares++;
+                        break;
+                    case 'x':
+                        xShares++;
+                        break;
+                    case 'facebook':
+                        facebookShares++;
+                        break;
+                    case 'discord':
+                        discordShares++;
+                        break;
+                    case 'reddit':
+                        redditShares++;
+                        break;
+                    case 'bluesky':
+                        blueskyShares++;
+                        break;
+                }
 
                 if (share.success) {
                     successfulShares++;
@@ -758,8 +998,135 @@ class DotShareProvider implements vscode.WebviewViewProvider {
             failedShares,
             linkedinShares,
             telegramShares,
+            xShares,
+            facebookShares,
+            discordShares,
+            redditShares,
+            blueskyShares,
             successRate
         };
+    }
+
+    private async shareToFacebookWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
+        void webviewView, void post, void message, void postId;
+        throw new Error('Facebook sharing not yet implemented');
+    }
+
+    private async shareToDiscordWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
+        void webviewView, void post, void message, void postId;
+        throw new Error('Discord sharing not yet implemented');
+    }
+
+    private async shareToXWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
+        void webviewView, void post, void message, void postId;
+        throw new Error('X/Twitter sharing not yet implemented');
+    }
+
+    private async shareToRedditWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<string | undefined> {
+        try {
+            const msg = message as { redditAccessToken?: string; redditRefreshToken?: string; post?: string; redditSubreddit?: string; redditTitle?: string; redditFlairId?: string; redditPostType?: string; redditSpoiler?: boolean };
+            const { shareToReddit } = await import('./reddit');
+            const credentials = {
+                accessToken: msg.redditAccessToken || '',
+                refreshToken: msg.redditRefreshToken || undefined // Allow undefined for script apps
+            };
+
+            // Create Reddit post data from message
+            const redditPostData = {
+                text: msg.post || '',
+                media: post.media, // Pass through any media
+                subreddit: msg.redditSubreddit?.startsWith('r/') ? msg.redditSubreddit.substring(2) : msg.redditSubreddit || '',
+                title: msg.redditTitle || '',
+                flairId: msg.redditFlairId,
+                isSelfPost: msg.redditPostType !== 'link',
+                spoiler: msg.redditSpoiler
+            };
+
+            const postIdOnPlatform = await shareToReddit(credentials.accessToken, credentials.refreshToken, redditPostData);
+
+            // Record the share
+            if (postId) {
+                this._recordShare(postId, 'reddit', true, undefined, postIdOnPlatform);
+            }
+
+            webviewView.webview.postMessage({ command: 'status', status: 'Successfully posted to Reddit!', type: 'success' });
+            return postIdOnPlatform;
+        } catch (error: unknown) {
+            console.error('Error sharing to Reddit:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            if (postId) {
+                this._recordShare(postId, 'reddit', false, errorMessage);
+            }
+
+            throw new Error(`Reddit sharing failed: ${errorMessage}`);
+        }
+    }
+
+    private async shareToLinkedInWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
+        try {
+            const msg = message as { linkedinToken?: string };
+            const linkedinToken = msg.linkedinToken || await this._context.secrets.get('linkedinToken') || '';
+
+            const { shareToLinkedIn } = await import('./linkedin');
+
+            await shareToLinkedIn(post, linkedinToken, {
+                onSuccess: (message: string) => {
+                    webviewView.webview.postMessage({ command: 'status', status: message, type: 'success' });
+                    if (postId) {
+                        this._recordShare(postId, 'linkedin', true);
+                    }
+                },
+                onError: (message: string) => {
+                    webviewView.webview.postMessage({ command: 'status', status: message, type: 'error' });
+                    if (postId) {
+                        this._recordShare(postId, 'linkedin', false, message);
+                    }
+                }
+            });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to LinkedIn: ${errorMessage}`, type: 'error' });
+            if (postId) {
+                this._recordShare(postId, 'linkedin', false, errorMessage);
+            }
+        }
+    }
+
+    private async shareToTelegramWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
+        try {
+            const msg = message as { telegramBot?: string; telegramChat?: string };
+            const telegramBot = msg.telegramBot || await this._context.secrets.get('telegramBot') || '';
+            const telegramChat = msg.telegramChat || await this._context.secrets.get('telegramChat') || '';
+
+            const { shareToTelegram } = await import('./telegram');
+
+            await shareToTelegram(post, telegramBot, telegramChat, {
+                onSuccess: (message: string) => {
+                    webviewView.webview.postMessage({ command: 'status', status: message, type: 'success' });
+                    if (postId) {
+                        this._recordShare(postId, 'telegram', true);
+                    }
+                },
+                onError: (message: string) => {
+                    webviewView.webview.postMessage({ command: 'status', status: message, type: 'error' });
+                    if (postId) {
+                        this._recordShare(postId, 'telegram', false, message);
+                    }
+                }
+            });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            webviewView.webview.postMessage({ command: 'status', status: `Error sharing to Telegram: ${errorMessage}`, type: 'error' });
+            if (postId) {
+                this._recordShare(postId, 'telegram', false, errorMessage);
+            }
+        }
+    }
+
+    private async shareToBlueSkyWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
+                void webviewView, void post, void message, void postId;
+        throw new Error('BlueSky sharing not yet implemented');
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
@@ -767,14 +1134,16 @@ class DotShareProvider implements vscode.WebviewViewProvider {
         let html = fs.readFileSync(indexPath, 'utf-8');
 
         // Replace resource paths with webview URIs
-        const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'style.css'));
+        const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'assets', 'style.css'));
         const jsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'app.js'));
 
-        html = html.replace('./style.css', cssUri.toString());
+        html = html.replace('./assets/style.css', cssUri.toString());
         html = html.replace('./app.js', jsUri.toString());
 
         return html;
     }
 }
 
-export function deactivate() {}
+export function deactivate(): void {
+    // Cleanup if needed - currently no resources to clean up
+}

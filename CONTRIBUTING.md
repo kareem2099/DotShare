@@ -44,3 +44,8 @@ This project adheres to a code of conduct. By participating, you are expected to
 ## Questions?
 
 If you have questions, please open an issue on GitHub or contact the maintainers.
+
+## Contact
+
+- Email: kareem209907@gmail.com
+- GitHub: [kareem2099](https://github.com/kareem2099)

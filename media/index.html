@@ -4,7 +4,7 @@ n<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DotShare</title>
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./assets/style.css">
 </head>
 <body>
     <header>
@@ -27,149 +27,520 @@ n<!DOCTYPE html>
         </div>
     </header>
 
-    <section class="api-settings">
-        <h2 data-key="socialMedia">Social Media</h2>
-        <div class="platform-settings">
-            <div class="platform-card linkedin">
-                <h3>LinkedIn <span class="badge optional" data-key="optional">Optional</span></h3>
-                <p data-key="linkedinDesc">Share directly to your LinkedIn feed</p>
-                <div class="input-group">
-                    <label for="linkedinToken" data-key="accessTokenLabel">Access Token</label>
-                    <input type="password" id="linkedinToken" placeholder="" data-key="linkedinTokenPlaceholder">
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button class="tab-nav-btn active" data-tab="platforms">
+            <span class="tab-icon">🔗</span>
+            <span data-key="platformsTab">Platforms</span>
+        </button>
+        <button class="tab-nav-btn" data-tab="create">
+            <span class="tab-icon">✨</span>
+            <span data-key="createPost">Create Post</span>
+        </button>
+        <button class="tab-nav-btn" data-tab="analytics">
+            <span class="tab-icon">📊</span>
+            <span data-key="analyticsTab">Analytics</span>
+        </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+
+        <!-- Platforms Setup Tab -->
+        <div class="tab-pane active" id="platformsTab">
+            <section class="api-settings">
+                <div class="section-header">
+                    <h2 data-key="socialMedia">⚙️ Platform Configuration</h2>
+                    <p>Set up your social media accounts</p>
                 </div>
-                <details class="guidelines">
-                    <summary data-key="howToGetLinkedinToken">How to get a LinkedIn Access Token</summary>
-                    <ol>
-                        <li>Go to <a href="https://developer.linkedin.com/" target="_blank">LinkedIn Developers</a></li>
-                        <li>Create an app and get your app credentials</li>
-                        <li>Use OAuth 2.0 to generate a user access token</li>
-                        <li>Note: Requires approval for certain scopes</li>
-                    </ol>
-                    <p><em data-key="linkedinNote">Without token, sharing will open LinkedIn in your browser</em></p>
+                <div class="platform-settings">
+                    <div class="platform-card linkedin">
+                        <div class="card-header">
+                            <h3>LinkedIn</h3>
+                            <button class="saved-apis-btn" data-platform="linkedin">📚 Saved APIs</button>
+                        </div>
+                        <div class="account-selector" id="accountSelector_linkedin" style="display: none;">
+                            <label for="accountSelect_linkedin">Active Account:</label>
+                            <select id="accountSelect_linkedin" class="account-select">
+                                <option value="">No saved accounts</option>
+                            </select>
+                        </div>
+                        <p data-key="linkedinDesc">Share directly to your LinkedIn feed</p>
+                        <div class="input-group">
+                            <label for="linkedinToken" data-key="accessTokenLabel">Access Token</label>
+                            <input type="password" id="linkedinToken" placeholder="" data-key="linkedinTokenPlaceholder">
+                        </div>
+                        <details class="guidelines">
+                            <summary data-key="howToGetLinkedinToken">How to get a LinkedIn Access Token</summary>
+                            <ol>
+                                <li>Go to <a href="https://developer.linkedin.com/" target="_blank">LinkedIn Developers</a></li>
+                                <li>Create an app and get your app credentials</li>
+                                <li>Use OAuth 2.0 to generate a user access token</li>
+                                <li>Note: Requires approval for certain scopes</li>
+                            </ol>
+                            <p><em data-key="linkedinNote">Without token, sharing will open LinkedIn in your browser</em></p>
+                        </details>
+                    </div>
+
+                    <div class="platform-card telegram">
+                        <div class="card-header">
+                            <h3>Telegram</h3>
+                            <button class="saved-apis-btn" data-platform="telegram">📚 Saved APIs</button>
+                        </div>
+                        <div class="account-selector" id="accountSelector_telegram" style="display: none;">
+                            <label for="accountSelect_telegram">Active Account:</label>
+                            <select id="accountSelect_telegram" class="account-select">
+                                <option value="">No saved accounts</option>
+                            </select>
+                        </div>
+                        <p data-key="telegramDesc">Send posts to Telegram channels or groups</p>
+                        <div class="input-group">
+                            <label for="telegramBot" data-key="botTokenLabel">Bot Token</label>
+                            <input type="password" id="telegramBot" placeholder="" data-key="telegramBotPlaceholder">
+                        </div>
+                        <div class="input-group">
+                            <label for="telegramChat" data-key="chatIdLabel">Chat ID</label>
+                            <input type="text" id="telegramChat" placeholder="" data-key="telegramChatPlaceholder">
+                        </div>
+                        <details class="guidelines">
+                            <summary data-key="howToGetTelegramBot">How to get a Telegram Bot</summary>
+                            <ol>
+                                <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram</li>
+                                <li>Send <code>/newbot</code> and follow the instructions</li>
+                                <li>Copy the bot token provided</li>
+                                <li>For Chat ID: Add your bot to a group or channel, or use your user ID. <a href="https://t.me/DotFreeID_bot" target="_blank">Get your User ID using @DotFreeID_bot</a></li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <div class="platform-card x">
+                        <div class="card-header">
+                            <h3>X/Twitter</h3>
+                            <button class="saved-apis-btn" data-platform="x">📚 Saved APIs</button>
+                        </div>
+                        <p data-key="xTwitterDescription">Share real-time updates to X</p>
+                        <div class="input-group">
+                            <label for="xAccessToken">Access Token</label>
+                            <input type="password" id="xAccessToken" placeholder="Enter your X Access Token">
+                        </div>
+                        <div class="input-group">
+                            <label for="xAccessSecret">Access Secret</label>
+                            <input type="password" id="xAccessSecret" placeholder="Enter your X Access Secret">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get X/Twitter credentials</summary>
+                            <ol>
+                                <li>Create a Twitter Developer Account</li>
+                                <li>Go to <a href="https://developer.twitter.com/" target="_blank">Twitter Developers</a></li>
+                                <li>Create an app and get your access tokens</li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <div class="platform-card facebook">
+                        <div class="card-header">
+                            <h3>Facebook</h3>
+                            <button class="saved-apis-btn" data-platform="facebook">📚 Saved APIs</button>
+                        </div>
+                        <div class="account-selector" id="accountSelector_facebook" style="display: none;">
+                            <label for="accountSelect_facebook">Active Account:</label>
+                            <select id="accountSelect_facebook" class="account-select">
+                                <option value="">No saved accounts</option>
+                            </select>
+                        </div>
+                        <p data-key="facebookDescription">Share to Facebook profiles and pages</p>
+                        <div class="input-group">
+                            <label for="facebookToken">Access Token</label>
+                            <input type="password" id="facebookToken" placeholder="Enter your Facebook Access Token">
+                        </div>
+                        <div class="input-group">
+                            <label for="facebookPageToken">Page Token (Optional)</label>
+                            <input type="password" id="facebookPageToken" placeholder="Page access token for posting to pages">
+                        </div>
+                        <div class="input-group">
+                            <label for="facebookPageId">Page ID (Optional)</label>
+                            <input type="text" id="facebookPageId" placeholder="Facebook page ID">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get Facebook tokens</summary>
+                            <ol>
+                                <li>Create a Facebook App at <a href="https://developers.facebook.com/" target="_blank">developers.facebook.com</a></li>
+                                <li>Get your user access token for profile posting</li>
+                                <li>For pages: Get page access token and page ID</li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <div class="platform-card discord">
+                        <div class="card-header">
+                            <h3>Discord</h3>
+                            <button class="saved-apis-btn" data-platform="discord">📚 Saved APIs</button>
+                        </div>
+                        <div class="account-selector" id="accountSelector_discord" style="display: none;">
+                            <label for="accountSelect_discord">Active Account:</label>
+                            <select id="accountSelect_discord" class="account-select">
+                                <option value="">No saved accounts</option>
+                            </select>
+                        </div>
+                        <p data-key="discordDescription">Post updates to Discord channels via webhooks</p>
+                        <div class="input-group">
+                            <label for="discordWebhook">Webhook URL</label>
+                            <input type="url" id="discordWebhook" placeholder="Enter your Discord webhook URL">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get Discord webhook</summary>
+                            <ol>
+                                <li>Go to your Discord server settings</li>
+                                <li>Navigate to Integrations → Webhooks</li>
+                                <li>Create a new webhook and copy the URL</li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <div class="platform-card reddit">
+                        <div class="card-header">
+                            <h3>Reddit</h3>
+                            <button class="saved-apis-btn" data-platform="reddit">📚 Saved APIs</button>
+                        </div>
+                        <div class="account-selector" id="accountSelector_reddit" style="display: none;">
+                            <label for="accountSelect_reddit">Active Account:</label>
+                            <select id="accountSelect_reddit" class="account-select">
+                                <option value="">No saved accounts</option>
+                            </select>
+                        </div>
+                        <p data-key="redditDescription">Share posts to Reddit communities</p>
+
+                        <!-- Reddit Subreddit Selection (only shown when Reddit is configured) -->
+                        <div id="redditSubredditSection" class="reddit-subreddit-section" style="display: none;">
+                            <div class="section-divider">
+                                <span class="divider-text">Community Selection</span>
+                            </div>
+                            <div class="input-group">
+                                <label for="redditPostSubreddit">Target Reddit Community</label>
+                                <div class="subreddit-input-group">
+                                    <span class="subreddit-prefix">r/</span>
+                                    <input type="text" id="redditPostSubreddit" placeholder="programming, u/alexjohnson or technology..." class="subreddit-input">
+                                </div>
+                                <small>Enter r/community for subreddits or u/username for user profiles</small>
+                            </div>
+                            <div class="subreddit-suggestions">
+                                <span class="suggestion-title">Communities:</span>
+                                <button class="subreddit-suggestion" data-subreddit="programming">r/programming</button>
+                                <button class="subreddit-suggestion" data-subreddit="technology">r/technology</button>
+                                <button class="subreddit-suggestion" data-subreddit="javascript">r/javascript</button>
+                                <button class="subreddit-suggestion" data-subreddit="webdev">r/webdev</button>
+                            </div>
+                        </div>
+
+                        <!-- Existing token inputs -->
+                        <div class="input-group">
+                            <label for="redditAccessToken">Access Token</label>
+                            <input type="password" id="redditAccessToken" placeholder="Enter your Reddit Access Token">
+                        </div>
+                        <!-- <div class="input-group">
+                            <label for="redditRefreshToken">Refresh Token</label>
+                            <input type="password" id="redditRefreshToken" placeholder="Enter your Reddit Refresh Token">
+                        </div> -->
+
+                        <!-- Token Generation Section -->
+                        <div class="token-generation-section">
+                            <div class="section-divider">
+                                <span class="divider-text">Or Generate Tokens Automatically</span>
+                            </div>
+                            <div class="token-gen-form">
+                                <div class="input-group">
+                                    <label for="redditClientId">Client ID</label>
+                                    <input type="text" id="redditClientId" placeholder="App client ID from Reddit">
+                                </div>
+                                <div class="input-group">
+                                    <label for="redditClientSecret">Client Secret</label>
+                                    <input type="password" id="redditClientSecret" placeholder="App client secret from Reddit">
+                                </div>
+                                <div class="input-group">
+                                    <label for="redditApiName">Configuration Name</label>
+                                    <input type="text" id="redditApiName" placeholder="e.g., Personal Account" value="Reddit Account">
+                                </div>
+                                <div class="input-group">
+                                    <label for="redditUsername">Reddit Username</label>
+                                    <input type="text" id="redditUsername" placeholder="Your Reddit username">
+                                </div>
+                                <div class="input-group">
+                                    <label for="redditPassword">Reddit Password</label>
+                                    <input type="password" id="redditPassword" placeholder="Your Reddit password">
+                                </div>
+                                <button id="generateRedditTokensBtn" class="generate-tokens-btn">
+                                    <span class="btn-icon">🔑</span>
+                                    <span>Generate Tokens</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <details class="guidelines">
+                            <summary>How to get Reddit credentials</summary>
+                            <ol>
+                                <li>
+                                    <strong>Create Reddit App:</strong> Go to <a href="https://www.reddit.com/prefs/apps" target="_blank">Reddit Apps</a>
+                                </li>
+                                <li>
+                                    <strong>Fill Details:</strong>
+                                    <ul>
+                                        <li>Name: Your app name</li>
+                                        <li>App type: "script"</li>
+                                        <li>Redirect URI: <code>http://localhost:8080</code></li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <strong>Get Credentials:</strong> Copy Client ID and Client Secret from the app
+                                </li>
+                                <li>
+                                    <strong>Generate Tokens:</strong> Enter your Reddit login details above and click "Generate Tokens"
+                                </li>
+                                <li>
+                                    <strong>Ready:</strong> Tokens will be automatically saved and configured
+                                </li>
+                            </ol>
+                            <div class="guidance-note">
+                                <p><strong>💡 Tip:</strong> The system automatically handles token refresh - you only need to do this setup once!</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="platform-card bluesky">
+                        <div class="card-header">
+                            <h3>BlueSky</h3>
+                            <button class="saved-apis-btn" data-platform="bluesky">📚 Saved APIs</button>
+                        </div>
+                        <div class="account-selector" id="accountSelector_bluesky" style="display: none;">
+                            <label for="accountSelect_bluesky">Active Account:</label>
+                            <select id="accountSelect_bluesky" class="account-select">
+                                <option value="">No saved accounts</option>
+                            </select>
+                        </div>
+                        <p data-key="blueskyDescription">Share posts to the decentralized BlueSky network</p>
+                        <div class="input-group">
+                            <label for="blueskyIdentifier">Username/Handle</label>
+                            <input type="text" id="blueskyIdentifier" placeholder="your-handle.bsky.social">
+                        </div>
+                        <div class="input-group">
+                            <label for="blueskyPassword">App Password</label>
+                            <input type="password" id="blueskyPassword" placeholder="Enter your BlueSky app password">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get BlueSky credentials</summary>
+                            <ol>
+                                <li>Go to <a href="https://bsky.app/settings/app-passwords" target="_blank">BlueSky app passwords</a></li>
+                                <li>Create an app password (not your main password)</li>
+                                <li>Use your handle as username (e.g. yourname.bsky.social)</li>
+                            </ol>
+                        </details>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Create Post Tab -->
+        <div class="tab-pane" id="createTab">
+            <div class="workspace">
+                <div class="post-creation">
+                    <div class="section-header">
+                        <h2 data-key="createPost">🚀 Create Your Post</h2>
+                        <p data-key="createPostDesc">Generate engaging content and share across platforms</p>
+                    </div>
+
+                    <section class="post-editor">
+                        <div class="editor-header">
+                            <h3>📝 Write Your Post</h3>
+                            <button id="generateBtn" class="editor-action-btn">
+                                <span>🧠</span> Generate AI Content
+                            </button>
+                        </div>
+                        <textarea id="postText" placeholder="Write your post here... or use AI to generate content"></textarea>
+                        <div class="post-type-indicator">
+                            <span id="postTypeIndicator">Manual Post</span>
+                        </div>
+                    </section>
+
+                    <section class="generate-section" style="border-top: 1px solid #e1e5e9; padding-top: 20px; margin-top: 20px;">
+                        <div class="generate-controls">
+                            <label>🤖 AI Enhancement (Optional):</label>
+                            <button id="generateBtnSecondary" class="generate-secondary-btn" disabled>
+                                <div class="btn-content">
+                                    <span class="btn-icon">🎲</span>
+                                    <span class="btn-text">Generate Content</span>
+                                </div>
+                            </button>
+                            <div id="selectedAIBadge" class="selected-model-badge"></div>
+                        </div>
+                        <p class="generate-note">
+                            <small>Use AI to generate content and enhance your manual post, or start typing above to create your post manually.</small>
+                        </p>
+                    </section>
+
+                    <section class="media-section">
+                        <div id="mediaAttachment" class="media-always-visible">
+                            <h3>📎 Media Attachment</h3>
+                            <div id="uploadArea" class="modern-upload-area">
+                                <div class="upload-zone">
+                                    <div class="upload-prompt">
+                                        <span class="upload-icon">📁</span>
+                                        <span class="upload-text">Drop files or click to browse</span>
+                                        <span class="upload-hint">Supports images (JPG, PNG, GIF) and videos (MP4)</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="fileInput" accept="image/*,video/mp4" style="display: none;">
+                            </div>
+                            <div id="attachedFile" class="modern-attached-file" style="display: none;">
+                                <div class="file-preview">
+                                    <span class="file-icon">📄</span>
+                                </div>
+                                <div class="file-meta">
+                                    <span id="fileName" class="file-name"></span>
+                                    <span id="fileSize" class="file-size"></span>
+                                </div>
+                                <button id="removeMediaBtn" class="file-remove-btn">🗑️</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="platform-chooser">
+                        <div class="section-header">
+                            <h3 data-key="selectPlatforms">🌐 Select Platforms</h3>
+                            <p data-key="selectPlatformsDesc">Choose where to share your post</p>
+                        </div>
+                        <div id="dynamicPlatformSelector" class="platform-selector">
+                            <div class="no-platforms-available">
+                                <span class="no-platforms-icon">⚠️</span>
+                            <span class="no-platforms-text">Configure your API keys in the Platforms tab first</span>
+                            <button class="switch-to-platforms-btn" data-key="platformsTab">Go to Platforms</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="action-section">
+                        <div class="action-buttons">
+                            <button id="scheduleBtn" class="action-btn secondary">
+                                <span class="btn-icon">⏰</span>
+                                <span>Schedule Post</span>
+                            </button>
+                            <button id="shareSelectedBtn" class="action-btn primary disabled">
+                                <span class="btn-icon">🚀</span>
+                                <span>Share Now</span>
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="preview-panel">
+                    <div class="panel-header">
+                        <h3>📱 Preview</h3>
+                        <span class="preview-count">0 selected</span>
+                    </div>
+                    <div id="platformPreview" class="platform-preview-list">
+                        <div class="preview-placeholder">
+                            <span class="placeholder-icon">🔮</span>
+                            <span class="placeholder-text">Select platforms to see preview</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-pane" id="analyticsTab">
+            <section class="analytics-section">
+                <div class="section-header">
+                    <h2>📊 Analytics Dashboard</h2>
+                    <p>Track your post performance and scheduling</p>
+                </div>
+
+                <div class="analytics-summary">
+                    <div class="analytics-grid">
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="totalPosts">Total Posts:</span>
+                            <span class="analytics-value" id="totalPostsValue">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="successRate">Success Rate:</span>
+                            <span class="analytics-value" id="successRateValue">0%</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="linkedinShares">LinkedIn Shares:</span>
+                            <span class="analytics-value" id="linkedinSharesValue">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="telegramShares">Telegram Shares:</span>
+                            <span class="analytics-value" id="telegramSharesValue">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="facebookShares">Facebook Shares:</span>
+                            <span class="analytics-value" id="facebookSharesValue">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="discordShares">Discord Shares:</span>
+                            <span class="analytics-value" id="discordSharesValue">0</span>
+                        </div>
+                        <div class="analytics-item">
+                            <span class="analytics-label" data-key="blueskyShares">BlueSky Shares:</span>
+                            <span class="analytics-value" id="blueskySharesValue">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="post-history">
+                <details class="history-accordion">
+                    <summary data-key="postHistory">Post History & Analytics</summary>
+
+                    <div class="history-list" id="historyList">
+                        <p data-key="noHistory">No posts in history yet. Generate your first post!</p>
+                    </div>
                 </details>
-            </div>
+            </section>
 
-            <div class="platform-card telegram">
-                <h3>Telegram <span class="badge required" data-key="required">Required</span></h3>
-                <p data-key="telegramDesc">Send posts to Telegram channels or groups</p>
-                <div class="input-group">
-                    <label for="telegramBot" data-key="botTokenLabel">Bot Token</label>
-                    <input type="password" id="telegramBot" placeholder="" data-key="telegramBotPlaceholder">
-                </div>
-                <div class="input-group">
-                    <label for="telegramChat" data-key="chatIdLabel">Chat ID</label>
-                    <input type="text" id="telegramChat" placeholder="" data-key="telegramChatPlaceholder">
-                </div>
-                <details class="guidelines">
-                    <summary data-key="howToGetTelegramBot">How to get a Telegram Bot</summary>
-                    <ol>
-                        <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram</li>
-                        <li>Send <code>/newbot</code> and follow the instructions</li>
-                        <li>Copy the bot token provided</li>
-                        <li>For Chat ID: Add your bot to a group or channel, or use your user ID. <a href="https://t.me/DotFreeID_bot" target="_blank">Get your User ID using @DotFreeID_bot</a></li>
-                    </ol>
+            <section class="scheduled-posts" id="scheduledPosts">
+                <details class="history-accordion">
+                    <summary data-key="scheduledPosts">📅 Scheduled Posts</summary>
+                    <div class="scheduled-list" id="scheduledList">
+                        <p data-key="noScheduled">No scheduled posts yet. Schedule your first post!</p>
+                    </div>
                 </details>
-            </div>
-        </div>
-    </section>
+            </section>
 
-    <section class="actions">
-        <h2 data-key="postGen">Post Generation</h2>
-        <div class="action-buttons">
-            <button id="generateBtn" class="primary-btn">
-                <span class="icon">✨</span>
-                <span data-key="generateAI">Generate AI Post</span>
-            </button>
-            <button id="scheduleBtn" class="success-btn">
-                <span class="icon">⏰</span>
-                <span data-key="schedulePost">Schedule Post</span>
-            </button>
-            <button id="shareLinkedInBtn" disabled>
-                <span class="icon">💼</span>
-                <span data-key="shareLinkedIn">Share to LinkedIn</span>
-            </button>
-            <button id="shareTelegramBtn" disabled>
-                <span class="icon">📱</span>
-                <span data-key="shareTelegram">Share to Telegram</span>
-            </button>
-        </div>
-    </section>
-
-    <section class="media-attachment" id="mediaAttachment" style="display: none;">
-        <h3 data-key="mediaAttachment">Media Attachment</h3>
-        <div id="uploadArea" class="upload-area">
-            <div class="upload-content">
-                <div class="upload-icon">📎</div>
-                <p data-key="dragDropFiles">Drag & drop files here or</p>
-                <button id="uploadBtn" class="upload-btn">Choose File</button>
-                <p class="upload-hint" data-key="supportedFormats">Supported: Images (JPG, PNG, GIF) and Videos (MP4)</p>
-            </div>
-            <input type="file" id="fileInput" accept="image/*,video/mp4" style="display: none;">
-        </div>
-        <div id="attachedFile" class="attached-file" style="display: none;">
-            <div class="file-info">
-                <div class="file-icon">📄</div>
-                <div class="file-details">
-                    <span id="fileName" class="file-name"></span>
-                    <span id="fileSize" class="file-size"></span>
-                </div>
-            </div>
-            <button id="removeMediaBtn" class="remove-btn" data-key="removeMedia">Remove</button>
-        </div>
-    </section>
-
-    <section class="post-output">
-        <div class="post-header">
-            <label for="postText">Generated Post</label>
-            <button id="editPostBtn" class="secondary-btn" style="display: none;">Edit Post</button>
-        </div>
-        <textarea id="postText" readonly placeholder="Your AI-generated post will appear here..."></textarea>
-        <div id="editControls" style="display: none;">
-            <button id="savePostBtn" class="primary-btn">Save Changes</button>
-            <button id="cancelPostBtn" class="secondary-btn">Cancel</button>
-        </div>
-        <div id="status" class="status-message" style="display: none;"></div>
-    </section>
-
-    <section class="post-history" id="postHistory" style="display: none;">
-        <details class="history-accordion">
-            <summary data-key="postHistory">Post History & Analytics</summary>
-
-            <div class="analytics-summary">
-                <div class="analytics-grid">
-                    <div class="analytics-item">
-                        <span class="analytics-label" data-key="totalPosts">Total Posts:</span>
-                        <span class="analytics-value" id="totalPostsValue">0</span>
+            <section class="reddit-management" id="redditManagement">
+                <details class="history-accordion">
+                    <summary>🟠 Reddit Post Management</summary>
+                    <div class="reddit-management-header">
+                        <button id="loadRedditPostsBtn" class="load-reddit-btn">
+                            <span class="btn-icon">📋</span>
+                            <span>Load My Posts</span>
+                        </button>
                     </div>
-                    <div class="analytics-item">
-                        <span class="analytics-label" data-key="successRate">Success Rate:</span>
-                        <span class="analytics-value" id="successRateValue">0%</span>
+                    <div id="redditPostsList" class="reddit-posts-list">
+                        <div class="reddit-posts-container">
+                            <div class="reddit-post-item">
+                                <div class="reddit-post-content">
+                                    <div class="reddit-post-header">
+                                        <span class="reddit-post-subreddit">Configure Reddit tokens first</span>
+                                        <span class="reddit-post-score"></span>
+                                    </div>
+                                    <div class="reddit-post-title">Click "Load My Posts" to view your Reddit posts for editing and deletion.</div>
+                                    <div class="reddit-post-meta">
+                                        <span class="reddit-post-time"></span>
+                                        <a href="#" class="reddit-post-link"></a>
+                                    </div>
+                                </div>
+                                <div class="reddit-post-actions">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="analytics-item">
-                        <span class="analytics-label" data-key="linkedinShares">LinkedIn Shares:</span>
-                        <span class="analytics-value" id="linkedinSharesValue">0</span>
-                    </div>
-                    <div class="analytics-item">
-                        <span class="analytics-label" data-key="telegramShares">Telegram Shares:</span>
-                        <span class="analytics-value" id="telegramSharesValue">0</span>
-                    </div>
-                </div>
-            </div>
+                </details>
+            </section>
+        </div>
 
-            <div class="history-list" id="historyList">
-                <p data-key="noHistory">No posts in history yet. Generate your first post!</p>
-            </div>
-        </details>
     </section>
 
-    <section class="scheduled-posts" id="scheduledPosts" style="display: none;">
-        <details class="history-accordion">
-            <summary data-key="scheduledPosts">📅 Scheduled Posts</summary>
-            <div class="scheduled-list" id="scheduledList">
-                <p data-key="noScheduled">No scheduled posts yet. Schedule your first post!</p>
-            </div>
-        </details>
-    </section>
+
 
     <section class="model-selection">
         <button id="configureAIBtn" class="model-select-btn">
@@ -178,6 +549,66 @@ n<!DOCTYPE html>
         </button>
         <div id="selectedAIDisplay" class="selected-model-display"></div>
     </section>
+
+    <!-- Reddit Post Settings Modal -->
+    <div id="redditPostModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🟠 Reddit Post Settings</h3>
+                <span id="closeRedditPostModal" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="redditSubreddit">Subreddit</label>
+                    <input type="text" id="redditSubreddit" placeholder="e.g., r/programming, r/technology" required>
+                    <small>Select the subreddit where you want to post</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="redditTitle">Post Title</label>
+                    <input type="text" id="redditTitle" placeholder="Enter an engaging title..." maxlength="300">
+                    <small>Title is required for Reddit posts (first 300 chars shown)</small>
+                </div>
+
+                <div class="input-group">
+                    <label for="redditFlair">Post Flair (Optional)</label>
+                    <select id="redditFlair">
+                        <option value="">No flair</option>
+                        <!-- Flairs will be loaded dynamically -->
+                    </select>
+                    <small>Add flair to categorize your post</small>
+                </div>
+
+                <div class="input-group">
+                    <label>Post Type</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="redditPostType" value="self" checked> Text Post (Self Post)
+                        </label>
+                        <label>
+                            <input type="radio" name="redditPostType" value="link"> Link Post
+                        </label>
+                    </div>
+                    <small>Choose whether this is a text post or link to external content</small>
+                </div>
+
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="redditSpoiler"> Mark as Spoiler
+                        <small>Hide post content behind a spoiler warning</small>
+                    </label>
+                </div>
+
+                <div id="redditWarnings" class="reddit-warnings" style="display: none;">
+                    <!-- Subreddit warnings will appear here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelRedditPostBtn" class="secondary-btn">Cancel</button>
+                <button id="shareRedditPostBtn" class="primary-btn">Share to Reddit</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Schedule Post Modal -->
     <div id="scheduleModal" class="modal" style="display: none;">
@@ -199,6 +630,9 @@ n<!DOCTYPE html>
                         </label>
                         <label>
                             <input type="checkbox" id="scheduleTelegram" value="telegram"> 📱 Telegram
+                        </label>
+                        <label>
+                            <input type="checkbox" id="scheduleReddit" value="reddit"> 🟠 Reddit
                         </label>
                     </div>
                 </div>
@@ -237,6 +671,9 @@ n<!DOCTYPE html>
                         </label>
                         <label>
                             <input type="checkbox" id="editScheduleTelegram" value="telegram"> 📱 Telegram
+                        </label>
+                        <label>
+                            <input type="checkbox" id="editScheduleReddit" value="reddit"> 🟠 Reddit
                         </label>
                     </div>
                 </div>
@@ -345,6 +782,48 @@ n<!DOCTYPE html>
             </div>
         </div>
     </div>
+
+    <!-- Saved APIs Modal -->
+    <div id="savedApisModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Saved API Configurations <span id="currentPlatformName"></span></h3>
+                <span id="closeSavedApisModal" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="saved-apis-section">
+                    <div class="saved-apis-header">
+                        <h4>Your Saved API Sets</h4>
+                        <button id="addNewApiSetBtn" class="add-new-btn">➕ Add New</button>
+                    </div>
+                    <div id="savedApisList" class="saved-apis-list">
+                        <div class="no-saved-apis">
+                            <p>No saved API configurations yet.</p>
+                            <p>Click "Add New" to save your first API set.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="editApiForm" class="edit-api-form" style="display: none;">
+                    <h4 id="formTitle">Add New API Configuration</h4>
+                    <div class="input-group">
+                        <label for="apiSetName">Configuration Name</label>
+                        <input type="text" id="apiSetName" placeholder="e.g., Personal, Work, Business..." required>
+                    </div>
+                    <div id="apiFields" class="api-fields">
+                        <!-- API fields will be dynamically inserted here -->
+                    </div>
+                    <div class="form-actions">
+                        <button id="saveApiSetBtn" class="primary-btn">💾 Save Configuration</button>
+                        <button id="cancelApiEditBtn" class="secondary-btn">❌ Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Message -->
+    <div id="statusMessage" class="status-message" style="display: none;"></div>
 
     <script src="./app.js"></script>
 </body>

@@ -81,7 +81,7 @@ async function scanProjectFiles(workspacePath: string, projectType: string): Pro
                 }
 
                 content += `${file}:\n${fileContent.substring(0, 1000)}${fileContent.length > 1000 ? '...[truncated]' : ''}\n\n`;
-            } catch (e) {
+            } catch {
                 // Skip if can't read
             }
         }
@@ -123,7 +123,7 @@ async function getGitInfo(workspacePath: string): Promise<{latestCommit: string,
     }
 }
 
-export async function generatePost(apiKey: string, model: string = 'grok-beta'): Promise<PostData | null> {
+export async function generatePost(apiKey: string, model = 'grok-beta'): Promise<PostData | null> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         vscode.window.showErrorMessage('No workspace folder found.');
@@ -193,20 +193,21 @@ Post should be engaging, under 280 characters, and include 1-2 relevant hashtags
             text: generatedText.trim(),
             media: undefined
         };
-    } catch (error: any) {
-        let errorMessage = `xAI API Error: ${error.message}`;
-        if (error.message?.includes('401')) {
-            errorMessage = 'Invalid xAI API key. Please check your credentials.';
-        } else if (error.message?.includes('429')) {
-            errorMessage = 'xAI API rate limit exceeded. Please try again later.';
-        } else if (error.message?.includes('fetch')) {
-            errorMessage = 'Network error connecting to xAI API. Check internet connection.';
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let detailedMessage = `xAI API Error: ${errorMessage}`;
+        if (errorMessage.includes('401')) {
+            detailedMessage = 'Invalid xAI API key. Please check your credentials.';
+        } else if (errorMessage.includes('429')) {
+            detailedMessage = 'xAI API rate limit exceeded. Please try again later.';
+        } else if (errorMessage.includes('fetch')) {
+            detailedMessage = 'Network error connecting to xAI API. Check internet connection.';
         }
 
-        vscode.window.showErrorMessage(errorMessage);
+        vscode.window.showErrorMessage(detailedMessage);
 
         // Fallback response for development
-        if (error.message?.includes('fetch') || error.message?.includes('Failed to fetch')) {
+        if (errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
             const fallbackText = `🚀 Exciting updates in ${projectData.projectName}! Just pushed new features including major improvements to our ${projectType} codebase. Check out the latest changes with enhanced performance and better developer experience. #opensource #${projectType}`;
             return {
                 text: fallbackText,
@@ -218,19 +219,20 @@ Post should be engaging, under 280 characters, and include 1-2 relevant hashtags
     }
 }
 
-export async function getAvailableModels(apiKey: string): Promise<string[]> {
+export async function getAvailableModels(): Promise<string[]> {
     try {
         // Placeholder for xAI API call to list models
         // const response = await fetch('https://api.x.ai/v1/models', {
         //     headers: { 'Authorization': `Bearer ${apiKey}` }
         // });
         // const data = await response.json();
-        // return data.models.map((model: any) => model.id);
-        
+        // return data.models.map((model) => model.id);
+
         // For now, return hardcoded models
         return ['grok-beta', 'grok-1'];
-    } catch (error: any) {
-        vscode.window.showErrorMessage(`xAI API Error fetching models: ${error.message}`);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`xAI API Error fetching models: ${errorMessage}`);
         throw error; // Re-throw to be caught by extension.ts
     }
 }

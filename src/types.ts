@@ -4,7 +4,7 @@ export interface PostData {
 }
 
 export interface ShareRecord {
-    platform: 'linkedin' | 'telegram';
+    platform: 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky';
     timestamp: string;
     success: boolean;
     errorMessage?: string;
@@ -26,6 +26,11 @@ export interface AnalyticsSummary {
     failedShares: number;
     linkedinShares: number;
     telegramShares: number;
+    xShares: number;
+    facebookShares: number;
+    discordShares: number;
+    redditShares: number;
+    blueskyShares: number;
     successRate: number;
 }
 
@@ -35,7 +40,7 @@ export interface ScheduledPost {
     postData: PostData;
     aiProvider: 'gemini' | 'openai' | 'xai';
     aiModel: string;
-    platforms: ('linkedin' | 'telegram')[]; // Which platforms to post to
+    platforms: ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[]; // Which platforms to post to
     status: 'scheduled' | 'processing' | 'posted' | 'failed';
     created: string; // When this scheduled post was created
     errorMessage?: string;
@@ -51,25 +56,238 @@ export interface ScheduledPost {
             messageId?: string;
             errorMessage?: string;
         };
+        x?: {
+            success: boolean;
+            postId?: string;
+            errorMessage?: string;
+        };
+        facebook?: {
+            success: boolean;
+            postId?: string;
+            errorMessage?: string;
+        };
+        discord?: {
+            success: boolean;
+            messageId?: string;
+            errorMessage?: string;
+        };
+        reddit?: {
+            success: boolean;
+            postId?: string;
+            errorMessage?: string;
+            score?: number;
+            comments?: number;
+            permalink?: string;
+        };
+        bluesky?: {
+            success: boolean;
+            postId?: string;
+            errorMessage?: string;
+        };
     };
+}
+
+export interface LinkedInPostTarget {
+    type: 'profile' | 'page';
+    id?: string; // Organization ID for pages
+    name?: string; // Organization name for pages
+}
+
+export interface SelectedModel {
+    provider: 'gemini' | 'openai' | 'xai';
+    model: string;
+    apiKey?: string; // Optional since it can be empty for storage
 }
 
 export interface Message {
     command: string;
-    geminiKey?: string;
+    selectedModel?: SelectedModel;
     linkedinToken?: string;
+    linkedinTarget?: LinkedInPostTarget; // New: for LinkedIn profile/page posting
     telegramBot?: string;
     telegramChat?: string;
+    xAccessToken?: string;
+    xAccessSecret?: string;
+    facebookToken?: string;
+    facebookPageToken?: string;
+    facebookPageId?: string;
+    discordWebhookUrl?: string;
+    redditAccessToken?: string;
+    redditRefreshToken?: string;
+    redditSubreddit?: string;
+    redditClientId?: string;
+    redditClientSecret?: string;
+    redditUsername?: string;
+    redditPassword?: string;
+    redditApiName?: string;
+    blueskyIdentifier?: string;
+    blueskyPassword?: string;
     post?: string;
     mediaPath?: string; // Webview URL for display in UI
-    mediaFilePath?: string; // Filesystem path for file operations
+    mediaFilePath?: string; // Filesystem path for operations
     fileName?: string;
     fileSize?: number;
+    mediaFiles?: Array<{
+        mediaPath: string;
+        mediaFilePath: string;
+        fileName: string;
+        fileSize: number;
+    }>;
+    mediaFilePaths?: string[];
+    postText?: string;
     postHistory?: HistoricalPost[];
     analytics?: AnalyticsSummary;
+    // Status messages
+    status?: string;
+    type?: 'success' | 'error';
+    // Reddit-specific fields
+    redditTitle?: string;
+    redditFlairId?: string;
+    redditPostType?: 'self' | 'link';
+    redditSpoiler?: boolean;
     // Scheduled posts
     scheduledPosts?: ScheduledPost[];
     scheduledTime?: string; // ISO string for scheduling
-    selectedPlatforms?: ('linkedin' | 'telegram')[];
+    selectedPlatforms?: ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[];
     scheduledPostId?: string; // For edit/delete operations
+    // Saved APIs
+    platform?: string;
+    savedApis?: ApiConfiguration[];
+    apiId?: string;
+    apiConfig?: ApiConfiguration;
+    // Reddit token generation
+    tokens?: {
+        accessToken: string;
+        refreshToken: string;
+        clientId: string;
+        clientSecret: string;
+    };
+    // Reddit post management
+    posts?: RedditPost[];
+    username?: string;
+    limit?: number;
+    postId?: string;
+    newText?: string;
+    // Model management
+    provider?: 'gemini' | 'openai' | 'xai';
+    geminiModels?: string[];
+    openaiModels?: string[];
+    xaiModels?: string[];
+}
+
+export interface APIError {
+    message: string;
+    code?: string | number;
+}
+
+export interface LinkedInError {
+    serviceErrorCode: number;
+    message: string;
+    status: number;
+}
+
+export interface RedditError {
+    error?: {
+        message: string;
+        type: string;
+    };
+    errors?: Array<[string, string, string?]>;
+}
+
+export interface SchedulerCredentials {
+    linkedinToken: string;
+    telegramBot: string;
+    telegramChat: string;
+    xAccessToken: string;
+    xAccessSecret: string;
+    facebookToken: string;
+    facebookPageToken: string;
+    facebookPageId: string;
+    discordWebhookUrl: string;
+    redditAccessToken: string;
+    redditRefreshToken: string;
+    blueskyIdentifier: string;
+    blueskyPassword: string;
+}
+
+// API Configuration system types
+export interface LinkedInApiConfig {
+    linkedinToken: string;
+}
+
+export interface TelegramApiConfig {
+    telegramBot: string;
+    telegramChat: string;
+}
+
+export interface XApiConfig {
+    xAccessToken: string;
+    xAccessSecret: string;
+}
+
+export interface FacebookApiConfig {
+    facebookToken: string;
+    facebookPageToken?: string;
+    facebookPageId?: string;
+}
+
+export interface DiscordApiConfig {
+    discordWebhook: string;
+}
+
+export interface RedditApiConfig {
+    redditAccessToken: string;
+    redditRefreshToken: string;
+}
+
+export interface BlueskyApiConfig {
+    blueskyIdentifier: string;
+    blueskyPassword: string;
+}
+
+export type ApiCredentials = LinkedInApiConfig | TelegramApiConfig | XApiConfig | FacebookApiConfig | DiscordApiConfig | RedditApiConfig | BlueskyApiConfig;
+
+export interface SavedApiConfiguration {
+    id: string;
+    name: string;
+    platform: 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky';
+    created: string;
+    lastUsed?: string;
+    isDefault?: boolean; // Whether this is the default configuration for auto-fill
+    credentials: ApiCredentials;
+}
+
+export interface MediaFile {
+    mediaPath: string; // Webview URL for display
+    mediaFilePath: string; // Filesystem path for operations
+    fileName: string;
+    fileSize: number;
+}
+
+export interface ApiConfiguration {
+    id: string;
+    name: string;
+    platform: string;
+    credentials: {
+        [key: string]: string;
+    };
+    created: string;
+    lastUsed?: string;
+    isDefault?: boolean;
+}
+
+export interface RedditPost {
+    id: string;
+    title: string;
+    subreddit: string;
+    score: number;
+    permalink: string;
+    created: number;
+}
+
+export interface AccountOption {
+    id: string;
+    name: string;
+    isDefault?: boolean;
+    lastUsed?: string;
 }

@@ -51,6 +51,11 @@ const { ScheduledPostsStorage } = require('../out/scheduled-posts.js');
 const { Scheduler } = require('../out/scheduler.js');
 const { shareToLinkedIn } = require('../out/linkedin.js');
 const { shareToTelegram } = require('../out/telegram.js');
+const { shareToX } = require('../out/x.js');
+const { shareToFacebook } = require('../out/facebook.js');
+const { shareToDiscord } = require('../out/discord.js');
+const { shareToReddit } = require('../out/reddit.js');
+const { shareToBlueSky } = require('../out/bluesky.js');
 
 // Default config location
 const DEFAULT_CONFIG_PATH = path.join(require('os').homedir(), '.dotshare-config.json');
@@ -92,7 +97,17 @@ CONFIG FILE FORMAT:
   "credentials": {
     "linkedinToken": "your_linkedin_token_here",
     "telegramBot": "your_telegram_bot_token",
-    "telegramChat": "your_telegram_chat_id"
+    "telegramChat": "your_telegram_chat_id",
+    "xAccessToken": "your_x_access_token",
+    "xAccessSecret": "your_x_access_secret",
+    "facebookToken": "your_facebook_token",
+    "facebookPageToken": "your_facebook_page_token",
+    "facebookPageId": "your_facebook_page_id",
+    "discordWebhookUrl": "your_discord_webhook_url",
+    "redditAccessToken": "your_reddit_access_token",
+    "redditRefreshToken": "your_reddit_refresh_token",
+    "blueskyIdentifier": "your_bluesky_handle",
+    "blueskyPassword": "your_bluesky_password"
   }
 }
 
@@ -139,7 +154,17 @@ function createCredentialsGetter(credentials) {
     return async () => ({
         linkedinToken: credentials.linkedinToken,
         telegramBot: credentials.telegramBot,
-        telegramChat: credentials.telegramChat
+        telegramChat: credentials.telegramChat,
+        xAccessToken: credentials.xAccessToken,
+        xAccessSecret: credentials.xAccessSecret,
+        facebookToken: credentials.facebookToken,
+        facebookPageToken: credentials.facebookPageToken,
+        facebookPageId: credentials.facebookPageId,
+        discordWebhookUrl: credentials.discordWebhookUrl,
+        redditAccessToken: credentials.redditAccessToken,
+        redditRefreshToken: credentials.redditRefreshToken,
+        blueskyIdentifier: credentials.blueskyIdentifier,
+        blueskyPassword: credentials.blueskyPassword
     });
 }
 

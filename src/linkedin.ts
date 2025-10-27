@@ -64,7 +64,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
                 const uploadRequest = await axios.post('https://api.linkedin.com/v2/assets?action=registerUpload', mediaData, {
                     headers: { Authorization: `Bearer ${accessToken}` }
                 });
-                const uploadUrl = uploadRequest.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+                const uploadUrl = uploadRequest.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest' as keyof typeof uploadRequest.data.value.uploadMechanism].uploadUrl;
                 const assetUrn = uploadRequest.data.value.asset;
 
                 // Upload file with correct content type
@@ -88,7 +88,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         }
 
         // Post content
-        const postData: any = {
+        const postData: Record<string, unknown> = {
             "author": `urn:li:person:${personId}`,
             "lifecycleState": "PUBLISHED",
             "specificContent": {
@@ -106,19 +106,22 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
 
         if (mediaUploads && mediaUploads.length > 0) {
             // Determine media category based on file types
-            const hasVideo = post.media!.some(file => file.toLowerCase().endsWith('.mp4'));
-            const hasImage = post.media!.some(file => !file.toLowerCase().endsWith('.mp4'));
+            const hasVideo = post.media?.some(file => file.toLowerCase().endsWith('.mp4')) || false;
+            const hasImage = post.media?.some(file => !file.toLowerCase().endsWith('.mp4')) || false;
+
+            const specificContent = postData.specificContent as Record<string, Record<string, unknown>>;
+            const shareContent = specificContent["com.linkedin.ugc.ShareContent"];
 
             if (hasVideo && hasImage) {
                 // LinkedIn supports carousels with mixed media
-                postData.specificContent["com.linkedin.ugc.ShareContent"].shareMediaCategory = "CAROUSEL";
+                (shareContent as Record<string, unknown>).shareMediaCategory = "CAROUSEL";
             } else if (hasVideo) {
-                postData.specificContent["com.linkedin.ugc.ShareContent"].shareMediaCategory = "VIDEO";
+                (shareContent as Record<string, unknown>).shareMediaCategory = "VIDEO";
             } else {
-                postData.specificContent["com.linkedin.ugc.ShareContent"].shareMediaCategory = "IMAGE";
+                (shareContent as Record<string, unknown>).shareMediaCategory = "IMAGE";
             }
 
-            postData.specificContent["com.linkedin.ugc.ShareContent"].media = mediaUploads;
+            (shareContent as Record<string, unknown>).media = mediaUploads;
         }
 
         await axios.post('https://api.linkedin.com/v2/ugcPosts', postData, {
@@ -132,7 +135,13 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
             vscode.window.showInformationMessage(successMessage);
         }
     } catch (error) {
-        const errorMessage = 'Failed to post to LinkedIn: ' + ((error as any).response?.data?.message || (error as Error).message);
+        let errorMessage = 'Failed to post to LinkedIn';
+        if (error instanceof Error) {
+            errorMessage += `: ${error.message}`;
+        } else if (axios.isAxiosError(error) && error.response?.data?.message) {
+            errorMessage += `: ${error.response.data.message}`;
+        }
+
         if (callbacks?.onError) {
             callbacks.onError(errorMessage);
         } else if (isVscodeEnvironment) {

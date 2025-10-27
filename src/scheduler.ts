@@ -1,35 +1,19 @@
 import { ScheduledPostsStorage } from './scheduled-posts';
-import { shareToLinkedIn } from './linkedin';
-import { shareToTelegram } from './telegram';
+import { CredentialProvider, PlatformCredentials } from './credential-provider';
+import { PostExecutor, PlatformResult } from './post-executor';
 import { ScheduledPost } from './types';
 
 export class Scheduler {
     private static readonly CHECK_INTERVAL = 5000; // Check every 5 seconds
     private intervalId?: NodeJS.Timeout;
     private storage: ScheduledPostsStorage;
-    private credentialsGetter?: () => Promise<{
-        linkedinToken?: string;
-        telegramBot?: string;
-        telegramChat?: string;
-    }>;
-    private credentials?: {
-        linkedinToken?: string;
-        telegramBot?: string;
-        telegramChat?: string;
-    };
+    private credentialProvider: CredentialProvider;
+    private postExecutor: PostExecutor;
 
-    constructor(storagePath: string, credentials?: {
-        linkedinToken?: string;
-        telegramBot?: string;
-        telegramChat?: string;
-    }, credentialsGetter?: () => Promise<{
-        linkedinToken?: string;
-        telegramBot?: string;
-        telegramChat?: string;
-    }>) {
+    constructor(storagePath: string, credentials?: PlatformCredentials, credentialsGetter?: () => Promise<PlatformCredentials>) {
         this.storage = new ScheduledPostsStorage(storagePath);
-        this.credentials = credentials;
-        this.credentialsGetter = credentialsGetter;
+        this.credentialProvider = new CredentialProvider(credentials, credentialsGetter);
+        this.postExecutor = new PostExecutor(this.credentialProvider);
     }
 
     public start(): void {
@@ -80,50 +64,15 @@ export class Scheduler {
             console.log(`Executing scheduled post: ${post.id}`);
 
             // Execute for each selected platform
-            const platformResults: any = {};
+            const platformResults: Record<string, PlatformResult> = {};
 
             for (const platform of post.platforms) {
-                try {
-                    if (platform === 'linkedin') {
-                        const linkedinToken = await this.getLinkedInToken();
-                        if (linkedinToken) {
-                            await shareToLinkedIn(post.postData, linkedinToken);
-                            platformResults.linkedin = {
-                                success: true,
-                                postId: undefined // Could be enhanced to capture post ID
-                            };
-                        } else {
-                            platformResults.linkedin = {
-                                success: false,
-                                errorMessage: 'LinkedIn token not configured'
-                            };
-                        }
-                    } else if (platform === 'telegram') {
-                        const telegramCredentials = await this.getTelegramCredentials();
-                        if (telegramCredentials.botToken && telegramCredentials.chatId) {
-                            await shareToTelegram(post.postData, telegramCredentials.botToken, telegramCredentials.chatId);
-                            platformResults.telegram = {
-                                success: true,
-                                messageId: undefined // Could be enhanced to capture message ID
-                            };
-                        } else {
-                            platformResults.telegram = {
-                                success: false,
-                                errorMessage: 'Telegram credentials not configured'
-                            };
-                        }
-                    }
-                } catch (error: any) {
-                    console.error(`Failed to post to ${platform}:`, error);
-                    platformResults[platform] = {
-                        success: false,
-                        errorMessage: error.message
-                    };
-                }
+                const result = await this.postExecutor.executePostForPlatform(platform, post.postData);
+                platformResults[platform] = result;
             }
 
             // Check if any platform succeeded
-            const hasSuccess = Object.values(platformResults).some((result: any) => result.success);
+            const hasSuccess = Object.values(platformResults).some((result) => result && typeof result === 'object' && 'success' in result && result.success === true);
 
             if (hasSuccess) {
                 // Move to post history
@@ -136,7 +85,7 @@ export class Scheduler {
             } else {
                 // All platforms failed
                 const errorMessages = Object.values(platformResults)
-                    .map((result: any) => result.errorMessage)
+                    .map((result) => result && typeof result === 'object' && 'errorMessage' in result ? result.errorMessage : null)
                     .filter(Boolean)
                     .join('; ');
 
@@ -149,41 +98,20 @@ export class Scheduler {
                 console.log(`Scheduled post ${post.id} failed to post on all platforms`);
             }
 
-        } catch (error: any) {
-            console.error(`Error executing scheduled post ${post.id}:`, error);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error(`Error executing scheduled post ${post.id}:`, errorMessage);
 
             this.storage.updateScheduledPost(post.id, {
                 status: 'failed',
-                errorMessage: error.message
+                errorMessage
             });
         }
     }
 
-    private async moveToPostHistory(post: ScheduledPost, platformResults: any): Promise<void> {
+    private async moveToPostHistory(post: ScheduledPost, platformResults: Record<string, unknown>): Promise<void> {
         // This would be enhanced in the main extension to actually move to history
         // For now, just create a share record
         console.log(`Would move post ${post.id} to history with results:`, platformResults);
-    }
-
-    private async getLinkedInToken(): Promise<string | undefined> {
-        if (this.credentialsGetter) {
-            const freshCredentials = await this.credentialsGetter();
-            return freshCredentials.linkedinToken;
-        }
-        return this.credentials?.linkedinToken;
-    }
-
-    private async getTelegramCredentials(): Promise<{botToken?: string, chatId?: string}> {
-        if (this.credentialsGetter) {
-            const freshCredentials = await this.credentialsGetter();
-            return {
-                botToken: freshCredentials.telegramBot,
-                chatId: freshCredentials.telegramChat
-            };
-        }
-        return {
-            botToken: this.credentials?.telegramBot,
-            chatId: this.credentials?.telegramChat
-        };
     }
 }

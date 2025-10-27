@@ -1,0 +1,37 @@
+
+- [x] Fix VS Code API multiple acquisition error preventing webview from loading (ALL files updated: post-history, scheduled-posts, modal-handlers, media-attachments)
+- [x] Fix vscode undefined error in modal handlers causing "Choose AI Model" button to fail (lazy vscode getter function in modal-handlers)
+- [x] Fix Saved APIs modal close button (X) event listener missing from event-handlers.ts
+- [x] Fix analytics dashboard showing zeros - added tab click refresh logic
+- [x] Fix automatic configuration loading when extension opens (tokens, model settings, etc.) - added to webview initialization
+- [x] Fix remaining vscode undefined errors during initialization - moved lazy vscode access before function usage
+- [x] Remove "Required"/"Optional" badges from platform cards - cleaned up UI
+- [x] Fix platform selector not showing configured platforms - synchronized DOM element initialization and detection logic
+- [x] Fix post-history.ts vscode undefined error - added getVscode() lazy accessor pattern
+- [x] Add manual post creation support (writable textarea by default)
+- [x] Make media upload always visible (not dependent on AI generation)
+- [x] Update UI to support manual post creation workflow - reorganized layout with manual writing first, AI second
+- [x] Rebuild webview with manual post creation changes
+- [x] Debug why Schedule Post and Share Now buttons aren't activating when platforms selected - FIXED: added platform checkbox event listeners
+- [x] Fix button enable/disable logic for manual posts - COMPLETED: buttons now enable when platforms selected and text exists
+- [x] Fix media upload drag-and-drop and click-to-browse functionality - IMPLEMENTED: added full drag-and-drop, click-to-browse, file validation, and backend message handling
+- [x] Fix 'postMessage undefined' error during initialization - FIXED: moved DOM-dependent event listeners to window.load event
+- [x] Ensure media upload initialization happens after DOM is ready - COMPLETED: all initialization moved to window.load
+- [x] Test drag-and-drop and click-to-browse functionality after fixes
+- [x] Fix media attachment section visibility for manual posts - REMOVED text dependency so it shows immediately
+- [x] Fix media attachment click handler to work on entire area - Expanded clickable area to cover the whole media attachment section instead of just the upload area
+- [x] Add null checks for drag and drop handlers - Added proper null checks for media attachment elements to prevent runtime errors
+- [x] Fix vscode.postMessage calls to use safe accessor - Replaced all unsafe direct `vscode.postMessage()` calls with safe `getVscode()?.postMessage()` accessors across 6 files (media-attachments, platform-handlers, event-handlers, main.ts, saved-apis, scheduled-posts)
+- [x] Add LinkedIn & Telegram share message handlers - Implemented missing message handlers in src/extension.ts for shareToLinkedIn and shareToTelegram commands
+- [x] Fix individual share buttons to send manual post content - Added post text validation and inclusion for LinkedIn/Telegram single-button shares
+- [x] Implement multi-platform sharing with manual posts - Updated shareSelectedPlatforms function to share current textarea content to all selected platforms with attached media
+- [x] Include attached media in all sharing operations - Added mediaFilePaths to all share messages from attachedMediaPath variable
+- [x] Test manual post sharing and media inclusion - Verified manual posts now share instead of AI-generated posts, with media attachments included
+- [x] Add Reddit subreddit selection section - Implemented Reddit modal that opens for subreddit/title/flair selection when sharing to Reddit
+- [x] Fix Reddit sharing errors - Removed hardcoded subreddit, now opens modal for user to select subreddit and configure post details
+- [x] Add inline Reddit subreddit input field - Added subreddit input field in Reddit platform card (Communities section) that shows when Reddit is configured
+- [x] Make subreddit field show/hide based on Reddit configuration - Subreddit section only visible when Reddit access token is set
+- [x] Add subreddit suggestion buttons - Popular subreddits like programming, technology, javascript, webdev can be clicked to auto-fill
+- [x] Add support for Reddit user profiles (u/) - Users can now type or select u/username for posting to user profiles in addition to r/subreddit communities
+- [x] Implement dynamic prefix change (r/ vs u/) - Input field prefix changes automatically based on what user types or selects
+- [x] Add validation for both subreddit and user profile targets - API validates both r/community and u/username targets before posting

@@ -84,7 +84,7 @@ async function scanProjectFiles(workspacePath: string, projectType: string): Pro
 
                 // Add file content to summary (limit each file to 1000 chars to avoid token limits)
                 content += `${file}:\n${fileContent.substring(0, 1000)}${fileContent.length > 1000 ? '...[truncated]' : ''}\n\n`;
-            } catch (e) {
+            } catch {
                 // Skip if can't read
             }
         }
@@ -131,7 +131,7 @@ async function getGitInfo(workspacePath: string): Promise<{latestCommit: string,
     }
 }
 
-export async function generatePost(geminiKey: string, modelName: string = 'gemini-pro'): Promise<PostData | null> {
+export async function generatePost(geminiKey: string, modelName = 'gemini-pro'): Promise<PostData | null> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         vscode.window.showErrorMessage('No workspace folder found.');
@@ -174,8 +174,7 @@ Do NOT mention any technologies or features not found in the files above. If the
 Post should be engaging, under 280 characters, and include 1-2 relevant hashtags from the project context.
 `.trim();
 
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const model = new GoogleGenerativeAI(geminiKey).getGenerativeModel({ model: modelName });
 
     try {
         const result = await model.generateContent(contextPrompt);
@@ -186,24 +185,25 @@ Post should be engaging, under 280 characters, and include 1-2 relevant hashtags
             text: generatedText.trim(),
             media: undefined // User can add media separately in the UI
         };
-    } catch (error: any) {
+    } catch (error: unknown) {
         // Provide more detailed error info
-        let errorMessage = `Gemini API Error: ${error.message}`;
-        if (error.message?.includes('quota')) {
-            errorMessage = 'API quota exceeded. Check your Gemini API usage.';
-        } else if (error.message?.includes('key')) {
-            errorMessage = 'Invalid API key. Please check your Gemini API key.';
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let detailedMessage = `Gemini API Error: ${errorMessage}`;
+        if (errorMessage?.includes('quota')) {
+            detailedMessage = 'API quota exceeded. Check your Gemini API usage.';
+        } else if (errorMessage?.includes('key')) {
+            detailedMessage = 'Invalid API key. Please check your Gemini API key.';
         }
 
-        vscode.window.showErrorMessage(errorMessage);
+        vscode.window.showErrorMessage(detailedMessage);
         throw error;
     }
 }
 
-export async function getAvailableModels(geminiKey: string): Promise<string[]> {
+export async function getAvailableModels(): Promise<string[]> {
     try {
         // Verify API key by attempting to create a model instance
-        const genAI = new GoogleGenerativeAI(geminiKey);
+        // const genAI = new GoogleGenerativeAI(geminiKey);
         // Hard-coded list of available models, sorted by latest first
         const models = [
             'gemini-2.5-flash',
@@ -211,8 +211,9 @@ export async function getAvailableModels(geminiKey: string): Promise<string[]> {
             'gemini-2.5-flash-lite-preview-06-17',
         ];
         return models;
-    } catch (error: any) {
-        vscode.window.showErrorMessage(`Gemini API Error fetching models: ${error.message}`);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`Gemini API Error fetching models: ${errorMessage}`);
         throw error; // Re-throw to be caught by extension.ts
     }
 }
