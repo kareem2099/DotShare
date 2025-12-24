@@ -1,31 +1,33 @@
-// @ts-ignore
+interface VSCodeAPI {
+    postMessage(message: unknown): void;
+}
+
+interface PendingRedditShare {
+    text: string;
+    mediaFilePaths: string[];
+}
+
+declare const vscode: VSCodeAPI;
+
 declare global {
-    const vscode: any;
+    interface Window {
+        pendingRedditShare?: PendingRedditShare;
+    }
 }
 
 // Lazy vscode accessor to avoid import-time undefined issues
-const getVscode = () => (window as any).vscode;
+const getVscode = () => vscode;
 
-import { openModal, closeModalFunc, applyModel, switchProviderTab, closeSavedApisModal, openSavedApisModal } from './modal-handlers';
-
-// @ts-ignore
-import { Message } from '../../../src/types';
+import { openModal, closeModalFunc, applyModel, switchProviderTab, closeSavedApisModal, openSavedApisModal, handleDirectShare } from './modal-handlers';
 import {
-    generateBtn,
-    shareLinkedInBtn,
-    shareTelegramBtn,
     postText,
     editPostBtn,
-    savePostBtn,
-    cancelPostBtn,
     editControls,
     linkedinToken,
     telegramBot,
     telegramChat,
     facebookToken,
     discordWebhook,
-    xAccessToken,
-    xAccessSecret,
     redditAccessToken,
     blueskyIdentifier,
     blueskyPassword,
@@ -42,7 +44,6 @@ import {
     showStatus
 } from '../core/utils';
 import { updateTexts } from '../core/translations';
-import { shareSelectedPlatforms } from '../management/platform-handlers';
 
 // Variables for post editing
 export let originalPost = '';
@@ -99,7 +100,7 @@ export const platformConfigs: { [key: string]: { name: string; fields: { key: st
 };
 
 // Saved APIs Management - moved from app.ts
-export let currentSavedApisPlatform: string = '';
+export const currentSavedApisPlatform = '';
 
 // Function to set up all platform input event listeners (called in window load)
 export function setupPlatformEventListeners() {
@@ -321,7 +322,7 @@ export function initializeCriticalEventListeners() {
     const themeToggle = document.getElementById('themeToggle') as HTMLButtonElement;
     const languageSelect = document.getElementById('languageSelect') as HTMLSelectElement;
     const savedApiButtons = document.querySelectorAll('.saved-apis-btn');
-    const shareSelectedBtn = document.getElementById('shareSelectedBtn') as HTMLButtonElement;
+    const shareBtn = document.getElementById('shareBtn') as HTMLButtonElement;
     const editPostBtnElement = document.getElementById('editPostBtn') as HTMLButtonElement;
     const savePostBtnElement = document.getElementById('savePostBtn') as HTMLButtonElement;
     const cancelPostBtnElement = document.getElementById('cancelPostBtn') as HTMLButtonElement;
@@ -435,9 +436,9 @@ export function initializeCriticalEventListeners() {
         });
     }
 
-    // Share Selected button
-    if (shareSelectedBtn) {
-        shareSelectedBtn.addEventListener('click', shareSelectedPlatforms);
+    // Share button
+    if (shareBtn) {
+        shareBtn.addEventListener('click', handleDirectShare);
     }
 
     // Saved APIs buttons
@@ -575,11 +576,12 @@ export function initializeCriticalEventListeners() {
             e.preventDefault();
             const subreddit = button.getAttribute('data-subreddit');
             if (subreddit && redditPostSubreddit) {
-                if (subreddit.startsWith('r/')) {
-                    redditPostSubreddit.parentElement!.previousElementSibling!.textContent = 'r/';
+                const prefixElement = redditPostSubreddit.parentElement?.previousElementSibling as HTMLElement;
+                if (subreddit.startsWith('r/') && prefixElement) {
+                    prefixElement.textContent = 'r/';
                     redditPostSubreddit.value = subreddit.substring(2);
-                } else if (subreddit.startsWith('u/')) {
-                    redditPostSubreddit.parentElement!.previousElementSibling!.textContent = 'u/';
+                } else if (subreddit.startsWith('u/') && prefixElement) {
+                    prefixElement.textContent = 'u/';
                     redditPostSubreddit.value = subreddit.substring(2);
                 } else {
                     redditPostSubreddit.value = subreddit;
@@ -613,7 +615,7 @@ export function initializeCriticalEventListeners() {
             }
 
             // Get pending share data from window
-            const pendingShare = (window as any).pendingRedditShare;
+            const pendingShare = window.pendingRedditShare;
             if (!pendingShare) {
                 showStatus('No post data found. Please try again.', 'error');
                 return;
@@ -628,7 +630,7 @@ export function initializeCriticalEventListeners() {
             // Collect data and share
             const postData = {
                 text: pendingShare.text,
-                mediaFilePaths: pendingShare.mediaFilePaths || [],
+                mediaFilePaths: pendingShare.mediaFilePaths ?? [],
                 subreddit: subredditInput.value.trim(),
                 title: titleInput.value.trim(),
                 flairId: flairSelect?.value || undefined,
@@ -654,7 +656,7 @@ export function initializeCriticalEventListeners() {
             if (redditModal) redditModal.style.display = 'none';
 
             // Clear pending data
-            delete (window as any).pendingRedditShare;
+            if (window.pendingRedditShare) delete window.pendingRedditShare;
 
             showStatus('Sharing to Reddit...', 'success');
         });
@@ -667,7 +669,7 @@ export function initializeCriticalEventListeners() {
             if (redditModal) redditModal.style.display = 'none';
 
             // Clear pending data
-            delete (window as any).pendingRedditShare;
+            if (window.pendingRedditShare) delete window.pendingRedditShare;
 
             showStatus('Reddit sharing cancelled.', 'success');
         });
@@ -680,7 +682,7 @@ export function initializeCriticalEventListeners() {
             if (redditModal) redditModal.style.display = 'none';
 
             // Clear pending data
-            delete (window as any).pendingRedditShare;
+            if (window.pendingRedditShare) delete window.pendingRedditShare;
 
             showStatus('Reddit sharing cancelled.', 'success');
         });

@@ -1,9 +1,18 @@
-// @ts-ignore
-declare const acquireVsCodeApi: () => any;
+interface VSCodeAPI {
+    postMessage(message: unknown): void;
+}
+
+declare global {
+    interface Window {
+        vscode: VSCodeAPI;
+    }
+}
+
+declare const acquireVsCodeApi: () => VSCodeAPI;
 
 // SINGLE VS Code API instance - shared globally
 const vscode = acquireVsCodeApi();
-(window as any).vscode = vscode;
+window.vscode = vscode;
 
 // Lazy vscode accessor to avoid undefined issues
 const getVscode = () => vscode;

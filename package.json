@@ -1,17 +1,29 @@
 {
-  "name": "dotshare",
+  "name": "dotshare-cli",
   "displayName": "DotShare",
-  "description": "Share project updates to social media using AI",
-  "version": "2.0.0",
+  "description": "CLI tool for posting to social media platforms - Telegram, LinkedIn, Reddit",
+  "version": "1.0.0",
   "publisher": "freerave",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.74.0",
+    "node": ">=18.0.0"
   },
   "categories": [
     "Other"
   ],
   "icon": "assets/icons/icon.png",
   "main": "./out/extension.js",
+  "bin": {
+    "dotshare": "./bin/dotshare-cli.js"
+  },
+  "files": [
+    "bin/",
+    "out/",
+    "src/cli/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -52,9 +64,10 @@
     "compile": "tsc -p ./",
     "build:webview": "esbuild media/main.ts --bundle --outfile=media/app.js --format=iife --global-name=DotShare --platform=browser --minify",
     "scheduler": "node bin/dotshare-scheduler.js",
+    "cli": "node bin/dotshare-cli.js",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src media bin --ext ts,js",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
@@ -72,7 +85,10 @@
   "dependencies": {
     "@google/generative-ai": "^0.2.0",
     "axios": "^1.6.0",
+    "commander": "^11.1.0",
     "form-data": "^4.0.0",
+    "keytar": "^7.9.0",
+    "open": "^8.4.2",
     "openai": "^6.0.1"
   },
   "keywords": [

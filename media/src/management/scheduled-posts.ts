@@ -1,13 +1,12 @@
 // Scheduled posts management functions - extracted from app.ts
 import { ScheduledPost } from '../../../src/types';
-import { showStatus, getScheduledStatusBadge, scheduledList, scheduledPosts, currentEditingPostId, formatTimestamp, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduleReddit, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat, setCurrentEditingPostId } from '../core/utils';
+import { showStatus, getScheduledStatusBadge, scheduledList, scheduledPosts, currentEditingPostId, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduleReddit, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat, setCurrentEditingPostId } from '../core/utils';
 import { translations } from '../core/translations';
 import { currentLang } from '../core/utils';
 
-// @ts-ignore
 
 // Lazy vscode accessor to avoid undefined issues
-const getVscode = () => (window as any).vscode;
+const getVscode = () => (window as { vscode?: { postMessage: (message: Record<string, unknown>) => void } }).vscode;
 
 export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void {
     if (!scheduledList) return;

@@ -1,6 +1,6 @@
 // Platform-specific handlers - extracted from app.ts
 import { postText, linkedinToken, telegramBot, telegramChat, showStatus } from '../core/utils';
-// @ts-ignore
+
 const vscode = acquireVsCodeApi();
 export function shareSelectedPlatforms() {
     if (!postText)

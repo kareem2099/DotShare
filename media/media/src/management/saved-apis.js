@@ -1,5 +1,5 @@
 import { showStatus } from '../core/utils';
-// @ts-ignore
+
 const vscode = acquireVsCodeApi();
 // Global variable to track current platform being managed
 export let currentSavedApisPlatform = '';

@@ -1,24 +1,35 @@
 import { MediaFile } from '../../../src/types';
-import { formatFileSize, attachedFile, uploadArea, fileInput, fileNameSpan, fileSizeSpan, mediaAttachment, postText, showStatus } from '../core/utils';
+import { formatFileSize, attachedFile, uploadArea, fileInput, fileNameSpan, fileSizeSpan, mediaAttachment, showStatus, removeMediaBtn } from '../core/utils';
+
+interface VSCodeAPI {
+    postMessage(message: unknown): void;
+}
+
+declare const vscode: VSCodeAPI;
 
 // Lazy vscode accessor to avoid undefined issues
-const getVscode = () => (window as any).vscode;
+const getVscode = () => vscode;
 
 export let attachedMediaPath: string | null = null;
+// Store attached media files for sharing
+export let attachedMediaFiles: string[] = [];
 
 export function attachMultipleMedia(mediaFiles: MediaFile[]): void {
-    attachedFile!.style.display = 'flex';
-    uploadArea!.style.display = 'none';
+    // Store the file paths for sharing
+    attachedMediaFiles = mediaFiles.map(file => file.mediaFilePath);
+
+    if (attachedFile) attachedFile.style.display = 'flex';
+    if (uploadArea) uploadArea.style.display = 'none';
 
     if (mediaFiles.length === 1) {
         // Single file - use existing UI
-        fileNameSpan!.textContent = mediaFiles[0].fileName;
-        fileSizeSpan!.textContent = formatFileSize(mediaFiles[0].fileSize);
+        if (fileNameSpan) fileNameSpan.textContent = mediaFiles[0].fileName;
+        if (fileSizeSpan) fileSizeSpan.textContent = formatFileSize(mediaFiles[0].fileSize);
     } else {
         // Multiple files - show count
         const totalSize = mediaFiles.reduce((sum, file) => sum + file.fileSize, 0);
-        fileNameSpan!.textContent = `${mediaFiles.length} files selected`;
-        fileSizeSpan!.textContent = formatFileSize(totalSize);
+        if (fileNameSpan) fileNameSpan.textContent = `${mediaFiles.length} files selected`;
+        if (fileSizeSpan) fileSizeSpan.textContent = formatFileSize(totalSize);
     }
 
     // Send all filesystem paths for storage
@@ -27,21 +38,32 @@ export function attachMultipleMedia(mediaFiles: MediaFile[]): void {
 }
 
 export function attachMedia(mediaPath: string, mediaFilePath: string, fileName: string, fileSize: number): void {
+    // Store the file path for sharing
+    attachedMediaFiles = [mediaFilePath];
+
     // mediaPath is for display, mediaFilePath is for file operations
     attachedMediaPath = mediaPath; // Keep for potential future use in UI
-    attachedFile!.style.display = 'flex';
-    uploadArea!.style.display = 'none';
-    fileNameSpan!.textContent = fileName;
-    fileSizeSpan!.textContent = formatFileSize(fileSize);
+    if (attachedFile) attachedFile.style.display = 'flex';
+    if (uploadArea) uploadArea.style.display = 'none';
+    if (fileNameSpan) fileNameSpan.textContent = fileName;
+    if (fileSizeSpan) fileSizeSpan.textContent = formatFileSize(fileSize);
     // Send filesystem path for storage
     getVscode()?.postMessage({ command: 'attachMedia', mediaFilePath });
 }
 
 export function removeMedia(): void {
+    // Clear attached media files for sharing
+    attachedMediaFiles = [];
+
     attachedMediaPath = null;
-    attachedFile!.style.display = 'none';
-    uploadArea!.style.display = 'flex';
+    if (attachedFile) attachedFile.style.display = 'none';
+    if (uploadArea) uploadArea.style.display = 'flex';
     getVscode()?.postMessage({ command: 'removeMedia' });
+}
+
+// Get attached media for sharing
+export function getAttachedMediaPaths(): string[] {
+    return [...attachedMediaFiles]; // Return a copy
 }
 
 export function showMediaAttachment(): void {
@@ -52,7 +74,7 @@ export function showMediaAttachment(): void {
 }
 
 export function hideMediaAttachment(): void {
-    mediaAttachment!.style.display = 'none';
+    if (mediaAttachment) mediaAttachment.style.display = 'none';
 }
 
 export function validateFile(file: File): boolean {
@@ -74,7 +96,21 @@ export function validateFile(file: File): boolean {
 
 // Initialize media upload event listeners
 export function initializeMediaUpload(): void {
-    if (!mediaAttachment || !fileInput) return;
+    if (!mediaAttachment) return;
+
+    // Add event listener for select media files button
+    const selectMediaBtn = document.getElementById("selectMediaBtn") as HTMLButtonElement;
+    if (selectMediaBtn) {
+        selectMediaBtn.addEventListener('click', () => {
+            showStatus('Opening file dialog...', 'success');
+            getVscode()?.postMessage({ command: "selectMediaFiles" });
+        });
+    }
+
+    // Add event listener for remove media button
+    if (removeMediaBtn) {
+        removeMediaBtn.addEventListener('click', removeMedia);
+    }
 
     // Click on media attachment area triggers file input
     mediaAttachment.addEventListener('click', (e) => {
@@ -95,7 +131,7 @@ export function initializeMediaUpload(): void {
                 return;
             }
         }
-        fileInput!.click();
+        if (fileInput) fileInput.click();
     });
 
     // Drag and drop handlers (only if uploadArea exists)
@@ -107,9 +143,7 @@ export function initializeMediaUpload(): void {
     }
 
     // File input change handler
-    fileInput.addEventListener('change', handleFileSelection);
-
-    console.log('Media upload event listeners initialized');
+    if (fileInput) fileInput.addEventListener('change', handleFileSelection);
 }
 
 // Drag and drop event handlers
@@ -190,25 +224,32 @@ function processSelectedFiles(files: FileList): void {
 }
 
 // Handle individual file upload by sending to VS Code
-function handleFileUpload(file: File): void {
-    // Create a temporary URL for the file
-    const tempUrl = URL.createObjectURL(file);
+async function handleFileUpload(file: File): Promise<void> {
+    try {
+        showStatus(`Processing ${file.name}...`, 'success');
 
-    // Store file temporarily (in a real implementation, we'd save it locally)
-    const fileData = {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: tempUrl
-    };
+        // Convert file to base64 for transmission to extension host
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const base64Data = btoa(String.fromCharCode(...uint8Array));
 
-    // Send to VS Code for processing
-    getVscode()?.postMessage({
-        command: 'uploadFile',
-        file: fileData
-    });
+        // Send file data directly to VS Code for processing
+        const fileData = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            base64Data: base64Data
+        };
 
-    showStatus(`Processing ${file.name}...`, 'success');
+        // Send to VS Code for processing
+        getVscode()?.postMessage({
+            command: 'uploadFile',
+            file: fileData
+        });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        showStatus(`Failed to process ${file.name}: ${errorMessage}`, 'error');
+    }
 }
 
 // Add CSS class for drag-over visual feedback

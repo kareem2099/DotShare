@@ -3,12 +3,12 @@ import { updateTexts, currentLang } from './src/core/translations';
 import { initializeDOMElements } from './src/ui/ui-initialization';
 import { initializeCriticalEventListeners } from './src/handlers/event-handlers';
 import { loadHistoryAndAnalytics, updatePostHistory, updateAnalytics, showPostHistory } from './src/management/post-history';
-import { attachMultipleMedia, attachMedia, showMediaAttachment } from './src/management/media-attachments';
+import { attachMultipleMedia, attachMedia, showMediaAttachment, initializeMediaUpload, addDragOverStyles } from './src/management/media-attachments';
 import { loadSavedApisForAllPlatforms, loadSavedApis, currentSavedApisPlatform } from './src/management/saved-apis';
 import { displaySavedApis, handleModelUpdate } from './src/handlers/modal-handlers';
 import { updateScheduledPosts } from './src/management/scheduled-posts';
 import { displayRedditPosts } from './src/management/platform-handlers';
-// @ts-ignore
+
 const vscode = acquireVsCodeApi();
 // Apply initial settings
 document.documentElement.lang = currentLang;
@@ -28,6 +28,12 @@ window.addEventListener('load', () => {
         loadHistoryAndAnalytics();
         // Load saved APIs for all platforms
         loadSavedApisForAllPlatforms();
+        // Initialize media upload functionality
+        console.log('About to call initializeMediaUpload');
+        initializeMediaUpload();
+        console.log('initializeMediaUpload called, now calling addDragOverStyles');
+        addDragOverStyles();
+        console.log('addDragOverStyles called');
         console.log('Application initialization complete!');
     }
     catch (error) {
