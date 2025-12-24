@@ -1,4 +1,4 @@
-import { HistoricalPost, SelectedModel, AnalyticsSummary } from '../../../src/types';
+import { SelectedModel } from '../../../src/types';
 import { translations } from './translations';
 
 // DOM Elements variables - these will be initialized by ui-initialization.ts
@@ -211,11 +211,11 @@ export function applyTheme(): void {
 export function switchTab(tabName: string): void {
     // Update tab buttons
     document.querySelectorAll('.tab-nav-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[data-tab="${tabName}"]`)!.classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
 
     // Update tab content
     document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-    document.getElementById(`${tabName}Tab`)!.classList.add('active');
+    document.getElementById(`${tabName}Tab`)?.classList.add('active');
 }
 
 // Global variables for platform availability
@@ -315,7 +315,7 @@ export function updateDynamicPlatformSelector(): void {
     });
 
     // Create HTML for each group
-    Object.entries(groups).forEach(([groupKey, group]) => {
+    Object.entries(groups).forEach(([, group]) => {
         if (group.platforms.length > 0) {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'platform-group';

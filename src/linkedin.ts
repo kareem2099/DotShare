@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
 import { PostData } from './types';
+import * as path from 'path';
+// ✅ 1. استيراد رابط السيرفر الموحد
+import { DEFAULT_SERVER_URL } from './constants';
 
 // Check if we're running in VS Code environment
 const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
@@ -30,116 +33,48 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
     }
 
     try {
-        // Get person ID
-        const personResponse = await axios.get('https://api.linkedin.com/v2/me', {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const personId = personResponse.data.id;
-
-        // Upload media if present (support multiple files)
-        let mediaUploads = null;
-        if (post.media && post.media.length > 0) {
-            mediaUploads = [];
-
-            for (let i = 0; i < post.media.length; i++) {
-                const mediaFile = post.media[i];
-
-                // Determine if it's a video or image based on file extension
-                const isVideo = mediaFile.toLowerCase().endsWith('.mp4');
-                const recipe = isVideo ? "urn:li:digitalmediaRecipe:feedshare-video" : "urn:li:digitalmediaRecipe:feedshare-image";
-                const contentType = isVideo ? "video/mp4" : "image/*";
-
-                const mediaData = {
-                    "registerUploadRequest": {
-                        "recipes": [recipe],
-                        "owner": `urn:li:person:${personId}`,
-                        "serviceRelationships": [
-                            {
-                                "relationshipType": "OWNER",
-                                "identifier": "urn:li:userGeneratedContent"
-                            }
-                        ]
-                    }
-                };
-                const uploadRequest = await axios.post('https://api.linkedin.com/v2/assets?action=registerUpload', mediaData, {
-                    headers: { Authorization: `Bearer ${accessToken}` }
-                });
-                const uploadUrl = uploadRequest.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest' as keyof typeof uploadRequest.data.value.uploadMechanism].uploadUrl;
-                const assetUrn = uploadRequest.data.value.asset;
-
-                // Upload file with correct content type
-                await axios.post(uploadUrl, fs.readFileSync(mediaFile), {
-                    headers: { 'Content-Type': contentType }
-                });
-
-                const mediaUpload = {
-                    "status": "READY",
-                    "description": {
-                        "text": isVideo ? "Video from DotShare" : "Image from DotShare"
-                    },
-                    "media": assetUrn,
-                    "title": {
-                        "text": "Project Update"
-                    }
-                };
-
-                mediaUploads.push(mediaUpload);
+        // Use Python server API instead of direct LinkedIn API calls
+        // ✅ 2. استخدام الثابت هنا
+        const serverUrl = process.env.DOTSHARE_SERVER_URL || DEFAULT_SERVER_URL;
+        
+        const mediaUrls = post.media ? post.media.map(file => {
+            // Convert local file paths to data URLs for the server
+            if (fs.existsSync(file)) {
+                const fileContent = fs.readFileSync(file);
+                const ext = path.extname(file).toLowerCase();
+                let mimeType = 'application/octet-stream';
+                if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+                else if (ext === '.png') mimeType = 'image/png';
+                else if (ext === '.gif') mimeType = 'image/gif';
+                else if (ext === '.mp4') mimeType = 'video/mp4';
+                else if (ext === '.avi') mimeType = 'video/avi';
+                return `data:${mimeType};base64,${fileContent.toString('base64')}`;
             }
-        }
+            return file;
+        }) : [];
 
-        // Post content
-        const postData: Record<string, unknown> = {
-            "author": `urn:li:person:${personId}`,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
-                        "text": post.text
-                    },
-                    "shareMediaCategory": "NONE"
-                }
-            },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-            }
-        };
-
-        if (mediaUploads && mediaUploads.length > 0) {
-            // Determine media category based on file types
-            const hasVideo = post.media?.some(file => file.toLowerCase().endsWith('.mp4')) || false;
-            const hasImage = post.media?.some(file => !file.toLowerCase().endsWith('.mp4')) || false;
-
-            const specificContent = postData.specificContent as Record<string, Record<string, unknown>>;
-            const shareContent = specificContent["com.linkedin.ugc.ShareContent"];
-
-            if (hasVideo && hasImage) {
-                // LinkedIn supports carousels with mixed media
-                (shareContent as Record<string, unknown>).shareMediaCategory = "CAROUSEL";
-            } else if (hasVideo) {
-                (shareContent as Record<string, unknown>).shareMediaCategory = "VIDEO";
-            } else {
-                (shareContent as Record<string, unknown>).shareMediaCategory = "IMAGE";
-            }
-
-            (shareContent as Record<string, unknown>).media = mediaUploads;
-        }
-
-        await axios.post('https://api.linkedin.com/v2/ugcPosts', postData, {
-            headers: { Authorization: `Bearer ${accessToken}` }
+        const response = await axios.post(`${serverUrl}/api/post/linkedin`, {
+            access_token: accessToken,
+            text: post.text,
+            media_urls: mediaUrls
         });
 
-        const successMessage = 'Posted to LinkedIn successfully!';
-        if (callbacks?.onSuccess) {
-            callbacks.onSuccess(successMessage);
-        } else if (isVscodeEnvironment) {
-            vscode.window.showInformationMessage(successMessage);
+        if (response.data.success) {
+            const successMessage = response.data.message || 'Posted to LinkedIn successfully!';
+            if (callbacks?.onSuccess) {
+                callbacks.onSuccess(successMessage);
+            } else if (isVscodeEnvironment) {
+                vscode.window.showInformationMessage(successMessage);
+            }
+        } else {
+            throw new Error(response.data.error || 'Unknown error from server');
         }
     } catch (error) {
         let errorMessage = 'Failed to post to LinkedIn';
-        if (error instanceof Error) {
+        if (axios.isAxiosError(error) && error.response?.data?.error) {
+            errorMessage += `: ${error.response.data.error}`;
+        } else if (error instanceof Error) {
             errorMessage += `: ${error.message}`;
-        } else if (axios.isAxiosError(error) && error.response?.data?.message) {
-            errorMessage += `: ${error.response.data.message}`;
         }
 
         if (callbacks?.onError) {

@@ -1,6 +1,5 @@
 import { showStatus, getScheduledStatusBadge, scheduledList, scheduledPosts, currentEditingPostId, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduleReddit, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat, setCurrentEditingPostId } from '../core/utils';
 import { translations, currentLang } from '../core/translations';
-// @ts-ignore
 const vscode = acquireVsCodeApi();
 export function updateScheduledPosts(scheduledPostsArray) {
     if (!scheduledList)

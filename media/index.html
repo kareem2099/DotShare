@@ -1,4 +1,4 @@
-n<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -383,11 +383,11 @@ n<!DOCTYPE html>
                                 <div class="upload-zone">
                                     <div class="upload-prompt">
                                         <span class="upload-icon">📁</span>
-                                        <span class="upload-text">Drop files or click to browse</span>
+                                        <span class="upload-text">Select files from your workspace</span>
                                         <span class="upload-hint">Supports images (JPG, PNG, GIF) and videos (MP4)</span>
+                                        <button id="selectMediaBtn" class="select-media-btn">Select Files</button>
                                     </div>
                                 </div>
-                                <input type="file" id="fileInput" accept="image/*,video/mp4" style="display: none;">
                             </div>
                             <div id="attachedFile" class="modern-attached-file" style="display: none;">
                                 <div class="file-preview">
@@ -402,16 +402,45 @@ n<!DOCTYPE html>
                         </div>
                     </section>
 
-                    <section class="platform-chooser">
-                        <div class="section-header">
-                            <h3 data-key="selectPlatforms">🌐 Select Platforms</h3>
-                            <p data-key="selectPlatformsDesc">Choose where to share your post</p>
-                        </div>
-                        <div id="dynamicPlatformSelector" class="platform-selector">
-                            <div class="no-platforms-available">
-                                <span class="no-platforms-icon">⚠️</span>
-                            <span class="no-platforms-text">Configure your API keys in the Platforms tab first</span>
-                            <button class="switch-to-platforms-btn" data-key="platformsTab">Go to Platforms</button>
+                    <section class="platform-selector-section">
+                        <div class="platform-selector">
+                            <h3>📡 Sharing Platforms</h3>
+                            <div class="platform-checkboxes-horizontal">
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-linkedin" value="linkedin">
+                                    <span class="platform-icon">💼</span>
+                                    LinkedIn
+                                </label>
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-telegram" value="telegram">
+                                    <span class="platform-icon">📱</span>
+                                    Telegram
+                                </label>
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-x" value="x">
+                                    <span class="platform-icon">🐦</span>
+                                    X/Twitter
+                                </label>
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-facebook" value="facebook">
+                                    <span class="platform-icon">📘</span>
+                                    Facebook
+                                </label>
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-discord" value="discord">
+                                    <span class="platform-icon">💬</span>
+                                    Discord
+                                </label>
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-reddit" value="reddit">
+                                    <span class="platform-icon">🟠</span>
+                                    Reddit
+                                </label>
+                                <label class="platform-option">
+                                    <input type="checkbox" id="select-bluesky" value="bluesky">
+                                    <span class="platform-icon">🌅</span>
+                                    BlueSky
+                                </label>
                             </div>
                         </div>
                     </section>
@@ -422,9 +451,9 @@ n<!DOCTYPE html>
                                 <span class="btn-icon">⏰</span>
                                 <span>Schedule Post</span>
                             </button>
-                            <button id="shareSelectedBtn" class="action-btn primary disabled">
+                            <button id="shareBtn" class="action-btn primary">
                                 <span class="btn-icon">🚀</span>
-                                <span>Share Now</span>
+                                <span>Share</span>
                             </button>
                         </div>
                     </section>
@@ -782,6 +811,8 @@ n<!DOCTYPE html>
             </div>
         </div>
     </div>
+
+
 
     <!-- Saved APIs Modal -->
     <div id="savedApisModal" class="modal" style="display: none;">

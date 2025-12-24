@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import FormData from 'form-data';
+import { DEFAULT_SERVER_URL } from './constants';
 
 export interface RedditPostData {
     text: string;
@@ -94,183 +95,44 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 
 export async function shareToReddit(accessToken: string, refreshToken: string | undefined, postData: RedditPostData): Promise<string> {
     try {
-        // Validate required fields first
-        if (!postData.subreddit || postData.subreddit.trim() === '') {
-            throw new Error('Reddit subreddit is required');
-        }
+        // Use Python server API instead of direct Reddit API calls
+        // ✅ 2. استخدام الثابت هنا
+        const serverUrl = process.env.DOTSHARE_SERVER_URL || DEFAULT_SERVER_URL;
 
-        // Clean the subreddit name - remove r/ prefix if present
-        let cleanSubreddit = postData.subreddit.trim();
-        if (cleanSubreddit.startsWith('r/')) {
-            cleanSubreddit = cleanSubreddit.substring(2);
-        }
-        if (cleanSubreddit === '') {
-            throw new Error('Reddit subreddit cannot be empty');
-        }
+        // For Reddit, we need title, text, and subreddit
+        const title = postData.title || postData.text.substring(0, 300);
+        const text = postData.isSelfPost !== false ? postData.text : undefined;
+        const subreddit = postData.subreddit || 'test';
 
-        // For Reddit script apps, the access token is permanent and doesn't need refreshing
-        // If refreshToken is provided, try to refresh, otherwise use the access token directly
-        let currentToken = accessToken;
-        if (refreshToken) {
-            try {
-                const tokenData = await refreshRedditToken(refreshToken);
-                currentToken = tokenData.access_token;
-            } catch (error) {
-                // If refresh fails, use the original access token (likely script app)
-                console.warn('Failed to refresh Reddit token, using original access token:', error);
+        // Convert media files to data URLs
+        const mediaUrls = postData.media ? postData.media.map(file => {
+            if (fs.existsSync(file)) {
+                const fileContent = fs.readFileSync(file);
+                const ext = path.extname(file).toLowerCase();
+                let mimeType = 'application/octet-stream';
+                if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+                else if (ext === '.png') mimeType = 'image/png';
+                else if (ext === '.gif') mimeType = 'image/gif';
+                else if (ext === '.mp4') mimeType = 'video/mp4';
+                return `data:${mimeType};base64,${fileContent.toString('base64')}`;
             }
+            return file;
+        }) : [];
+
+        const response = await axios.post(`${serverUrl}/api/post/reddit`, {
+            access_token: accessToken,
+            subreddit: subreddit.replace(/^r\//, ''), // Remove r/ prefix if present
+            title: title,
+            text: text,
+            media_urls: mediaUrls
+        });
+
+        if (response.data.success) {
+            return 'posted'; // Return a dummy post ID for compatibility
+        } else {
+            throw new Error(response.data.error || 'Unknown error from server');
         }
-
-        // Validate token before proceeding
-        const isValidToken = await validateRedditCredentials(currentToken);
-        if (!isValidToken) {
-            throw new Error('Invalid or expired Reddit access token. Please refresh your credentials.');
-        }
-
-        const headers = {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'DotShare/1.0' // Reddit requires a user agent
-        };
-
-        // Upload media if present
-        let uploadedMediaAssets: string[] = [];
-        if (postData.media && postData.media.length > 0) {
-            uploadedMediaAssets = await uploadRedditMedia(currentToken, postData.media);
-        }
-
-        // Determine if this is a user profile (u/) or subreddit (r/)
-        const isUserProfile = cleanSubreddit.startsWith('u/');
-        const targetName = isUserProfile ? cleanSubreddit.substring(2) : cleanSubreddit;
-
-        const postPayload: Record<string, unknown> = {
-            sr: isUserProfile ? `u_${targetName}` : targetName,
-            kind: uploadedMediaAssets.length > 0 ? 'image' : (postData.isSelfPost !== false ? 'self' : 'link'),
-            title: postData.title || postData.text.substring(0, 300), // Use first 300 chars as title if not provided
-            text: (uploadedMediaAssets.length === 0 && postData.isSelfPost !== false) ? postData.text : undefined,
-            url: (uploadedMediaAssets.length === 0 && postData.isSelfPost === false) ? postData.media?.[0] : undefined // For link posts, use first media as URL
-        };
-
-        // Add media asset if uploaded
-        if (uploadedMediaAssets.length > 0) {
-            if (uploadedMediaAssets.length === 1) {
-                postPayload.kind = 'image';
-                postPayload.url = uploadedMediaAssets[0];
-            } else {
-                // Gallery post for multiple images
-                postPayload.kind = 'gallery';
-                postPayload.items = uploadedMediaAssets.map((asset, index) => ({ media_id: asset, caption: `Image ${index + 1}` }));
-            }
-        }
-
-        // Validate target (subreddit or user profile) before posting
-        const isValidTarget = await validateRedditTarget(currentToken, cleanSubreddit);
-        if (!isValidTarget) {
-            const targetType = isUserProfile ? 'u' : 'r';
-            throw new Error(`Invalid Reddit target: ${targetType}/${targetName}`);
-        }
-
-        // Additional validation for subreddits
-        if (!isUserProfile) {
-            const subredditInfo = await getRedditSubredditInfo(currentToken, cleanSubreddit);
-            if (subredditInfo) {
-                if (subredditInfo.restrict_posting) {
-                    throw new Error(`Posting is restricted in r/${cleanSubreddit}`);
-                }
-                if (subredditInfo.quarantine) {
-                    throw new Error(`r/${cleanSubreddit} is quarantined. You may need to favorite it first in the Reddit app.`);
-                }
-            }
-        }
-
-        // Add optional fields
-        if (postData.spoiler) postPayload.spoiler = true;
-        if (postData.flairId) postPayload.flair_id = postData.flairId;
-
-        // Retry logic for API failures
-        let retries = 3;
-        while (retries > 0) {
-            try {
-                const response = await axios.post('https://oauth.reddit.com/api/submit', postPayload, {
-                    headers,
-                    timeout: 30000
-                });
-
-                if (response.data.success) {
-                    const postId = response.data.data.name;
-                    console.log('Successfully posted to Reddit:', postId);
-                    return postId;
-                } else {
-                    // Handle specific Reddit error formats
-
-                    // Check for jQuery array format (common when Reddit returns error pages)
-                    if (response.data.jquery && Array.isArray(response.data.jquery)) {
-                        console.error('Reddit API returned jQuery error response:', response.data);
-
-                        // Try to find error message in jQuery array
-                        const jQueryData = response.data.jquery;
-                        for (const item of jQueryData) {
-                            if (Array.isArray(item) && item[0] === 'show-error') {
-                                // Extract error message from show-error command
-                                const errorMessage = item[1];
-                                throw new Error(`Reddit API error: ${errorMessage}`);
-                            }
-                        }
-
-                        // Look for common error patterns in jQuery data
-                        const errorText = jQueryData.find((item: unknown) =>
-                            typeof item === 'string' &&
-                            (item.toLowerCase().includes('error') || item.toLowerCase().includes('invalid') || item.toLowerCase().includes('forbidden'))
-                        );
-                        if (errorText) {
-                            throw new Error(`Reddit API error: ${errorText}`);
-                        }
-                    }
-
-                    // Handle standard errors array
-                    const errors = response.data.errors || [];
-                    if (errors.length > 0) {
-                        const errorMessage = Array.isArray(errors[0]) ? errors[0][1] : String(errors[0]);
-                        throw new Error(`Reddit API error: ${errorMessage}`);
-                    }
-
-                    // Check for other common error fields
-                    if (response.data.data && response.data.data.children && response.data.data.children.length > 0) {
-                        const errorData = response.data.data.children[0].data;
-                        if (errorData && errorData.error) {
-                            throw new Error(`Reddit API error: ${errorData.error}`);
-                        }
-                    }
-
-                    // Generic fallback with detailed logging
-                    console.error('Full Reddit API response:', response);
-                    console.error('Response data:', response.data);
-                    console.error('Response status:', response.status);
-                    throw new Error('Reddit API submission failed - post was not created. Check the console for detailed response data.');
-                }
-            } catch (error: unknown) {
-                retries--;
-                const errorMessage = error instanceof Error ? error.message : String(error);
-
-                if (retries === 0) {
-                    throw error;
-                }
-
-                // Check if it's a rate limit error
-                if (error instanceof axios.AxiosError && error.response?.status === 429) {
-                    const retryAfter = parseInt(error.response.headers['retry-after'] || '60', 10);
-                    console.warn(`Reddit rate limited, retrying in ${retryAfter} seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-                } else {
-                    // For other errors, wait 5 seconds before retry
-                    console.warn(`Reddit API error (${errorMessage}), retrying in 5 seconds... (${retries} retries left)`);
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                }
-            }
-        }
-
-        throw new Error('Failed to post to Reddit after retries');
-    } catch (error: unknown) {
+    } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('Error posting to Reddit:', errorMessage);
         throw new Error('Failed to post to Reddit');

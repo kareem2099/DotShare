@@ -1,4 +1,4 @@
-// @ts-ignore
+
 const vscode = acquireVsCodeApi();
 import { postText, editPostBtn, editControls, linkedinToken, telegramBot, telegramChat, facebookToken, discordWebhook, blueskyIdentifier, blueskyPassword, selectedModel, updateButtonStates, checkPlatformAvailability, themes, applyTheme, currentThemeVariant, currentLang, updateThemeToggle, updateThemeVariant, updateCurrentLang, showStatus } from '../core/utils';
 import { updateTexts } from '../core/translations';

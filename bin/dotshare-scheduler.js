@@ -19,7 +19,7 @@ const originalResolveFilename = Module._resolveFilename;
 const originalLoad = Module._load;
 
 // Override the module resolution
-Module._load = function(request, parent) {
+Module._load = function(request) {
     if (request === 'vscode') {
         return mockVscode;
     }
@@ -27,7 +27,7 @@ Module._load = function(request, parent) {
 };
 
 // Also override resolve to prevent filesystem lookup
-Module._resolveFilename = function(request, parent, isMain) {
+Module._resolveFilename = function(request) {
     if (request === 'vscode') {
         return 'vscode';
     }
@@ -47,15 +47,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Now require the modules after mocking vscode
-const { ScheduledPostsStorage } = require('../out/scheduled-posts.js');
 const { Scheduler } = require('../out/scheduler.js');
-const { shareToLinkedIn } = require('../out/linkedin.js');
-const { shareToTelegram } = require('../out/telegram.js');
-const { shareToX } = require('../out/x.js');
-const { shareToFacebook } = require('../out/facebook.js');
-const { shareToDiscord } = require('../out/discord.js');
-const { shareToReddit } = require('../out/reddit.js');
-const { shareToBlueSky } = require('../out/bluesky.js');
 
 // Default config location
 const DEFAULT_CONFIG_PATH = path.join(require('os').homedir(), '.dotshare-config.json');
@@ -177,9 +169,6 @@ async function main() {
 
     console.log(`📂 Using storage path: ${config.storagePath}`);
     console.log('🔐 Credentials loaded');
-
-    // Create storage
-    const storage = new ScheduledPostsStorage(config.storagePath);
 
     // Create logger callbacks for CLI
     const loggerCallbacks = {

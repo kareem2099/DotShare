@@ -1,5 +1,5 @@
-import { formatFileSize, attachedFile, uploadArea, fileNameSpan, fileSizeSpan, mediaAttachment, postText } from '../core/utils';
-// @ts-ignore
+import { formatFileSize, attachedFile, uploadArea, fileNameSpan, fileSizeSpan, mediaAttachment, postText, removeMediaBtn } from '../core/utils';
+
 const vscode = acquireVsCodeApi();
 export let attachedMediaPath = null;
 export function attachMultipleMedia(mediaFiles) {
@@ -57,4 +57,133 @@ export function validateFile(file) {
         return false;
     }
     return true;
+}
+
+// Initialize media upload event listeners
+function getVscode() {
+    return vscode;
+}
+
+export function initializeMediaUpload() {
+    console.log('initializeMediaUpload called');
+    if (!mediaAttachment || !uploadArea) {
+        console.warn('mediaAttachment or uploadArea not found:', mediaAttachment, uploadArea);
+        return;
+    }
+
+    // Add event listener for select media files button
+    const selectMediaBtn = document.getElementById("selectMediaBtn");
+    console.log('selectMediaBtn found:', !!selectMediaBtn);
+    if (selectMediaBtn) {
+        console.log('Adding click event listener to selectMediaBtn');
+        selectMediaBtn.addEventListener('click', (e) => {
+            console.log('Select Files button clicked, sending selectMediaFiles message');
+            e.preventDefault();
+            getVscode().postMessage({ command: "selectMediaFiles" });
+        });
+        console.log('Select Media Files button event listener attached');
+    } else {
+        console.warn('Select Files button not found in DOM');
+    }
+
+    // Add event listener for remove media button
+    if (removeMediaBtn) {
+        removeMediaBtn.addEventListener('click', removeMedia);
+    }
+
+    // Click on media attachment area triggers file input
+    mediaAttachment.addEventListener('click', (e) => {
+        // Don't trigger if clicking on an existing attached file or its children
+        if (e.target.closest('#attachedFile')) {
+            return;
+        }
+        // Don't trigger if clicking on buttons or links
+        const target = e.target;
+        if (target.tagName === 'BUTTON' || target.tagName === 'A') {
+            return;
+        }
+        // Don't trigger if we already have a file attached and not in upload area
+        if (attachedFile && attachedFile.style.display !== 'none') {
+            const attachedFileRect = attachedFile.getBoundingClientRect();
+            if (e.clientX >= attachedFileRect.left && e.clientX <= attachedFileRect.right &&
+                e.clientY >= attachedFileRect.top && e.clientY <= attachedFileRect.bottom) {
+                return;
+            }
+        }
+        // For now, just log - file input functionality would need to be implemented
+        console.log('Media attachment area clicked');
+    });
+
+    // Drag and drop handlers (only if uploadArea exists)
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('dragenter', handleDragEnter);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+    }
+
+    console.log('Media upload event listeners initialized');
+}
+
+
+// Drag and drop event handlers
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (uploadArea) {
+        uploadArea.classList.add('drag-over');
+    }
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (uploadArea) {
+        uploadArea.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only remove drag-over class if we're leaving the uploadArea entirely
+    // (not just moving over a child element)
+    if (uploadArea && e.target === uploadArea) {
+        uploadArea.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (uploadArea) {
+        uploadArea.classList.remove('drag-over');
+    }
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+        console.log('Files dropped:', files.length);
+        // processSelectedFiles would need to be implemented
+    }
+}
+
+// Add CSS class for drag-over visual feedback
+export function addDragOverStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .modern-upload-area.drag-over {
+            border-color: #007acc;
+            background-color: rgba(0, 122, 204, 0.05);
+            transform: scale(1.02);
+        }
+        .modern-upload-area.drag-over .upload-text {
+            color: #007acc;
+            font-weight: 600;
+        }
+    `;
+    document.head.appendChild(style);
 }

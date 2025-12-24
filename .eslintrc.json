@@ -20,5 +20,5 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "ignorePatterns": ["out/", "node_modules/", "media/"]
+  "ignorePatterns": ["out/", "node_modules/", "media/media/", "media/app.js"]
 }

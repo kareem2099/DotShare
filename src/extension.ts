@@ -421,7 +421,6 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                     case 'shareToLinkedIn': {
                         try {
                             const msg = message as { linkedinToken?: string; post?: string; mediaFilePaths?: string[] };
-                            const linkedinToken = msg.linkedinToken || await this._context.secrets.get('linkedinToken') || '';
                             const postText = msg.post || '';
                             const mediaPaths = msg.mediaFilePaths || [];
 
@@ -447,8 +446,6 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                     case 'shareToTelegram': {
                         try {
                             const msg = message as { telegramBot?: string; telegramChat?: string; post?: string; mediaFilePaths?: string[] };
-                            const telegramBot = msg.telegramBot || await this._context.secrets.get('telegramBot') || '';
-                            const telegramChat = msg.telegramChat || await this._context.secrets.get('telegramChat') || '';
                             const postText = msg.post || '';
                             const mediaPaths = msg.mediaFilePaths || [];
 
@@ -730,6 +727,50 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                         }
                         return;
                     }
+                    case 'share': {
+                        {
+                            try {
+                                const { platforms, post, mediaFilePaths } = message as { platforms: string[]; post: string; mediaFilePaths?: string[] };
+
+                                if (!platforms || platforms.length === 0) {
+                                    webviewView.webview.postMessage({ command: 'status', status: 'No platforms selected', type: 'error' });
+                                    return;
+                                }
+
+                                if (!post || !post.trim()) {
+                                    webviewView.webview.postMessage({ command: 'status', status: 'Post content is required', type: 'error' });
+                                    return;
+                                }
+
+                                const postData: PostData = {
+                                    text: post.trim(),
+                                    media: mediaFilePaths || []
+                                };
+
+                                // Get post ID from history for analytics
+                                const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
+                                const mostRecentPost = history[0];
+                                const postId = mostRecentPost?.id;
+
+                                // Start unified sharing
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: `Sharing to ${platforms.length} platform(s)...`,
+                                    type: 'info'
+                                });
+
+                                await this.unifiedSharePost(webviewView, platforms, postData, mediaFilePaths, postId);
+                            } catch (error: unknown) {
+                                const errorMessage = error instanceof Error ? error.message : String(error);
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: `Error during unified sharing: ${errorMessage}`,
+                                    type: 'error'
+                                });
+                            }
+                            return;
+                        }
+                    }
                     case 'setDefaultApiConfiguration': {
                         try {
                             const { StorageManager } = await import('./storage-manager');
@@ -771,34 +812,213 @@ class DotShareProvider implements vscode.WebviewViewProvider {
                         });
                         return;
                     }
-                    case 'uploadFile': {
+                    case 'selectMediaFiles': {
                         try {
-                            // Handle file upload from webview
-                            // Since webviews can't directly save files, we create a virtual attachment
-                            // that can be used for posting to platforms that support media
-                            if (message.file) {
-                                const file = message.file;
-                                console.log('File uploaded:', file.name, file.size, file.type);
+                            // Use VS Code's file picker to select files from anywhere on the system
+                            const fileUris = await vscode.window.showOpenDialog({
+                                canSelectFiles: true,
+                                canSelectFolders: false,
+                                canSelectMany: true,
+                                filters: {
+                                    'Images': ['jpg', 'jpeg', 'png', 'gif'],
+                                    'Videos': ['mp4'],
+                                    'All supported': ['jpg', 'jpeg', 'png', 'gif', 'mp4']
+                                },
+                                openLabel: 'Select Media Files from Anywhere'
+                            });
 
-                                // Simulate attaching the file (create a temporary reference)
-                                webviewView.webview.postMessage({
-                                    command: 'mediaSelected',
-                                    mediaPath: file.url, // temp URL for display
-                                    mediaFilePath: file.url, // same for now
-                                    fileName: file.name,
-                                    fileSize: file.size
-                                });
+                            if (fileUris && fileUris.length > 0) {
+                                // Get file stats for size info
+                                const mediaFiles = [];
+                                for (const uri of fileUris) {
+                                    try {
+                                        const stats = await vscode.workspace.fs.stat(uri);
+                                        const fileName = path.basename(uri.fsPath);
+                                        const fileSize = stats.size;
 
-                                webviewView.webview.postMessage({
-                                    command: 'status',
-                                    status: `File "${file.name}" uploaded successfully!`,
-                                    type: 'success'
-                                });
+                                        mediaFiles.push({
+                                            mediaPath: uri.fsPath, // Real file path for backend use
+                                            mediaFilePath: uri.fsPath, // Same for frontend display
+                                            fileName: fileName,
+                                            fileSize: fileSize
+                                        });
+                                    } catch (error) {
+                                        console.warn(`Could not get stats for ${uri.fsPath}:`, error);
+                                    }
+                                }
+
+                                if (mediaFiles.length > 0) {
+                                    // Send the selected files back to webview
+                                    webviewView.webview.postMessage({
+                                        command: 'mediaSelected',
+                                        mediaFiles: mediaFiles
+                                    });
+
+                                    webviewView.webview.postMessage({
+                                        command: 'status',
+                                        status: `${mediaFiles.length} file(s) selected successfully!`,
+                                        type: 'success'
+                                    });
+                                }
                             }
                         } catch (error: unknown) {
                             webviewView.webview.postMessage({
                                 command: 'status',
-                                status: `Error uploading file: ${error}`,
+                                status: `Error selecting files: ${error}`,
+                                type: 'error'
+                            });
+                        }
+                        return;
+                    }
+                    case 'uploadFile': {
+                        try {
+                            // Handle file upload from webview (drag & drop, click to browse)
+                            const { file } = message as { file: { name: string; size: number; type: string; base64Data: string } };
+
+                            if (!file || !file.name || !file.base64Data) {
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: 'Invalid file data provided.',
+                                    type: 'error'
+                                });
+                                return;
+                            }
+
+                            // Get extension storage directory for media files
+                            const storageUri = this._context.globalStorageUri || vscode.Uri.file(path.join(os.tmpdir(), 'dotshare-media'));
+                            const mediaDir = vscode.Uri.joinPath(storageUri, 'media');
+
+                            // Create media directory if it doesn't exist
+                            try {
+                                await vscode.workspace.fs.createDirectory(mediaDir);
+                            } catch (error) {
+                                console.warn('Could not create media directory:', error);
+                            }
+
+                            // Convert base64 data back to binary
+                            const binaryString = atob(file.base64Data);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+
+                            // Create unique filename with timestamp
+                            const fileName = `${Date.now()}-${file.name}`;
+                            const fileUri = vscode.Uri.joinPath(mediaDir, fileName);
+
+                            // Write the file to disk
+                            await vscode.workspace.fs.writeFile(fileUri, bytes);
+
+                            // Send success message back to webview with the saved file path
+                            webviewView.webview.postMessage({
+                                command: 'fileUploaded',
+                                mediaPath: fileUri.fsPath,
+                                mediaFilePath: fileUri.fsPath,
+                                fileName: file.name,
+                                fileSize: file.size
+                            });
+
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: `File "${file.name}" uploaded successfully!`,
+                                type: 'success'
+                            });
+
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: `Error uploading file: ${errorMessage}`,
+                                type: 'error'
+                            });
+                        }
+                        return;
+                    }
+                    case 'attachMedia': {
+                        try {
+                            // Handle media attachment from either uploadFile result or selectMediaFiles
+                            const { mediaFilePath, mediaFilePaths, mediaPath, fileName, fileSize } = message as {
+                                mediaFilePath?: string;
+                                mediaFilePaths?: string[];
+                                mediaPath?: string;
+                                fileName?: string;
+                                fileSize?: number;
+                            };
+
+                            // Handle multiple files (from selectMediaFiles)
+                            if (mediaFilePaths && Array.isArray(mediaFilePaths)) {
+                                const mediaFiles = mediaFilePaths.map(path => ({
+                                    mediaPath: path,
+                                    mediaFilePath: path,
+                                    fileName: fileName || path.split(/[/\\]/).pop() || 'unknown',
+                                    fileSize: fileSize || 0
+                                }));
+
+                                webviewView.webview.postMessage({
+                                    command: 'mediaAttached',
+                                    mediaFiles: mediaFiles
+                                });
+
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: `${mediaFilePaths.length} file(s) attached successfully!`,
+                                    type: 'success'
+                                });
+                            }
+                            // Handle single file (from uploadFile or direct attach)
+                            else if (mediaFilePath || mediaPath) {
+                                const filePath = mediaFilePath || mediaPath || '';
+                                const mediaFiles = [{
+                                    mediaPath: mediaPath || filePath,
+                                    mediaFilePath: filePath,
+                                    fileName: fileName || filePath.split(/[/\\]/).pop() || 'unknown',
+                                    fileSize: fileSize || 0
+                                }];
+
+                                webviewView.webview.postMessage({
+                                    command: 'mediaAttached',
+                                    mediaFiles: mediaFiles
+                                });
+
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: `File attached successfully!`,
+                                    type: 'success'
+                                });
+                            } else {
+                                webviewView.webview.postMessage({
+                                    command: 'status',
+                                    status: 'No media files provided for attachment.',
+                                    type: 'error'
+                                });
+                            }
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: `Error attaching media: ${errorMessage}`,
+                                type: 'error'
+                            });
+                        }
+                        return;
+                    }
+                    case 'removeMedia': {
+                        try {
+                            // Handle media removal
+                            webviewView.webview.postMessage({
+                                command: 'mediaRemoved'
+                            });
+
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: 'Media attachment removed.',
+                                type: 'success'
+                            });
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : String(error);
+                            webviewView.webview.postMessage({
+                                command: 'status',
+                                status: `Error removing media: ${errorMessage}`,
                                 type: 'error'
                             });
                         }
@@ -1066,11 +1286,10 @@ class DotShareProvider implements vscode.WebviewViewProvider {
     private async shareToLinkedInWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
         try {
             const msg = message as { linkedinToken?: string };
-            const linkedinToken = msg.linkedinToken || await this._context.secrets.get('linkedinToken') || '';
 
             const { shareToLinkedIn } = await import('./linkedin');
 
-            await shareToLinkedIn(post, linkedinToken, {
+            await shareToLinkedIn(post, msg.linkedinToken || await this._context.secrets.get('linkedinToken') || '', {
                 onSuccess: (message: string) => {
                     webviewView.webview.postMessage({ command: 'status', status: message, type: 'success' });
                     if (postId) {
@@ -1098,6 +1317,8 @@ class DotShareProvider implements vscode.WebviewViewProvider {
             const msg = message as { telegramBot?: string; telegramChat?: string };
             const telegramBot = msg.telegramBot || await this._context.secrets.get('telegramBot') || '';
             const telegramChat = msg.telegramChat || await this._context.secrets.get('telegramChat') || '';
+
+            console.log('DEBUG: Telegram sharing with bot:', !!telegramBot, 'chat:', !!telegramChat, 'post:', post.text);
 
             const { shareToTelegram } = await import('./telegram');
 
@@ -1127,6 +1348,109 @@ class DotShareProvider implements vscode.WebviewViewProvider {
     private async shareToBlueSkyWithUpdate(webviewView: vscode.WebviewView, post: PostData, message: unknown, postId: string | undefined): Promise<void> {
                 void webviewView, void post, void message, void postId;
         throw new Error('BlueSky sharing not yet implemented');
+    }
+
+    private async unifiedSharePost(webviewView: vscode.WebviewView, platforms: string[], post: PostData, mediaFilePaths: string[] = [], postId?: string): Promise<void> {
+        const results = {
+            linkedin: false,
+            telegram: false,
+            x: false,
+            facebook: false,
+            discord: false,
+            reddit: false,
+            bluesky: false
+        };
+
+        let firstError: string | null = null;
+
+        // Share to each selected platform
+        for (const platform of platforms) {
+            try {
+                const platformMessage = { ...post, mediaFilePaths };
+
+                switch (platform) {
+                    case 'linkedin':
+                        await this.shareToLinkedInWithUpdate(webviewView, platformMessage, platformMessage, postId);
+                        results.linkedin = true;
+                        break;
+                    case 'telegram':
+                        await this.shareToTelegramWithUpdate(webviewView, platformMessage, platformMessage, postId);
+                        results.telegram = true;
+                        break;
+                    case 'x':
+                        await this.shareToXWithUpdate(webviewView, platformMessage, platformMessage, postId);
+                        results.x = true;
+                        break;
+                    case 'facebook':
+                        await this.shareToFacebookWithUpdate(webviewView, platformMessage, platformMessage, postId);
+                        results.facebook = true;
+                        break;
+                    case 'discord':
+                        await this.shareToDiscordWithUpdate(webviewView, platformMessage, platformMessage, postId);
+                        results.discord = true;
+                        break;
+                    case 'reddit': {
+                        const redditMessage = {
+                            redditAccessToken: await this._context.secrets.get('redditAccessToken') || '',
+                            redditRefreshToken: await this._context.secrets.get('redditRefreshToken') || '',
+                            subreddit: 'test', // This should be configurable in the UI
+                            title: post.text?.substring(0, 300) || 'Post from DotShare',
+                            post: post.text,
+                            mediaFilePaths: mediaFilePaths
+                        };
+                        await this.shareToRedditWithUpdate(webviewView, platformMessage, redditMessage, postId);
+                        results.reddit = true;
+                        break;
+                    }
+                    case 'bluesky':
+                        await this.shareToBlueSkyWithUpdate(webviewView, platformMessage, platformMessage, postId);
+                        results.bluesky = true;
+                        break;
+                    default:
+                        console.warn(`Unknown platform: ${platform}`);
+                }
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`Error sharing to ${platform}:`, error);
+
+                if (!firstError) {
+                    firstError = `Error sharing to ${platform}: ${errorMessage}`;
+                }
+
+                // Record failure for this platform
+                if (postId) {
+                    const platformKey = platform as keyof typeof results;
+                    if (platformKey in results) {
+                        this._recordShare(postId, platform as 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky', false, errorMessage);
+                    }
+                }
+            }
+        }
+
+        // Count successful shares
+        const successfulShares = Object.values(results).filter(success => success).length;
+
+        if (platforms.length === 0) {
+            webviewView.webview.postMessage({ command: 'status', status: 'No platforms selected', type: 'error' });
+        } else if (successfulShares === platforms.length) {
+            webviewView.webview.postMessage({
+                command: 'status',
+                status: `Successfully shared to all ${platforms.length} platform(s)!`,
+                type: 'success'
+            });
+        } else if (successfulShares > 0) {
+            webviewView.webview.postMessage({
+                command: 'status',
+                status: `Shared to ${successfulShares}/${platforms.length} platform(s). Check for any errors above.`,
+                type: firstError ? 'error' : 'warning'
+            });
+        } else {
+            webviewView.webview.postMessage({
+                command: 'status',
+                status: `Failed to share to any platforms. ${firstError || ''}`,
+                type: 'error'
+            });
+        }
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {

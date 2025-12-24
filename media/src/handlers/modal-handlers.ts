@@ -1,9 +1,22 @@
 // Modal management functions - extracted from app.ts
-// @ts-ignore
-const getVscode = () => (window as any).vscode;
+interface VSCodeAPI {
+    postMessage(message: unknown): void;
+}
 
-import { Message, SelectedModel } from '../../../src/types';
-import { showStatus, setGeneratingState, selectedModel, updateSelectedModelDisplay, updateButtonStates, updateSelectedModel, populateModelDropdown } from '../core/utils';
+interface ApiConfig {
+    id: string;
+    name: string;
+    isDefault?: boolean;
+    lastUsed?: string;
+    credentials: Record<string, string>;
+}
+
+declare const vscode: VSCodeAPI;
+
+const getVscode = () => vscode;
+
+import { SelectedModel } from '../../../src/types';
+import { showStatus, selectedModel, updateSelectedModelDisplay, updateSelectedModel, populateModelDropdown } from '../core/utils';
 
 // Modal elements - for AI model selection modal
 const providerTabBtns = document.querySelectorAll('.tab-btn');
@@ -136,7 +149,7 @@ export function schedulePost(): void {
 }
 
 // Edit Schedule Modal functions
-export function editScheduledPost(postId: string): void {
+export function editScheduledPost(): void {
     // Would open edit modal for scheduled post
 }
 
@@ -162,7 +175,7 @@ export function shareToRedditWithSettings(): void {
 }
 
 // Saved APIs Modal functions
-let currentSavedApisPlatform: string = '';
+let currentSavedApisPlatform = '';
 
 export function openSavedApisModal(platform: string): void {
     currentSavedApisPlatform = platform;
@@ -200,7 +213,7 @@ export function closeSavedApisModal(): void {
     hideEditForm();
 }
 
-export function displaySavedApis(savedApis: any[]): void {
+export function displaySavedApis(savedApis: ApiConfig[]): void {
     const savedApisList = document.getElementById('savedApisList') as HTMLDivElement;
 
     if (savedApis.length === 0) {
@@ -285,7 +298,7 @@ export function hideEditForm(): void {
     }
 }
 
-export function showEditForm(isEditing?: boolean, apiConfig?: any): void {
+export function showEditForm(isEditing?: boolean, apiConfig?: ApiConfig): void {
     const editApiForm = document.getElementById('editApiForm') as HTMLDivElement;
     if (editApiForm) {
         editApiForm.style.display = 'block';
@@ -460,7 +473,7 @@ export function deleteApiConfiguration(apiId: string): void {
     }
 }
 
-function getCredentialPreview(apiConfig: any): string {
+function getCredentialPreview(apiConfig: ApiConfig): string {
     const previews: string[] = [];
 
     Object.entries(apiConfig.credentials).forEach(([key, value]) => {
@@ -475,4 +488,40 @@ function getCredentialPreview(apiConfig: any): string {
     });
 
     return previews.slice(0, 2).join(', ') + (previews.length > 2 ? ` +${previews.length - 2} more` : '');
+}
+
+
+
+// Import the function from media-attachments instead of reimplementing it
+import { getAttachedMediaPaths as getMediaPaths } from '../management/media-attachments';
+
+function getAttachedMediaPaths(): string[] {
+    return getMediaPaths();
+}
+
+// Direct share handler for unified share button
+export function handleDirectShare(): void {
+    const selectedPlatforms = Array.from(document.querySelectorAll('.platform-selector-section input:checked'))
+        .map(input => (input as HTMLInputElement).value);
+
+    if (selectedPlatforms.length === 0) {
+        showStatus('Please select at least one platform to share to.', 'error');
+        return;
+    }
+
+    const postText = (document.getElementById('postText') as HTMLTextAreaElement)?.value;
+    if (!postText || !postText.trim()) {
+        showStatus('Please enter a post first.', 'error');
+        return;
+    }
+
+    // Get attached media paths
+    const mediaPaths = getAttachedMediaPaths();
+
+    getVscode().postMessage({
+        command: 'share',
+        platforms: selectedPlatforms,
+        post: postText,
+        mediaFilePaths: mediaPaths
+    });
 }

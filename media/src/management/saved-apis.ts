@@ -2,16 +2,16 @@
 import { ApiConfiguration, AccountOption } from '../../../src/types';
 import { showStatus } from '../core/utils';
 
-// @ts-ignore
+
 declare global {
-    const vscode: any;
+    const vscode: { postMessage: (message: Record<string, unknown>) => void };
 }
 
 // Lazy vscode accessor to avoid undefined issues
-const getVscode = () => (window as any).vscode;
+const getVscode = () => (window as { vscode?: { postMessage: (message: Record<string, unknown>) => void } }).vscode;
 
 // Global variable to track current platform being managed
-export let currentSavedApisPlatform: string = '';
+export const currentSavedApisPlatform = '';
 
 export function loadSavedApis(platform: string): void {
     getVscode()?.postMessage({ command: 'loadSavedApis', platform });

@@ -1,5 +1,5 @@
 // Modal management functions - extracted from app.ts
-// @ts-ignore
+
 const vscode = acquireVsCodeApi();
 import { showStatus, selectedModel, updateSelectedModelDisplay, updateSelectedModel, populateModelDropdown } from '../core/utils';
 // Modal elements - for AI model selection modal

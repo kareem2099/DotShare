@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-12-24
+
+### Added
+- **NPM Publishing**: Official release of `dotshare-cli` on NPM registry
+- **Single Source of Truth**: Implemented centralized `constants.ts` for managing Server URL configuration across all modules (CLI & Extension)
+- **Production Default**: Configured default server URL to point to live Railway instance for seamless out-of-the-box experience
+
+### Fixed
+- **Linter Cleanup**: Resolved all ESLint warnings in `src/reddit.ts` and `src/telegram.ts` regarding unused imports (`PostData`, `FormData`)
+- **Type Safety**: Fixed `no-explicit-any` warnings in `src/cli/commands.ts` by implementing strict typing (`Record<string, any>`) and proper error casting
+- **CLI Authentication**: Fixed `open` library compatibility issues (CommonJS/ESM) to ensure browser opens correctly during OAuth login
+- **Connection Fallback**: Fixed default connection logic to ensure CLI connects to production server when no local config exists
+
+### Changed
+- Refactored `linkedin.ts`, `telegram.ts`, `reddit.ts`, and `commands.ts` to consume `DEFAULT_SERVER_URL` from the shared constant file
+
 ## [2.0.0] - 2025-10-28
 
 ### Added

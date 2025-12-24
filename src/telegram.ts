@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
-import FormData from 'form-data';
+import * as path from 'path';
 import { PostData } from './types';
+import { DEFAULT_SERVER_URL } from './constants';
 
 // Check if we're running in VS Code environment
 const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
@@ -30,67 +31,45 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
     }
 
     try {
-        if (post.media && post.media.length > 0) {
-            // Handle multiple media using sendMediaGroup for multiple files
-            if (post.media.length > 1) {
-                // Use sendMediaGroup for multiple media
-                const mediaGroup = post.media.map((file, index) => {
-                    const isVideo = file.toLowerCase().endsWith('.mp4') || file.toLowerCase().endsWith('.avi');
-                    const mediaType = isVideo ? 'video' : 'photo';
+        // Use Python server API instead of direct Telegram API calls
+        // ✅ 2. استخدام الثابت هنا
+        const serverUrl = process.env.DOTSHARE_SERVER_URL || DEFAULT_SERVER_URL;
 
-                    return {
-                        type: mediaType,
-                        media: `attach://${mediaType}_${index}`,
-                        caption: index === 0 ? post.text : undefined // Only add caption to first media
-                    };
-                });
+        // Convert media files to data URLs for the server
+        const mediaUrls = post.media ? post.media.map(file => {
+            if (fs.existsSync(file)) {
+                const fileContent = fs.readFileSync(file);
+                const ext = path.extname(file).toLowerCase();
+                let mimeType = 'application/octet-stream';
+                if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+                else if (ext === '.png') mimeType = 'image/png';
+                else if (ext === '.gif') mimeType = 'image/gif';
+                else if (ext === '.mp4') mimeType = 'video/mp4';
+                else if (ext === '.avi') mimeType = 'video/avi';
+                return `data:${mimeType};base64,${fileContent.toString('base64')}`;
+            }
+            return file;
+        }) : [];
 
-                const formData = new FormData();
-                formData.append('chat_id', chatId);
-                formData.append('media', JSON.stringify(mediaGroup));
+        const response = await axios.post(`${serverUrl}/api/post/telegram`, {
+            bot_token: botToken,
+            chat_id: chatId,
+            text: post.text,
+            media_urls: mediaUrls
+        });
 
-                // Attach all files
-                post.media.forEach((file, index) => {
-                    const isVideo = file.toLowerCase().endsWith('.mp4') || file.toLowerCase().endsWith('.avi');
-                    const mediaType = isVideo ? 'video' : 'photo';
-                    const filename = `${mediaType}_${index}`;
-                    formData.append(filename, fs.createReadStream(file));
-                });
-
-                const url = `https://api.telegram.org/bot${botToken}/sendMediaGroup`;
-                await axios.post(url, formData, { headers: formData.getHeaders() });
-            } else {
-                // Single media file - use individual sendPhoto/sendVideo
-                const mediaFile = post.media[0];
-                const isVideo = mediaFile.toLowerCase().endsWith('.mp4') || mediaFile.toLowerCase().endsWith('.avi');
-                const url = isVideo ?
-                    `https://api.telegram.org/bot${botToken}/sendVideo` :
-                    `https://api.telegram.org/bot${botToken}/sendPhoto`;
-
-                const formData = new FormData();
-                formData.append('chat_id', chatId);
-                formData.append(isVideo ? 'video' : 'photo', fs.createReadStream(mediaFile));
-                formData.append('caption', post.text);
-
-                await axios.post(url, formData, { headers: formData.getHeaders() });
+        if (response.data.success) {
+            const successMessage = response.data.message || 'Posted to Telegram successfully!';
+            if (callbacks?.onSuccess) {
+                callbacks.onSuccess(successMessage);
+            } else if (isVscodeEnvironment) {
+                vscode.window.showInformationMessage(successMessage);
             }
         } else {
-            // Send text only
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            await axios.post(url, {
-                chat_id: chatId,
-                text: post.text
-            });
-        }
-
-        const successMessage = 'Posted to Telegram successfully!';
-        if (callbacks?.onSuccess) {
-            callbacks.onSuccess(successMessage);
-        } else if (isVscodeEnvironment) {
-            vscode.window.showInformationMessage(successMessage);
+            throw new Error(response.data.error || 'Unknown error from server');
         }
     } catch (error) {
-        const errorMessage = 'Failed to post to Telegram: ' + (error as Error).message;
+        const errorMessage = 'Failed to post to Telegram: ' + (error instanceof Error ? error.message : String(error));
         if (callbacks?.onError) {
             callbacks.onError(errorMessage);
         } else if (isVscodeEnvironment) {

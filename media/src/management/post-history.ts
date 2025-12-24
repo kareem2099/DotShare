@@ -6,19 +6,19 @@ import { currentLang } from '../core/utils';
 import { formatTimestamp, getProviderEmoji, getStatusEmoji } from '../core/utils';
 
 // Lazy vscode accessor to avoid import-time undefined issues
-const getVscode = () => (window as any).vscode;
+const getVscode = () => (window as { vscode?: { postMessage: (message: Record<string, unknown>) => void } }).vscode;
 
 // DOM elements that should be in utils.ts or ui-initialization.ts
-let postHistory: HTMLElement | null = null;
-let historyList: HTMLElement | null = null;
-let totalPostsValue: HTMLElement | null = null;
-let successRateValue: HTMLElement | null = null;
-let linkedinSharesValue: HTMLElement | null = null;
-let telegramSharesValue: HTMLElement | null = null;
-let facebookSharesValue: HTMLElement | null = null;
-let discordSharesValue: HTMLElement | null = null;
-let blueskySharesValue: HTMLElement | null = null;
-let redditSharesValue: HTMLElement | null = null;
+let postHistory!: HTMLElement;
+let historyList!: HTMLElement;
+let totalPostsValue!: HTMLElement;
+let successRateValue!: HTMLElement;
+let linkedinSharesValue!: HTMLElement;
+let telegramSharesValue!: HTMLElement;
+let facebookSharesValue!: HTMLElement;
+let discordSharesValue!: HTMLElement;
+let blueskySharesValue!: HTMLElement;
+let redditSharesValue!: HTMLElement;
 
 // Initialize DOM elements (would be called from ui-initialization.ts)
 export function initializePostHistoryElements(): void {
@@ -36,7 +36,7 @@ export function initializePostHistoryElements(): void {
 
 export function updatePostHistory(history: HistoricalPost[]): void {
     if (history.length === 0) {
-        historyList!.innerHTML = `<p data-key="noHistory">${translations["noHistory"]?.[currentLang] || 'No posts in history yet. Generate your first post!'}</p>`;
+        historyList.innerHTML = `<p data-key="noHistory">${translations["noHistory"]?.[currentLang] || 'No posts in history yet. Generate your first post!'}</p>`;
         return;
     }
 
@@ -75,15 +75,15 @@ export function updatePostHistory(history: HistoricalPost[]): void {
         `;
     }
 
-    historyList!.innerHTML = `<div class="history-items">${html}</div>`;
+    historyList.innerHTML = `<div class="history-items">${html}</div>`;
     updateTexts(); // Update any localized text
 }
 
 export function updateAnalytics(analytics: AnalyticsSummary): void {
-    totalPostsValue!.textContent = analytics.totalPosts.toString();
-    successRateValue!.textContent = `${analytics.successRate}%`;
-    linkedinSharesValue!.textContent = analytics.linkedinShares.toString();
-    telegramSharesValue!.textContent = analytics.telegramShares.toString();
+    totalPostsValue.textContent = analytics.totalPosts.toString();
+    successRateValue.textContent = `${analytics.successRate}%`;
+    linkedinSharesValue.textContent = analytics.linkedinShares.toString();
+    telegramSharesValue.textContent = analytics.telegramShares.toString();
     // Update additional analytics values
     if (facebookSharesValue) facebookSharesValue.textContent = '0'; // Will be updated when analytics are properly calculated
     if (discordSharesValue) discordSharesValue.textContent = '0';
@@ -94,8 +94,6 @@ export function updateAnalytics(analytics: AnalyticsSummary): void {
 export function showPostHistory(): void {
     if (postHistory) postHistory.style.display = 'block';
 }
-
-let vscode = (window as any).vscode;
 
 export function loadHistoryAndAnalytics(): void {
     getVscode()?.postMessage({ command: 'loadPostHistory' });

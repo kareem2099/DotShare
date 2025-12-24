@@ -1,6 +1,4 @@
 import { initializeGlobalDomElements } from '../core/utils';
-import { updateTexts } from '../core/translations';
-import { currentLang } from '../core/utils';
 import { initializePostHistoryElements } from '../management/post-history';
 
 // From app.ts - DOM element initialization wrapper
@@ -12,7 +10,7 @@ export function initializeDOMElements(): void {
     initializePostHistoryElements();
 }
 
-import { postText, mediaAttachment } from '../core/utils';
+import { mediaAttachment } from '../core/utils';
 
 // Function to show media attachment (now always visible)
 export function showMediaAttachment(): void {
