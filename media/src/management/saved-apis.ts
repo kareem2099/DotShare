@@ -1,6 +1,7 @@
 // Saved API configuration management functions - extracted from app.ts
 import { ApiConfiguration, AccountOption } from '../../../src/types';
 import { showStatus } from '../core/utils';
+import { logger } from '../utils/Logger';
 
 
 declare global {
@@ -35,7 +36,7 @@ export function populateAccountDropdown(platform: string, accounts: AccountOptio
     const select = document.getElementById(`accountSelect_${platform}`) as HTMLSelectElement;
 
     if (!selector || !select) {
-        console.error(`Account selector elements not found for platform: ${platform}`);
+        logger.error(`Account selector elements not found for platform: ${platform}`);
         return;
     }
 

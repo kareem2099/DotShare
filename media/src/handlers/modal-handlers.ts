@@ -16,7 +16,7 @@ declare const vscode: VSCodeAPI;
 const getVscode = () => vscode;
 
 import { SelectedModel } from '../../../src/types';
-import { showStatus, selectedModel, updateSelectedModelDisplay, updateSelectedModel, populateModelDropdown } from '../core/utils';
+import { showStatus, selectedModel, updateSelectedModelDisplay, updateSelectedModel, populateModelDropdown, getDefaultScheduleTime } from '../core/utils';
 
 // Modal elements - for AI model selection modal
 const providerTabBtns = document.querySelectorAll('.tab-btn');
@@ -137,15 +137,80 @@ export function handleModelUpdate(message: { provider?: string; geminiModels?: s
 
 // Schedule Modal functions
 export function openScheduleModal(): void {
-    // Would show schedule modal
+    // Populate the modal with current post content
+    const scheduledPostText = document.getElementById('scheduledPostText') as HTMLTextAreaElement;
+    const postText = (document.getElementById('postText') as HTMLTextAreaElement)?.value || '';
+    if (scheduledPostText) {
+        scheduledPostText.value = postText;
+    }
+
+    // Set default schedule time (1 hour from now)
+    const scheduleDate = document.getElementById('scheduleDate') as HTMLInputElement;
+    if (scheduleDate) {
+        const defaultTime = getDefaultScheduleTime();
+        scheduleDate.value = defaultTime;
+    }
+
+    // Show modal
+    const scheduleModal = document.getElementById('scheduleModal') as HTMLElement;
+    if (scheduleModal) scheduleModal.style.display = 'flex';
 }
 
 export function closeScheduleModalFunc(): void {
-    // Would close schedule modal
+    const scheduleModal = document.getElementById('scheduleModal') as HTMLElement;
+    if (scheduleModal) scheduleModal.style.display = 'none';
 }
 
 export function schedulePost(): void {
-    // Would handle scheduling a post
+    // Get form data
+    const scheduleDate = (document.getElementById('scheduleDate') as HTMLInputElement)?.value;
+    const selectedPlatforms = Array.from(document.querySelectorAll('#scheduleModal input[type="checkbox"]:checked'))
+        .map(cb => (cb as HTMLInputElement).value);
+
+    // Validate
+    if (!scheduleDate) {
+        showStatus('Please select a date and time.', 'error');
+        return;
+    }
+
+    if (selectedPlatforms.length === 0) {
+        showStatus('Please select at least one platform.', 'error');
+        return;
+    }
+
+    // Check if scheduled time is in the future
+    const scheduleDateTime = new Date(scheduleDate);
+    const now = new Date();
+
+    if (scheduleDateTime <= now) {
+        showStatus('Scheduled time must be in the future.', 'error');
+        return;
+    }
+
+    // Warn user about local vs server scheduling
+    const hasLocalPlatforms = selectedPlatforms.some(p => p !== 'telegram');
+
+    if (hasLocalPlatforms) {
+        const localPlatformsNames = selectedPlatforms.filter(p => p !== 'telegram').join(', ');
+        showStatus(`⚠️ Note: ${localPlatformsNames} scheduling requires VS Code to be open at the scheduled time. If closed, posts will be sent immediately next time you open it.`, 'warning');
+    }
+
+    // Get post content and media
+    const postText = (document.getElementById('scheduledPostText') as HTMLTextAreaElement)?.value || '';
+    const mediaPaths = getAttachedMediaPaths();
+
+    // Send to backend
+    getVscode().postMessage({
+        command: 'schedulePost',
+        scheduledTime: scheduleDate,
+        selectedPlatforms: selectedPlatforms,
+        postText: postText,
+        mediaFilePaths: mediaPaths
+    });
+
+    // Close modal and show success
+    closeScheduleModalFunc();
+    showStatus('Post scheduled successfully!', 'success');
 }
 
 // Edit Schedule Modal functions
@@ -202,6 +267,9 @@ export function openSavedApisModal(platform: string): void {
     if (savedApisModal) {
         savedApisModal.style.display = 'flex';
     }
+
+    // Set up modal event listeners
+    setupModalEventListeners();
 }
 
 export function closeSavedApisModal(): void {
@@ -488,6 +556,28 @@ function getCredentialPreview(apiConfig: ApiConfig): string {
     });
 
     return previews.slice(0, 2).join(', ') + (previews.length > 2 ? ` +${previews.length - 2} more` : '');
+}
+
+function setupModalEventListeners(): void {
+    // Set up event listener for "Add New" button
+    const addNewApiSetBtn = document.getElementById('addNewApiSetBtn') as HTMLButtonElement;
+    if (addNewApiSetBtn) {
+        addNewApiSetBtn.addEventListener('click', () => {
+            showEditForm(false); // false = not editing, so it's adding new
+        });
+    }
+
+    // Set up event listener for "Save API Set" button
+    const saveApiSetBtn = document.getElementById('saveApiSetBtn') as HTMLButtonElement;
+    if (saveApiSetBtn) {
+        saveApiSetBtn.addEventListener('click', saveApiConfiguration);
+    }
+
+    // Set up event listener for "Cancel" button
+    const cancelApiEditBtn = document.getElementById('cancelApiEditBtn') as HTMLButtonElement;
+    if (cancelApiEditBtn) {
+        cancelApiEditBtn.addEventListener('click', hideEditForm);
+    }
 }
 
 

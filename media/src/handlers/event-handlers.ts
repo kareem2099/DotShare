@@ -18,7 +18,7 @@ declare global {
 // Lazy vscode accessor to avoid import-time undefined issues
 const getVscode = () => vscode;
 
-import { openModal, closeModalFunc, applyModel, switchProviderTab, closeSavedApisModal, openSavedApisModal, handleDirectShare } from './modal-handlers';
+import { openModal, closeModalFunc, applyModel, switchProviderTab, closeSavedApisModal, openSavedApisModal, handleDirectShare, openScheduleModal, closeScheduleModalFunc, schedulePost } from './modal-handlers';
 import {
     postText,
     editPostBtn,
@@ -44,6 +44,7 @@ import {
     showStatus
 } from '../core/utils';
 import { updateTexts } from '../core/translations';
+import { logger } from '../utils/Logger';
 
 // Variables for post editing
 export let originalPost = '';
@@ -447,7 +448,7 @@ export function initializeCriticalEventListeners() {
             e.preventDefault();
             e.stopPropagation();
             const platform = (e.target as HTMLElement).getAttribute('data-platform');
-            console.log('Saved APIs button clicked, platform:', platform);
+            logger.info('Saved APIs button clicked, platform:', platform);
 
             if (platform) {
                 openSavedApisModal(platform);
@@ -477,7 +478,7 @@ export function initializeCriticalEventListeners() {
                     getVscode()?.postMessage({ command: 'loadAnalytics' });
                 }
 
-                console.log('Switched to tab:', tabName);
+                logger.info('Switched to tab:', tabName);
             }
         });
     });
@@ -524,12 +525,17 @@ export function initializeCriticalEventListeners() {
 
     // Schedule post button
     if (scheduleBtnElement) {
-        scheduleBtnElement.addEventListener('click', () => {
-            // Schedule post functionality
-            const scheduleModal = document.getElementById('scheduleModal') as HTMLElement;
-            if (scheduleModal) scheduleModal.style.display = 'flex';
-        });
+        scheduleBtnElement.addEventListener('click', openScheduleModal);
     }
+
+    // Schedule modal buttons
+    const cancelScheduleBtn = document.getElementById('cancelScheduleBtn') as HTMLButtonElement;
+    const confirmScheduleBtn = document.getElementById('confirmScheduleBtn') as HTMLButtonElement;
+    const closeScheduleModalBtn = document.getElementById('closeScheduleModal') as HTMLSpanElement;
+
+    if (cancelScheduleBtn) cancelScheduleBtn.addEventListener('click', closeScheduleModalFunc);
+    if (confirmScheduleBtn) confirmScheduleBtn.addEventListener('click', schedulePost);
+    if (closeScheduleModalBtn) closeScheduleModalBtn.addEventListener('click', closeScheduleModalFunc);
 
     // Load Reddit posts button
     if (loadRedditPostsBtn) {
@@ -688,7 +694,7 @@ export function initializeCriticalEventListeners() {
         });
     }
 
-    console.log('Critical event listeners initialized - buttons should now work!');
+    logger.info('Critical event listeners initialized - buttons should now work!');
 }
 
 export { updateButtonStates } from '../core/utils';

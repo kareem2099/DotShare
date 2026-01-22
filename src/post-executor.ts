@@ -7,6 +7,7 @@ import { shareToReddit } from './reddit';
 import { shareToBlueSky } from './bluesky';
 import { CredentialProvider } from './credential-provider';
 import { PostData } from './types';
+import { Logger } from './utils/Logger';
 
 export interface PlatformResult {
     success: boolean;
@@ -27,14 +28,15 @@ export class PostExecutor {
 
     public async executePostForPlatform(
         platform: string,
-        postData: PostData
+        postData: PostData,
+        scheduledTime?: string
     ): Promise<PlatformResult> {
         try {
             switch (platform) {
                 case 'linkedin':
                     return await this.executeLinkedInPost(postData);
                 case 'telegram':
-                    return await this.executeTelegramPost(postData);
+                    return await this.executeTelegramPost(postData, scheduledTime);
                 case 'x':
                     return await this.executeXPost(postData);
                 case 'facebook':
@@ -53,7 +55,7 @@ export class PostExecutor {
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`Failed to post to ${platform}:`, errorMessage);
+            Logger.error(`Failed to post to ${platform}:`, errorMessage);
             return {
                 success: false,
                 errorMessage
@@ -77,7 +79,7 @@ export class PostExecutor {
         };
     }
 
-    private async executeTelegramPost(postData: PostData): Promise<PlatformResult> {
+    private async executeTelegramPost(postData: PostData, scheduledTime?: string): Promise<PlatformResult> {
         const credentials = await this.credentialProvider.getTelegramCredentials();
         if (!credentials.botToken || !credentials.chatId) {
             return {
@@ -86,7 +88,8 @@ export class PostExecutor {
             };
         }
 
-        await shareToTelegram(postData, credentials.botToken, credentials.chatId);
+        const scheduleDate = scheduledTime ? new Date(scheduledTime) : undefined;
+        await shareToTelegram(postData, credentials.botToken, credentials.chatId, undefined, scheduleDate);
         return {
             success: true,
             messageId: undefined // Could be enhanced to capture message ID

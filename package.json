@@ -1,29 +1,33 @@
 {
-  "name": "dotshare-cli",
+  "name": "dotshare",
   "displayName": "DotShare",
-  "description": "CLI tool for posting to social media platforms - Telegram, LinkedIn, Reddit",
-  "version": "1.0.0",
+  "description": "Share your code/ideas across multiple platforms with AI-powered posts directly from VS Code.",
+  "version": "2.2.0",
   "publisher": "freerave",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/kareem2099"
+    },
+    {
+      "type": "custom",
+      "url": "https://www.buymeacoffee.com/freerave"
+    },
+    {
+      "type": "custom",
+      "url": "https://paypal.me/freerave1"
+    }
+  ],
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=18.0.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "AI"
   ],
   "icon": "assets/icons/icon.png",
   "main": "./out/extension.js",
-  "bin": {
-    "dotshare": "./bin/dotshare-cli.js"
-  },
-  "files": [
-    "bin/",
-    "out/",
-    "src/cli/",
-    "package.json",
-    "README.md",
-    "LICENSE"
-  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -56,6 +60,16 @@
       {
         "command": "dotshare.shareToTelegram",
         "title": "Share to Telegram"
+      },
+      {
+        "command": "dotshare.showAnalytics",
+        "title": "Show Analytics Dashboard",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "dotshare.whatsNew",
+        "title": "What's New in DotShare",
+        "icon": "$(light-bulb)"
       }
     ]
   },
@@ -68,7 +82,11 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src media bin --ext ts,js",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "publish:vscode": "vsce publish",
+    "prepublish:npm": "cp package.json package.vscode.backup.json && cp package.cli.json package.json",
+    "publish:npm": "npm publish",
+    "postpublish:npm": "mv package.vscode.backup.json package.json"
   },
   "devDependencies": {
     "@types/mocha": "^9.1.0",

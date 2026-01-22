@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Logger } from './utils/Logger';
 
 export interface BlueSkyPostData {
     text: string;
@@ -30,7 +31,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
             for (const mediaFile of postData.media) {
                 // Note: This is simplified - actual implementation requires uploading blobs
                 // BlueSky requires media to be uploaded as blobs first
-                console.log(`Media upload for BlueSky not fully implemented yet: ${mediaFile}`);
+                Logger.info(`Media upload for BlueSky not fully implemented yet: ${mediaFile}`);
 
                 // For now, just add as external links if they're URLs
                 if (mediaFile.startsWith('http')) {
@@ -51,7 +52,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
         const errorMessage = error instanceof Error ? error.message : String(error);
         const axiosError = error as { response?: { data?: { message?: string } } };
         const apiMessage = axiosError.response?.data?.message;
-        console.error('Error posting to BlueSky:', apiMessage || errorMessage);
+        Logger.error('Error posting to BlueSky:', apiMessage || errorMessage);
         throw new Error(apiMessage || 'Failed to post to BlueSky');
     }
 }
@@ -72,7 +73,7 @@ export async function authenticateBlueSky(identifier: string, password: string):
         const errorMessage = error instanceof Error ? error.message : String(error);
         const axiosError = error as { response?: { data?: { message?: string } } };
         const apiMessage = axiosError.response?.data?.message;
-        console.error('Error authenticating with BlueSky:', apiMessage || errorMessage);
+        Logger.error('Error authenticating with BlueSky:', apiMessage || errorMessage);
         throw new Error(apiMessage || 'Failed to authenticate with BlueSky');
     }
 }
@@ -100,7 +101,7 @@ export async function refreshBlueSkySession(refreshToken: string): Promise<{acce
             did: response.data.did
         };
     } catch (error: unknown) {
-        console.error('Error refreshing BlueSky session:', error);
+        Logger.error('Error refreshing BlueSky session:', error);
         throw new Error('Failed to refresh BlueSky session');
     }
 }

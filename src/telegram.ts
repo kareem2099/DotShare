@@ -2,8 +2,9 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
+import FormData from 'form-data';
 import { PostData } from './types';
-import { DEFAULT_SERVER_URL } from './constants';
+import { Logger } from './utils/Logger';
 
 // Check if we're running in VS Code environment
 const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
@@ -12,7 +13,7 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
     onSuccess?: (message: string) => void;
     onError?: (message: string) => void;
     onOpenLink?: (url: string) => void;
-}) {
+}, scheduleDate?: Date) {
 
     if (!botToken || !chatId) {
         const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '')}`;
@@ -31,49 +32,127 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
     }
 
     try {
-        // Use Python server API instead of direct Telegram API calls
-        // ✅ 2. استخدام الثابت هنا
-        const serverUrl = process.env.DOTSHARE_SERVER_URL || DEFAULT_SERVER_URL;
+        Logger.info('[DotShare] Starting Telegram share...');
+        Logger.info(`[DotShare] Bot token: ${botToken?.substring(0, 10)}...`);
+        Logger.info(`[DotShare] Chat ID: ${chatId}`);
+        Logger.info(`[DotShare] Post text: ${post.text.substring(0, 50)}...`);
 
-        // Convert media files to data URLs for the server
-        const mediaUrls = post.media ? post.media.map(file => {
-            if (fs.existsSync(file)) {
-                const fileContent = fs.readFileSync(file);
-                const ext = path.extname(file).toLowerCase();
-                let mimeType = 'application/octet-stream';
-                if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
-                else if (ext === '.png') mimeType = 'image/png';
-                else if (ext === '.gif') mimeType = 'image/gif';
-                else if (ext === '.mp4') mimeType = 'video/mp4';
-                else if (ext === '.avi') mimeType = 'video/avi';
-                return `data:${mimeType};base64,${fileContent.toString('base64')}`;
-            }
-            return file;
-        }) : [];
+        // Handle media if present
+        if (post.media && post.media.length > 0) {
+            Logger.info(`[DotShare] Media files: ${post.media.length}`);
 
-        const response = await axios.post(`${serverUrl}/api/post/telegram`, {
-            bot_token: botToken,
-            chat_id: chatId,
-            text: post.text,
-            media_urls: mediaUrls
-        });
+            for (const mediaFile of post.media) {
+                if (!fs.existsSync(mediaFile)) {
+                    Logger.warn(`[DotShare] Media file not found: ${mediaFile}`);
+                    continue;
+                }
 
-        if (response.data.success) {
-            const successMessage = response.data.message || 'Posted to Telegram successfully!';
-            if (callbacks?.onSuccess) {
-                callbacks.onSuccess(successMessage);
-            } else if (isVscodeEnvironment) {
-                vscode.window.showInformationMessage(successMessage);
+                const ext = path.extname(mediaFile).toLowerCase();
+                const fileContent = fs.readFileSync(mediaFile);
+                const fileBuffer = Buffer.from(fileContent);
+
+                let method = 'sendPhoto';
+                let fieldName = 'photo';
+
+                if (['.mp4', '.avi', '.mov', '.mkv'].includes(ext)) {
+                    method = 'sendVideo';
+                    fieldName = 'video';
+                } else if (['.gif'].includes(ext)) {
+                    method = 'sendAnimation';
+                    fieldName = 'animation';
+                }
+
+                const mediaUrl = `https://api.telegram.org/bot${botToken}/${method}`;
+
+                Logger.info(`[DotShare] Sending ${method} for ${path.basename(mediaFile)}`);
+
+                const formData = new FormData();
+                formData.append('chat_id', chatId);
+                formData.append(fieldName, fileBuffer, path.basename(mediaFile));
+                if (post.text && post.media.indexOf(mediaFile) === 0) {
+                    // Add caption to first media only
+                    formData.append('caption', post.text);
+                    formData.append('parse_mode', 'HTML');
+                }
+                if (scheduleDate) {
+                    formData.append('schedule_date', Math.floor(scheduleDate.getTime() / 1000).toString());
+                    Logger.info(`[DotShare] Scheduling media for: ${scheduleDate.toISOString()}, Unix: ${Math.floor(scheduleDate.getTime() / 1000)}`);
+                }
+
+                const mediaResponse = await axios.post(mediaUrl, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                if (!mediaResponse.data.ok) {
+                    throw new Error(`Telegram API error: ${mediaResponse.data.description}`);
+                }
+
+                Logger.info(`[DotShare] Media sent successfully: ${mediaResponse.data.result.message_id}`);
             }
         } else {
-            throw new Error(response.data.error || 'Unknown error from server');
+            // Text-only post
+            await sendTextMessage(botToken, chatId, post.text, scheduleDate);
         }
-    } catch (error) {
-        const errorMessage = 'Failed to post to Telegram: ' + (error instanceof Error ? error.message : String(error));
+
+        const successMessage = 'Posted to Telegram successfully! 🦅🔥';
+        Logger.info('[DotShare] Success: Post completed');
+        if (callbacks?.onSuccess) {
+            callbacks.onSuccess(successMessage);
+        } else if (isVscodeEnvironment) {
+            vscode.window.showInformationMessage(successMessage);
+        }
+    } catch (error: unknown) {
+        let errorDetail = 'Unknown error';
+
+        if (axios.isAxiosError(error)) {
+            // Safe access to axios error properties
+            const telegramError = error.response?.data as { description?: string };
+            errorDetail = telegramError?.description || error.message;
+        } else if (error instanceof Error) {
+            errorDetail = error.message;
+        }
+
+        const errorMessage = `Failed to post to Telegram: ${errorDetail}`;
+        Logger.error('[DotShare] Error:', errorDetail);
+        Logger.error('[DotShare] Full error:', error);
+
         if (callbacks?.onError) {
             callbacks.onError(errorMessage);
         } else if (isVscodeEnvironment) {
             vscode.window.showErrorMessage(errorMessage);
         }
     }
+}
+
+// Helper function to send text messages
+async function sendTextMessage(botToken: string, chatId: string, text: string, scheduleDate?: Date): Promise<void> {
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+    Logger.info('[DotShare] Sending text message');
+
+    const payload: {
+        chat_id: string;
+        text: string;
+        parse_mode: string;
+        schedule_date?: number;
+    } = {
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'HTML'
+    };
+
+    if (scheduleDate) {
+        payload.schedule_date = Math.floor(scheduleDate.getTime() / 1000);
+        Logger.info(`[DotShare] Scheduling for: ${scheduleDate.toISOString()}, Unix: ${payload.schedule_date}`);
+    }
+
+    const response = await axios.post(url, payload);
+
+    if (!response.data.ok) {
+        throw new Error(`Telegram API error: ${response.data.description}`);
+    }
+
+    Logger.info(`[DotShare] Text sent successfully: ${response.data.result.message_id}`);
 }

@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as vscode from 'vscode';
 import { ScheduledPostsStorage } from './scheduled-posts';
 import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary, SavedApiConfiguration } from './types';
+import { Logger } from './utils/Logger';
 
 export class StorageManager {
     private _context: vscode.ExtensionContext;
@@ -32,7 +33,7 @@ export class StorageManager {
                 fs.mkdirSync(storagePath, { recursive: true });
             }
         } catch (error) {
-            console.warn('Could not create storage directory, using temp:', error);
+            Logger.warn('Could not create storage directory, using temp:', error);
             // Final fallback to temp directory
             storagePath = path.join(os.tmpdir(), 'dotshare-scheduled');
             try {
@@ -40,7 +41,7 @@ export class StorageManager {
                     fs.mkdirSync(storagePath, { recursive: true });
                 }
             } catch (tempError) {
-                console.error('Even temp directory creation failed:', tempError);
+                Logger.error('Even temp directory creation failed:', tempError);
                 // Last resort - use system temp
                 storagePath = os.tmpdir();
             }
@@ -143,13 +144,13 @@ export class StorageManager {
             try {
                 apiKey = await this._context.secrets.get(`${savedModel.provider}ApiKey`) || '';
             } catch (error) {
-                console.warn('Failed to retrieve API key from secrets:', error);
+                Logger.warn('Failed to retrieve API key from secrets:', error);
             }
         }
 
         // Function to load configuration for a platform (check default saved config first, then fallback to individual secrets)
         const loadPlatformConfig = async (platform: string) => {
-            const defaultConfig = this.getDefaultApiConfiguration(platform);
+            const defaultConfig = await this.getDefaultApiConfiguration(platform);
             if (defaultConfig) {
                 // Load from default saved configuration
                 return defaultConfig.credentials;
@@ -292,24 +293,39 @@ export class StorageManager {
     }
 
     // Saved APIs methods
-    public loadSavedApis(platform: string): SavedApiConfiguration[] {
+    public async loadSavedApis(platform: string): Promise<SavedApiConfiguration[]> {
         try {
             const savedApisKey = `savedApis_${platform}`;
-            const savedApis = this._context.globalState.get(savedApisKey, [] as SavedApiConfiguration[]);
-            return savedApis;
+            let dataString = await this._context.secrets.get(savedApisKey);
+
+            // Migration: If no data in secrets, check globalState and migrate
+            if (!dataString) {
+                const migratedData = this._context.globalState.get(savedApisKey, [] as SavedApiConfiguration[]);
+                if (migratedData && migratedData.length > 0) {
+                    // Migrate to secrets
+                    await this._context.secrets.store(savedApisKey, JSON.stringify(migratedData));
+                    // Clear old data
+                    this._context.globalState.update(savedApisKey, undefined);
+                    dataString = JSON.stringify(migratedData);
+                } else {
+                    return [];
+                }
+            }
+
+            return JSON.parse(dataString);
         } catch (error) {
-            console.error('Error loading saved APIs:', error);
+            Logger.error('Error loading saved APIs:', error);
             return [];
         }
     }
 
-    public getDefaultApiConfiguration(platform: string): SavedApiConfiguration | null {
-        const savedApis = this.loadSavedApis(platform);
+    public async getDefaultApiConfiguration(platform: string): Promise<SavedApiConfiguration | null> {
+        const savedApis = await this.loadSavedApis(platform);
         return savedApis.find(config => config.isDefault === true) || null;
     }
 
-    public setDefaultApiConfiguration(platform: string, apiId: string | null): void {
-        const savedApis = this.loadSavedApis(platform);
+    public async setDefaultApiConfiguration(platform: string, apiId: string | null): Promise<void> {
+        const savedApis = await this.loadSavedApis(platform);
         const savedApisKey = `savedApis_${platform}`;
 
         // First, unset all default flags
@@ -326,13 +342,13 @@ export class StorageManager {
             }
         }
 
-        this._context.globalState.update(savedApisKey, savedApis);
+        await this._context.secrets.store(savedApisKey, JSON.stringify(savedApis));
     }
 
-    public saveApiConfiguration(apiConfig: SavedApiConfiguration): void {
+    public async saveApiConfiguration(apiConfig: SavedApiConfiguration): Promise<void> {
         try {
             const savedApisKey = `savedApis_${apiConfig.platform}`;
-            const savedApis = this.loadSavedApis(apiConfig.platform);
+            const savedApis = await this.loadSavedApis(apiConfig.platform);
 
             // Ensure config has an ID
             if (!apiConfig.id) {
@@ -352,38 +368,38 @@ export class StorageManager {
                 savedApis.push(apiConfig);
             }
 
-            this._context.globalState.update(savedApisKey, savedApis);
+            await this._context.secrets.store(savedApisKey, JSON.stringify(savedApis));
         } catch (error) {
-            console.error('Error saving API configuration:', error);
+            Logger.error('Error saving API configuration:', error);
             throw error;
         }
     }
 
-    public loadApiConfiguration(apiId: string): SavedApiConfiguration | null {
+    public async loadApiConfiguration(apiId: string): Promise<SavedApiConfiguration | null> {
         try {
             // Find the platform from the ID pattern (platform_timestamp_random)
             const platform = apiId.split('_')[0];
-            const savedApis = this.loadSavedApis(platform);
+            const savedApis = await this.loadSavedApis(platform);
             return savedApis.find((config: SavedApiConfiguration) => config.id === apiId) || null;
         } catch (error) {
-            console.error('Error loading API configuration:', error);
+            Logger.error('Error loading API configuration:', error);
             return null;
         }
     }
 
-    public deleteApiConfiguration(apiId: string): void {
+    public async deleteApiConfiguration(apiId: string): Promise<void> {
         try {
             // Find the platform from the ID pattern
             const platform = apiId.split('_')[0];
             const savedApisKey = `savedApis_${platform}`;
-            const savedApis = this.loadSavedApis(platform);
+            const savedApis = await this.loadSavedApis(platform);
 
             // Remove the configuration
             const updatedApis = savedApis.filter((config: SavedApiConfiguration) => config.id !== apiId);
 
-            this._context.globalState.update(savedApisKey, updatedApis);
+            await this._context.secrets.store(savedApisKey, JSON.stringify(updatedApis));
         } catch (error) {
-            console.error('Error deleting API configuration:', error);
+            Logger.error('Error deleting API configuration:', error);
             throw error;
         }
     }
@@ -413,7 +429,7 @@ export class StorageManager {
 
             const platform = platformMappings[secretKey];
             if (platform) {
-                const defaultConfig = this.getDefaultApiConfiguration(platform);
+                const defaultConfig = await this.getDefaultApiConfiguration(platform);
                 if (defaultConfig && typeof defaultConfig.credentials === 'object' && defaultConfig.credentials !== null && secretKey in defaultConfig.credentials) {
                     value = (defaultConfig.credentials as unknown as Record<string, string | undefined>)[secretKey] || '';
                     // Store the loaded value in secrets for UI access
@@ -423,6 +439,33 @@ export class StorageManager {
         }
 
         return value;
+    }
+
+    // Migration methods
+    public async migrateLegacyData(): Promise<void> {
+        const platforms = ['linkedin', 'telegram', 'x', 'facebook', 'discord', 'reddit', 'bluesky'];
+
+        for (const platform of platforms) {
+            const key = `savedApis_${platform}`;
+
+            // Check if there's legacy data in globalState
+            const legacyData = this._context.globalState.get(key);
+
+            if (legacyData && Array.isArray(legacyData) && legacyData.length > 0) {
+                // Check if the new secrets storage is empty (to avoid overwriting new data)
+                const existingSecret = await this._context.secrets.get(key);
+
+                if (!existingSecret) {
+                    Logger.info(`📦 Migrating ${platform} data to secure storage...`);
+
+                    // Migrate data to encrypted secrets
+                    await this._context.secrets.store(key, JSON.stringify(legacyData));
+
+                    // Clear old data
+                    this._context.globalState.update(key, undefined);
+                }
+            }
+        }
     }
 
     // Helper methods

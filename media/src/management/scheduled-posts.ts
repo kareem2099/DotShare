@@ -36,6 +36,9 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
 
         const platformIcons = post.platforms.map(p => p === 'linkedin' ? '💼' : '📱').join(' ');
 
+        // Add scheduling type indicator
+        const schedulingIcon = post.schedulingType === 'server' ? '☁️' : '💻';
+
         const truncatedText = post.postData.text.length > 80
             ? post.postData.text.substring(0, 80) + '...'
             : post.postData.text;
@@ -43,7 +46,7 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
         html += `
             <div class="scheduled-item ${post.status}" data-post-id="${post.id}">
                 <div class="scheduled-header">
-                    <span class="scheduled-time">${platformIcons} ${timeStr}</span>
+                    <span class="scheduled-time">${schedulingIcon} ${platformIcons} ${timeStr}</span>
                     <span class="scheduled-status">${statusBadge}</span>
                 </div>
                 <div class="scheduled-content">
@@ -68,9 +71,8 @@ export function populateEditModal(post: ScheduledPost): void {
 
     if (!editScheduleDate || !editScheduleLinkedIn || !editScheduleTelegram || !editScheduleReddit || !editScheduledPostText || !editScheduledMediaPreview || !editScheduledModal || !linkedinToken || !telegramBot || !telegramChat) return;
 
-    // Populate the edit modal with the post data
-    const scheduledDate = new Date(post.scheduledTime);
-    editScheduleDate.value = scheduledDate.toISOString().slice(0, 16);
+    // Populate the edit modal with the post data - scheduledTime is now stored as local time string
+    editScheduleDate.value = post.scheduledTime.slice(0, 16);
 
     // Set platform checkboxes
     editScheduleLinkedIn.checked = post.platforms.includes('linkedin');

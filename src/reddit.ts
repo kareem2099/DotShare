@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import FormData from 'form-data';
 import { DEFAULT_SERVER_URL } from './constants';
+import { Logger } from './utils/Logger';
 
 export interface RedditPostData {
     text: string;
@@ -40,7 +41,7 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
             const supportedVideoExts = ['.mp4', '.webm', '.gifv'];
 
             if (!supportedImageExts.includes(ext) && !supportedVideoExts.includes(ext)) {
-                console.warn(`Skipping unsupported media format: ${ext}`);
+                Logger.warn(`Skipping unsupported media format: ${ext}`);
                 continue;
             }
 
@@ -48,7 +49,7 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
             const maxSizeBytes = supportedVideoExts.includes(ext) ? 128 * 1024 * 1024 : 20 * 1024 * 1024; // 128MB for video, 20MB for images
 
             if (stats.size > maxSizeBytes) {
-                console.warn(`Media file too large: ${stats.size} bytes (max: ${maxSizeBytes})`);
+                Logger.warn(`Media file too large: ${stats.size} bytes (max: ${maxSizeBytes})`);
                 continue;
             }
 
@@ -67,7 +68,7 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 
             const { args } = leaseResponse.data;
             if (!args) {
-                console.warn('Failed to get upload lease for', mediaFile);
+                Logger.warn('Failed to get upload lease for', mediaFile);
                 continue;
             }
 
@@ -85,7 +86,7 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 
             uploadedAssets.push(args.fields.key); // key is the asset identifier
         } catch (error) {
-            console.error(`Failed to upload media ${mediaFile}:`, error);
+            Logger.error(`Failed to upload media ${mediaFile}:`, error);
             // Continue with other media files
         }
     }
@@ -134,7 +135,7 @@ export async function shareToReddit(accessToken: string, refreshToken: string | 
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Error posting to Reddit:', errorMessage);
+        Logger.error('Error posting to Reddit:', errorMessage);
         throw new Error('Failed to post to Reddit');
     }
 }
@@ -168,7 +169,7 @@ export async function refreshRedditToken(
         return response.data;
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Error refreshing Reddit token:', errorMessage);
+        Logger.error('Error refreshing Reddit token:', errorMessage);
         throw new Error('Failed to refresh Reddit access token');
     }
 }
@@ -204,7 +205,7 @@ export async function getRedditSubreddits(accessToken: string, query?: string): 
             display_name_prefixed: (sub.data as Record<string, unknown>).display_name_prefixed as string
         })) || [];
     } catch (error) {
-        console.error('Error fetching Reddit subreddits:', error);
+        Logger.error('Error fetching Reddit subreddits:', error);
         return [];
     }
 }
@@ -213,7 +214,7 @@ export async function validateRedditSubreddit(accessToken: string, subreddit: st
     try {
         // Validate input
         if (!subreddit || subreddit.trim() === '') {
-            console.error('Error validating subreddit: subreddit name is empty');
+            Logger.error('Error validating subreddit: subreddit name is empty');
             return false;
         }
 
@@ -228,23 +229,23 @@ export async function validateRedditSubreddit(accessToken: string, subreddit: st
         const isValid = !!(response.data && response.data.kind === 't5'); // t5 is subreddit kind
 
         if (!isValid) {
-            console.warn(`Subreddit validation failed: r/${cleanSubreddit} is not a valid subreddit`);
+            Logger.warn(`Subreddit validation failed: r/${cleanSubreddit} is not a valid subreddit`);
         }
 
         return isValid;
     } catch (error: unknown) {
         if (error instanceof axios.AxiosError) {
             if (error.response?.status === 401) {
-                console.error('Error validating subreddit: Invalid access token (401)');
+                Logger.error('Error validating subreddit: Invalid access token (401)');
             } else if (error.response?.status === 403) {
-                console.error(`Error validating subreddit: Access forbidden to r/${subreddit} (403)`);
+                Logger.error(`Error validating subreddit: Access forbidden to r/${subreddit} (403)`);
             } else if (error.response?.status === 404) {
-                console.warn(`Subreddit r/${subreddit} not found (404)`);
+                Logger.warn(`Subreddit r/${subreddit} not found (404)`);
             } else {
-                console.error(`Error validating subreddit: HTTP ${error.response?.status}`, error.message);
+                Logger.error(`Error validating subreddit: HTTP ${error.response?.status}`, error.message);
             }
         } else {
-            console.error('Error validating subreddit:', error);
+            Logger.error('Error validating subreddit:', error);
         }
         return false;
     }
@@ -260,7 +261,7 @@ export async function validateRedditUser(accessToken: string, username: string):
         const response = await axios.get(`https://oauth.reddit.com/user/${username}/about.json`, { headers });
         return !!(response.data && response.data.kind === 't2'); // t2 is user kind
     } catch (error) {
-        console.error('Error validating Reddit user:', error);
+        Logger.error('Error validating Reddit user:', error);
         return false;
     }
 }
@@ -280,7 +281,7 @@ export async function validateRedditTarget(accessToken: string, target: string):
             return await validateRedditSubreddit(accessToken, target);
         }
     } catch (error) {
-        console.error('Error validating Reddit target:', error);
+        Logger.error('Error validating Reddit target:', error);
         return false;
     }
 }
@@ -295,7 +296,7 @@ export async function getRedditFlairs(accessToken: string, subreddit: string): P
         const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/api/link_flair_v2`, { headers });
         return response.data || [];
     } catch (error) {
-        console.error('Error fetching subreddit flairs:', error);
+        Logger.error('Error fetching subreddit flairs:', error);
         return [];
     }
 }
@@ -315,7 +316,7 @@ export async function getRedditPostDetails(accessToken: string, postId: string):
             permalink: post.permalink
         };
     } catch (error) {
-        console.error('Error fetching post details:', error);
+        Logger.error('Error fetching post details:', error);
         return null;
     }
 }
@@ -342,7 +343,7 @@ export async function getRedditSubredditRules(accessToken: string, subreddit: st
             violation_reason: rule.violation_reason
         }));
     } catch (error) {
-        console.error('Error fetching subreddit rules:', error);
+        Logger.error('Error fetching subreddit rules:', error);
         return [];
     }
 }
@@ -387,7 +388,7 @@ export async function getRedditSubredditInfo(accessToken: string, subreddit: str
             lang: data.lang || 'en'
         };
     } catch (error) {
-        console.error('Error fetching subreddit info:', error);
+        Logger.error('Error fetching subreddit info:', error);
         return null;
     }
 }
@@ -408,7 +409,7 @@ export async function getRedditTrendingSubreddits(accessToken: string, limit = 2
             subscribers: sub.data.subscribers || 0
         }));
     } catch (error) {
-        console.error('Error fetching trending subreddits:', error);
+        Logger.error('Error fetching trending subreddits:', error);
         return [];
     }
 }
@@ -453,7 +454,7 @@ export async function getRelatedSubreddits(accessToken: string, subreddit: strin
                 }
             } catch (searchError) {
                 // Continue with next term if one fails
-                console.warn(`Failed to search related subreddits for term "${term}":`, searchError);
+                Logger.warn(`Failed to search related subreddits for term "${term}":`, searchError);
             }
 
             // Limit to 10 related subreddits
@@ -462,7 +463,7 @@ export async function getRelatedSubreddits(accessToken: string, subreddit: strin
 
         return uniqueRelated.slice(0, 10);
     } catch (error) {
-        console.error('Error fetching related subreddits:', error);
+        Logger.error('Error fetching related subreddits:', error);
         return [];
     }
 }
@@ -497,7 +498,7 @@ export async function editRedditPost(accessToken: string, postId: string, newTex
         return true;
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Error editing Reddit post:', errorMessage);
+        Logger.error('Error editing Reddit post:', errorMessage);
         throw new Error('Failed to edit Reddit post');
     }
 }
@@ -523,7 +524,7 @@ export async function deleteRedditPost(accessToken: string, postId: string): Pro
         return true;
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Error deleting Reddit post:', errorMessage);
+        Logger.error('Error deleting Reddit post:', errorMessage);
         throw new Error('Failed to delete Reddit post');
     }
 }
@@ -547,7 +548,7 @@ export async function getRedditUserPosts(accessToken: string, username?: string,
             created: post.data.created_utc
         }));
     } catch (error: unknown) {
-        console.error('Error fetching user posts:', error);
+        Logger.error('Error fetching user posts:', error);
         return [];
     }
 }

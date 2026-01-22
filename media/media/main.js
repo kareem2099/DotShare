@@ -19,25 +19,25 @@ applyTheme();
 initializeCriticalEventListeners();
 window.addEventListener('load', () => {
     try {
-        console.log('DOM loaded, initializing application...');
+        Logger.info('DOM loaded, initializing application...');
         // Initialize DOM elements after page load
         initializeDOMElements();
-        console.log('Translations loaded statically');
+        Logger.info('Translations loaded statically');
         updateTexts();
         // Load history and analytics
         loadHistoryAndAnalytics();
         // Load saved APIs for all platforms
         loadSavedApisForAllPlatforms();
         // Initialize media upload functionality
-        console.log('About to call initializeMediaUpload');
+        Logger.info('About to call initializeMediaUpload');
         initializeMediaUpload();
-        console.log('initializeMediaUpload called, now calling addDragOverStyles');
+        Logger.info('initializeMediaUpload called, now calling addDragOverStyles');
         addDragOverStyles();
-        console.log('addDragOverStyles called');
-        console.log('Application initialization complete!');
+        Logger.info('addDragOverStyles called');
+        Logger.info('Application initialization complete!');
     }
     catch (error) {
-        console.error('Error during initialization:', error);
+        Logger.error('Error during initialization:', error);
     }
 });
 // Message listener for updates from extension
