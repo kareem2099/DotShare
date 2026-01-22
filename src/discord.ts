@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Logger } from './utils/Logger';
 
 export interface DiscordPostData {
     text: string;
@@ -28,7 +29,7 @@ export async function shareToDiscord(webhookUrl: string, postData: DiscordPostDa
         if (postData.media && postData.media.length > 0) {
             // Note: For full media support, we'd need to upload files to Discord
             // For now, add them as file attachments (simplified implementation)
-            console.log('Media attachments for Discord not fully implemented yet - posting text only');
+            Logger.info('Media attachments for Discord not fully implemented yet - posting text only');
 
             // Alternative: Add image URLs in embeds if they're accessible URLs
             if (postData.media.length === 1 && postData.media[0].startsWith('http')) {
@@ -49,7 +50,7 @@ export async function shareToDiscord(webhookUrl: string, postData: DiscordPostDa
         const errorMessage = error instanceof Error ? error.message : String(error);
         const axiosError = error as { response?: { data?: { message?: string } } };
         const apiMessage = axiosError.response?.data?.message;
-        console.error('Error posting to Discord:', apiMessage || errorMessage);
+        Logger.error('Error posting to Discord:', apiMessage || errorMessage);
         throw new Error(apiMessage || 'Failed to post to Discord');
     }
 }
@@ -82,7 +83,7 @@ export async function getDiscordWebhookInfo(webhookUrl: string): Promise<{name: 
             guildId: response.data.guild_id
         };
     } catch (error) {
-        console.error('Error getting Discord webhook info:', error);
+        Logger.error('Error getting Discord webhook info:', error);
         return null;
     }
 }

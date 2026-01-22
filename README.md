@@ -4,10 +4,11 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/kareem2099/DotShare)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/kareem2099/DotShare)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
+<a href="https://www.buymeacoffee.com/freerave"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
 
 **Transform your development updates into compelling social media content—right from your IDE.**
 
@@ -95,7 +96,7 @@ Speak to your global audience:
 
 ### 📊 Analytics Dashboard
 
-Track your reach and engagement across platforms (coming in v2.2):
+Track your reach and engagement across platforms (coming in v2.4):
 - Post performance metrics
 - Engagement trends
 - Best posting times
@@ -514,14 +515,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## 📈 Roadmap
 
-### v2.2 (Q1 2025)
+### v2.4 (Q1 2025)
 - [ ] Analytics dashboard
 - [ ] Post scheduling UI in VS Code
 - [ ] Instagram integration
 - [ ] TikTok support
 - [ ] Thread/conversation support
 
-### v2.3 (Q2 2025)
+### v2.6 (Q2 2025)
 - [ ] Team collaboration features
 - [ ] Content calendar view
 - [ ] A/B testing for posts
@@ -541,7 +542,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## 📜 Changelog
 
-### v2.1.0 (Current)
+### v2.2.0 (Current)
+- 🏗️ **Complete Architecture Refactoring**: Transformed from monolithic class to clean architecture with 9 focused files
+- 🔒 **Critical Security Fix**: Migrated to VSCode SecretStorage for encrypted API credential storage
+- 🎨 **Premium UI Design**: Modern glassmorphism effects, gradient accents, and professional modal designs
+- ⏰ **Hybrid Scheduling System**: Server-side scheduling for Telegram, client-side for other platforms
+- 🔧 **Advanced Scheduler**: Atomic operations, intelligent retry logic, and stuck posts recovery
+- 📊 **Enhanced Type Safety**: 100% TypeScript coverage with zero ESLint warnings
+- 🎯 **Clean Architecture**: Applied SOLID principles with dependency injection and separation of concerns
+
+### v2.1.0
 - ✨ Added Reddit integration with subreddit posting
 - ✨ BlueSky early adopter support
 - 🎨 Enhanced media upload with drag-and-drop
@@ -574,10 +584,31 @@ DotShare wouldn't exist without these amazing projects:
 
 ## 💝 Support the Project
 
-DotShare is free and open source. If it saves you time, consider:
+DotShare is free and open source. Currently, scheduling works locally via your VS Code (Client-Side).
 
+**🎯 Our Next Goal: Cloud Scheduling Server**
+We want to build a dedicated backend server so your scheduled posts go out 24/7, even when your computer is off!
+
+To make this happen (and cover server costs), your support means the world:
+
+<div align="center">
+
+<a href="https://www.buymeacoffee.com/freerave" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;">
+</a>
+
+<a href="https://github.com/sponsors/kareem2099">
+  <img src="https://img.shields.io/badge/Sponsor%20on-GitHub-pink?style=for-the-badge&logo=github-sponsors" height="60">
+</a>
+
+<a href="https://paypal.me/freerave1">
+  <img src="https://img.shields.io/badge/Donate%20via-PayPal-blue?style=for-the-badge&logo=paypal" height="60">
+</a>
+
+</div>
+
+If you can't donate, you can still help:
 - ⭐ [Star the repository](https://github.com/kareem2099/DotShare)
-- 💰 [Sponsor development](https://github.com/sponsors/kareem2099)
 - 📢 Share with your network
 - 🐛 Report bugs and suggest features
 - 📝 Write a blog post or tutorial

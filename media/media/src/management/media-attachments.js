@@ -49,11 +49,11 @@ export function validateFile(file) {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
     if (file.size > maxSize) {
         // showStatus is not imported, perhaps import or call
-        console.error('File size must be less than 8MB.'); // placeholder
+        Logger.error('File size must be less than 8MB.'); // placeholder
         return false;
     }
     if (!allowedTypes.includes(file.type)) {
-        console.error('Only JPG, PNG, GIF images and MP4 videos are supported.'); // placeholder
+        Logger.error('Only JPG, PNG, GIF images and MP4 videos are supported.'); // placeholder
         return false;
     }
     return true;
@@ -65,25 +65,25 @@ function getVscode() {
 }
 
 export function initializeMediaUpload() {
-    console.log('initializeMediaUpload called');
+    Logger.info('initializeMediaUpload called');
     if (!mediaAttachment || !uploadArea) {
-        console.warn('mediaAttachment or uploadArea not found:', mediaAttachment, uploadArea);
+        Logger.warn('mediaAttachment or uploadArea not found:', mediaAttachment, uploadArea);
         return;
     }
 
     // Add event listener for select media files button
     const selectMediaBtn = document.getElementById("selectMediaBtn");
-    console.log('selectMediaBtn found:', !!selectMediaBtn);
+    Logger.info('selectMediaBtn found:', !!selectMediaBtn);
     if (selectMediaBtn) {
-        console.log('Adding click event listener to selectMediaBtn');
+        Logger.info('Adding click event listener to selectMediaBtn');
         selectMediaBtn.addEventListener('click', (e) => {
-            console.log('Select Files button clicked, sending selectMediaFiles message');
+            Logger.info('Select Files button clicked, sending selectMediaFiles message');
             e.preventDefault();
             getVscode().postMessage({ command: "selectMediaFiles" });
         });
-        console.log('Select Media Files button event listener attached');
+        Logger.info('Select Media Files button event listener attached');
     } else {
-        console.warn('Select Files button not found in DOM');
+        Logger.warn('Select Files button not found in DOM');
     }
 
     // Add event listener for remove media button
@@ -111,7 +111,7 @@ export function initializeMediaUpload() {
             }
         }
         // For now, just log - file input functionality would need to be implemented
-        console.log('Media attachment area clicked');
+        Logger.info('Media attachment area clicked');
     });
 
     // Drag and drop handlers (only if uploadArea exists)
@@ -122,7 +122,7 @@ export function initializeMediaUpload() {
         uploadArea.addEventListener('dragleave', handleDragLeave);
     }
 
-    console.log('Media upload event listeners initialized');
+    Logger.info('Media upload event listeners initialized');
 }
 
 
@@ -166,7 +166,7 @@ function handleDrop(e) {
 
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
-        console.log('Files dropped:', files.length);
+        Logger.info('Files dropped:', files.length);
         // processSelectedFiles would need to be implemented
     }
 }

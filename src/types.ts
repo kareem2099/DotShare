@@ -34,6 +34,9 @@ export interface AnalyticsSummary {
     successRate: number;
 }
 
+// New status types for better state management
+export type PostStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying' | 'server-scheduled';
+
 export interface ScheduledPost {
     id: string;
     scheduledTime: string; // ISO 8601 timestamp
@@ -41,10 +44,13 @@ export interface ScheduledPost {
     aiProvider: 'gemini' | 'openai' | 'xai';
     aiModel: string;
     platforms: ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[]; // Which platforms to post to
-    status: 'scheduled' | 'processing' | 'posted' | 'failed';
+    status: PostStatus; // Updated status type
+    schedulingType: 'server' | 'client'; // How this post is scheduled
     created: string; // When this scheduled post was created
     errorMessage?: string;
     postedTime?: string; // Actual time it was posted
+    attempts?: number; // Number of retry attempts
+    lastAttempt?: string; // Last attempt timestamp
     platformResults?: {
         linkedin?: {
             success: boolean;
@@ -139,7 +145,8 @@ export interface Message {
     analytics?: AnalyticsSummary;
     // Status messages
     status?: string;
-    type?: 'success' | 'error';
+    type?: 'success' | 'error' | 'warning';
+    showSupportAction?: boolean;
     // Reddit-specific fields
     redditTitle?: string;
     redditFlairId?: string;

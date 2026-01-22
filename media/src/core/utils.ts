@@ -1,4 +1,5 @@
 import { SelectedModel } from '../../../src/types';
+import { Logger } from '../utils/Logger';
 import { translations } from './translations';
 
 // DOM Elements variables - these will be initialized by ui-initialization.ts
@@ -88,7 +89,7 @@ export function formatFileSize(bytes: number): string {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-export function showStatus(message: string, type: 'success' | 'error'): void {
+export function showStatus(message: string, type: 'success' | 'error' | 'warning'): void {
     if (!statusMessage) return;
 
     statusMessage.textContent = message;
@@ -173,7 +174,17 @@ export function getPlatformIcon(platform: string): string {
 export function getDefaultScheduleTime(): string {
     const now = new Date();
     now.setHours(now.getHours() + 1);
-    return now.toISOString().slice(0, 16);
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function getUnixTimestamp(dateString: string): number {
+    const date = new Date(dateString);
+    return Math.floor(date.getTime() / 1000);
 }
 
 export function updateThemeToggle(): void {
@@ -192,7 +203,7 @@ export function updateThemeToggle(): void {
 }
 
 export function applyTheme(): void {
-    console.log('Applying theme:', currentThemeVariant);
+    Logger.info('Applying theme:', currentThemeVariant);
     // Remove all theme classes
     themes.forEach(theme => document.body.classList.remove(theme));
     // Add current
@@ -202,7 +213,7 @@ export function applyTheme(): void {
     // Set dark class if dark theme
     const isDark = currentThemeVariant.startsWith('dark');
     document.body.classList.toggle('dark', isDark);
-    console.log('Body classes after theme apply:', document.body.className);
+    Logger.info('Body classes after theme apply:', document.body.className);
     updateThemeToggle();
 }
 
@@ -448,18 +459,22 @@ export function updateButtonStates(): void {
         if (shareBlueSkyBtn) shareBlueSkyBtn.disabled = !(blueskyIdentifier.value.trim() && blueskyPassword.value.trim());
     }
 
-    // Update schedule button based on platform selections
+    // ✅ Schedule button requires platforms AND content (text or media)
     if (scheduleBtn) {
-        const selectedPlatforms = document.querySelectorAll('.platform-checkbox:checked').length;
-        scheduleBtn.disabled = selectedPlatforms === 0;
+        const totalSelected = document.querySelectorAll('.platform-checkbox:checked, input[id^="select-"]:checked').length;
+        const hasText = postText?.value.trim();
+        const hasMedia = attachedFile && attachedFile.style.display !== 'none';
+        const hasContent = hasText || hasMedia;
+
+        scheduleBtn.disabled = totalSelected === 0 || !hasContent;
     }
 
-    // Update share selected button
+    // Update Share Selected button with same logic
     if (postText) {
         const shareSelectedBtn = document.getElementById('shareSelectedBtn') as HTMLButtonElement | null;
         if (shareSelectedBtn) {
-            const selectedPlatforms = document.querySelectorAll('.platform-checkbox:checked').length;
-            shareSelectedBtn.disabled = selectedPlatforms === 0 || !postText.value.trim();
+            const totalSelected = document.querySelectorAll('.platform-checkbox:checked, input[id^="select-"]:checked').length;
+            shareSelectedBtn.disabled = totalSelected === 0 || !postText.value.trim();
         }
     }
 }
@@ -725,5 +740,8 @@ export function initializeGlobalDomElements(): void {
     const scheduledListElement = document.getElementById('scheduledList') as HTMLDivElement;
     if (scheduledListElement) scheduledList = scheduledListElement;
 
-    console.log('Global DOM elements initialized successfully');
+    Logger.info('Global DOM elements initialized successfully');
+
+    // Update button states after initialization
+    updateButtonStates();
 }

@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { DEFAULT_SERVER_URL } from '../constants';
+import { Logger } from '../utils/Logger';
 
 export interface DotShareConfig {
     serverUrl: string;
@@ -53,7 +54,7 @@ export class ConfigManager {
                 this.saveConfig();
             }
         } catch (error) {
-            console.error('Error loading config:', error);
+            Logger.error('Error loading config:', error);
             // Return default config on error
             this.config = {
                 serverUrl: DEFAULT_SERVER_URL,
@@ -76,7 +77,7 @@ export class ConfigManager {
         try {
             fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2));
         } catch (error) {
-            console.error('Error saving config:', error);
+            Logger.error('Error saving config:', error);
         }
     }
 

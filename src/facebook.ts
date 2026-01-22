@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Logger } from './utils/Logger';
 
 export interface FacebookPostData {
     text: string;
@@ -30,7 +31,7 @@ export async function shareToFacebook(accessToken: string, pageToken: string | n
         if (postData.media && postData.media.length > 0) {
             // Note: This is simplified - Facebook media posting requires uploading to their servers first
             // For now, we'll just include the text. Full implementation would require media upload API
-            console.log('Media upload for Facebook not fully implemented yet - posting text only');
+            Logger.info('Media upload for Facebook not fully implemented yet - posting text only');
         }
 
         const response = await axios.post(endpoint, postPayload, { headers });
@@ -40,7 +41,7 @@ export async function shareToFacebook(accessToken: string, pageToken: string | n
         const errorMessage = error instanceof Error ? error.message : String(error);
         const axiosError = error as { response?: { data?: { error?: { message?: string } } } };
         const apiMessage = axiosError.response?.data?.error?.message;
-        console.error('Error posting to Facebook:', apiMessage || errorMessage);
+        Logger.error('Error posting to Facebook:', apiMessage || errorMessage);
         throw new Error(apiMessage || 'Failed to post to Facebook');
     }
 }
@@ -62,7 +63,7 @@ export async function getFacebookPages(accessToken: string): Promise<Array<{id: 
             name: page.name
         }));
     } catch (error) {
-        console.error('Error fetching Facebook pages:', error);
+        Logger.error('Error fetching Facebook pages:', error);
         return [];
     }
 }

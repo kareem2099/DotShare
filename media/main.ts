@@ -17,7 +17,7 @@ window.vscode = vscode;
 // Lazy vscode accessor to avoid undefined issues
 const getVscode = () => vscode;
 
-import { Message } from '../src/types';
+import { Message, ApiConfiguration } from '../src/types';
 import {
     applyTheme,
     showStatus,
@@ -58,6 +58,41 @@ import { displaySavedApis, handleModelUpdate } from './src/handlers/modal-handle
 import { updateScheduledPosts } from './src/management/scheduled-posts';
 import { displayRedditPosts } from './src/management/platform-handlers';
 import { updateDynamicPlatformSelector } from './src/core/utils';
+import { Logger } from './src/utils/Logger';
+
+// Function to update account selector in the main card
+function updateAccountSelector(platform: string, savedApis: ApiConfiguration[]) {
+    const selectorContainer = document.getElementById(`accountSelector_${platform}`);
+    const selectElement = document.getElementById(`accountSelect_${platform}`) as HTMLSelectElement;
+
+    if (!selectorContainer || !selectElement) return;
+
+    // Clear the list and add the default option
+    selectElement.innerHTML = '<option value="">Select a saved profile...</option>';
+
+    if (savedApis && savedApis.length > 0) {
+        savedApis.forEach(api => {
+            const option = document.createElement('option');
+            option.value = api.id;
+            option.textContent = api.name + (api.isDefault ? ' (Default)' : '');
+            selectElement.appendChild(option);
+        });
+
+        // Show the selector because there are saved accounts
+        selectorContainer.style.display = 'block';
+
+        // Add change listener to load configuration
+        selectElement.onchange = (e) => {
+            const apiId = (e.target as HTMLSelectElement).value;
+            if (apiId) {
+                vscode.postMessage({ command: 'loadApiConfiguration', apiId: apiId });
+            }
+        };
+    } else {
+        // Hide the selector if no accounts
+        selectorContainer.style.display = 'none';
+    }
+}
 
 // Apply initial settings
 document.documentElement.lang = currentLang;
@@ -72,7 +107,7 @@ initializeCriticalEventListeners();
 
 window.addEventListener('load', () => {
     try {
-        console.log('DOM loaded, initializing application...');
+        Logger.info('DOM loaded, initializing application...');
 
         // Initialize DOM elements after page load
         initializeDOMElements();
@@ -83,7 +118,7 @@ window.addEventListener('load', () => {
         // Setup Reddit-specific event listeners
         setupRedditEventListeners();
 
-        console.log('Translations loaded statically');
+        Logger.info('Translations loaded statically');
         updateTexts();
 
         // Load history and analytics
@@ -102,6 +137,24 @@ window.addEventListener('load', () => {
             checkbox.addEventListener('change', updateButtonStates);
         });
 
+        // ✅ FIX: Force button update when clicking ANY platform element
+        // This ensures buttons update immediately when platforms are selected
+        const platformContainer = document.querySelector('.platforms-grid') || document.body;
+
+        platformContainer.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            // If the click happened on any platform element (checkbox, label, container)
+            if (target.closest('input[type="checkbox"]') ||
+                target.closest('.platform-card') ||
+                target.closest('.platforms-grid')) {
+
+                // Wait a tiny bit (50ms) for the selection to register, then update buttons
+                setTimeout(() => {
+                    updateButtonStates();
+                }, 50);
+            }
+        });
+
         // Add event listener for post text changes to update buttons
         if (postText) {
             postText.addEventListener('input', updateButtonStates);
@@ -110,9 +163,9 @@ window.addEventListener('load', () => {
         // Initialize Reddit subreddit section visibility
         updateRedditSubredditSectionVisibility();
 
-        console.log('Application initialization complete!');
+        Logger.info('Application initialization complete!');
     } catch (error) {
-        console.error('Error during initialization:', error);
+        Logger.error('Error during initialization:', error);
     }
 });
 
@@ -131,6 +184,22 @@ window.addEventListener('message', (event: MessageEvent<Message>) => {
         case 'status':
             if (message.status && message.type) {
                 showStatus(message.status, message.type);
+
+                // Show support action button if requested (for scheduling nudge)
+                if (message.showSupportAction) {
+                    setTimeout(() => {
+                        const statusElement = document.getElementById('statusMessage');
+                        if (statusElement && !statusElement.querySelector('.support-action-btn')) {
+                            const supportBtn = document.createElement('button');
+                            supportBtn.className = 'support-action-btn';
+                            supportBtn.innerHTML = '☕ Support Cloud Scheduling';
+                            supportBtn.onclick = () => {
+                                vscode.postMessage({ command: 'openSupportLink' });
+                            };
+                            statusElement.appendChild(supportBtn);
+                        }
+                    }, 100);
+                }
 
                 // Reset Reddit token generation button if we get an error status (likely for token generation)
                 if (message.type === 'error' && message.status.includes('Reddit access token')) {
@@ -248,7 +317,13 @@ window.addEventListener('message', (event: MessageEvent<Message>) => {
             break;
         case 'savedApisLoaded':
             if (message.platform && message.savedApis) {
-                displaySavedApis(message.savedApis);
+                // 1. Update the dropdown in the main card
+                updateAccountSelector(message.platform, message.savedApis);
+
+                // 2. Update modal list if it's open for the same platform
+                if (currentSavedApisPlatform === message.platform) {
+                    displaySavedApis(message.savedApis);
+                }
             }
             break;
         case 'apiConfigurationLoaded':

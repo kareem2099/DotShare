@@ -330,7 +330,7 @@ export function initializeCriticalEventListeners() {
             e.preventDefault();
             e.stopPropagation();
             const platform = e.target.getAttribute('data-platform');
-            console.log('Saved APIs button clicked, platform:', platform);
+            Logger.info('Saved APIs button clicked, platform:', platform);
             if (platform) {
                 openSavedApisModal(platform);
             }
@@ -353,11 +353,11 @@ export function initializeCriticalEventListeners() {
                 const tabContent = document.getElementById(`${tabName}Tab`);
                 if (tabContent)
                     tabContent.classList.add('active');
-                console.log('Switched to tab:', tabName);
+                Logger.info('Switched to tab:', tabName);
             }
         });
     });
-    console.log('Critical event listeners initialized - buttons should now work!');
+    Logger.info('Critical event listeners initialized - buttons should now work!');
 }
 export { updateButtonStates } from '../core/utils';
 // Post editing functions

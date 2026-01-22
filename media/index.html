@@ -403,45 +403,65 @@
                     </section>
 
                     <section class="platform-selector-section">
-                        <div class="platform-selector">
-                            <h3>📡 Sharing Platforms</h3>
-                            <div class="platform-checkboxes-horizontal">
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-linkedin" value="linkedin">
-                                    <span class="platform-icon">💼</span>
-                                    LinkedIn
-                                </label>
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-telegram" value="telegram">
+                        <div class="section-title">
+                            <span>📡 Sharing Platforms</span>
+                        </div>
+
+                        <div class="platforms-grid">
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-linkedin" value="linkedin">
+                                <div class="card-content">
+                                    <span class="platform-icon">💼</span> <span class="platform-name">LinkedIn</span>
+                                </div>
+                            </label>
+
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-telegram" value="telegram" checked>
+                                <div class="card-content">
                                     <span class="platform-icon">📱</span>
-                                    Telegram
-                                </label>
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-x" value="x">
+                                    <span class="platform-name">Telegram</span>
+                                </div>
+                            </label>
+
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-x" value="x">
+                                <div class="card-content">
                                     <span class="platform-icon">🐦</span>
-                                    X/Twitter
-                                </label>
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-facebook" value="facebook">
+                                    <span class="platform-name">X / Twitter</span>
+                                </div>
+                            </label>
+
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-facebook" value="facebook">
+                                <div class="card-content">
                                     <span class="platform-icon">📘</span>
-                                    Facebook
-                                </label>
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-discord" value="discord">
+                                    <span class="platform-name">Facebook</span>
+                                </div>
+                            </label>
+
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-discord" value="discord">
+                                <div class="card-content">
                                     <span class="platform-icon">💬</span>
-                                    Discord
-                                </label>
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-reddit" value="reddit">
+                                    <span class="platform-name">Discord</span>
+                                </div>
+                            </label>
+
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-reddit" value="reddit">
+                                <div class="card-content">
                                     <span class="platform-icon">🟠</span>
-                                    Reddit
-                                </label>
-                                <label class="platform-option">
-                                    <input type="checkbox" id="select-bluesky" value="bluesky">
+                                    <span class="platform-name">Reddit</span>
+                                </div>
+                            </label>
+
+                            <label class="platform-card">
+                                <input type="checkbox" class="platform-checkbox" id="select-bluesky" value="bluesky">
+                                <div class="card-content">
                                     <span class="platform-icon">🌅</span>
-                                    BlueSky
-                                </label>
-                            </div>
+                                    <span class="platform-name">BlueSky</span>
+                                </div>
+                            </label>
                         </div>
                     </section>
 
@@ -661,6 +681,9 @@
                             <input type="checkbox" id="scheduleTelegram" value="telegram"> 📱 Telegram
                         </label>
                         <label>
+                            <input type="checkbox" id="scheduleX" value="x"> 🐦 X/Twitter
+                        </label>
+                        <label>
                             <input type="checkbox" id="scheduleReddit" value="reddit"> 🟠 Reddit
                         </label>
                     </div>
@@ -856,6 +879,8 @@
     <!-- Status Message -->
     <div id="statusMessage" class="status-message" style="display: none;"></div>
 
+    <!-- Logger must be loaded first for global access -->
+    <script src="./src/utils/Logger.js"></script>
     <script src="./app.js"></script>
 </body>
 </html>

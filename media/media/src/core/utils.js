@@ -658,5 +658,5 @@ export function initializeGlobalDomElements() {
     const scheduledListElement = document.getElementById('scheduledList');
     if (scheduledListElement)
         scheduledList = scheduledListElement;
-    console.log('Global DOM elements initialized successfully');
+    Logger.info('Global DOM elements initialized successfully');
 }

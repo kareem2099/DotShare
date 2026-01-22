@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Logger } from './utils/Logger';
 
 export interface TweetData {
     text: string;
@@ -26,7 +27,7 @@ export async function shareToX(_accessToken: string, _accessSecret: string, twee
         if (tweetData.media && tweetData.media.length > 0) {
             // Note: This is simplified - actual media upload requires multiple API calls
             // Upload media first, then attach to tweet
-            console.log('Media upload for Twitter not fully implemented yet');
+            Logger.info('Media upload for Twitter not fully implemented yet');
         }
 
         const response = await axios.post('https://api.twitter.com/2/tweets', tweetPayload, { headers });
@@ -34,7 +35,7 @@ export async function shareToX(_accessToken: string, _accessSecret: string, twee
         return response.data.data.id;
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Error posting to Twitter/X:', errorMessage);
+        Logger.error('Error posting to Twitter/X:', errorMessage);
         throw new Error('Failed to post to Twitter/X');
     }
 }
