@@ -1,13 +1,13 @@
-import { shareToLinkedIn } from './linkedin';
-import { shareToTelegram } from './telegram';
-import { shareToX } from './x';
-import { shareToFacebook } from './facebook';
-import { shareToDiscord } from './discord';
-import { shareToReddit } from './reddit';
-import { shareToBlueSky } from './bluesky';
-import { CredentialProvider } from './credential-provider';
-import { PostData } from './types';
-import { Logger } from './utils/Logger';
+import { shareToLinkedIn } from '../platforms/linkedin';
+import { shareToTelegram } from '../platforms/telegram';
+import { shareToX } from '../platforms/x';
+import { shareToFacebook } from '../platforms/facebook';
+import { shareToDiscord } from '../platforms/discord';
+import { shareToReddit } from '../platforms/reddit';
+import { shareToBlueSky } from '../platforms/bluesky';
+import { CredentialProvider } from '../storage/credential-provider';
+import { PostData } from '../types';
+import { Logger } from '../utils/Logger';
 
 export interface PlatformResult {
     success: boolean;

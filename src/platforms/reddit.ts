@@ -2,8 +2,8 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import FormData from 'form-data';
-import { DEFAULT_SERVER_URL } from './constants';
-import { Logger } from './utils/Logger';
+import { DEFAULT_SERVER_URL } from '../constants';
+import { Logger } from '../utils/Logger';
 
 export interface RedditPostData {
     text: string;

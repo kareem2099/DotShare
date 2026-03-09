@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ScheduledPost, PostStatus } from './types';
-import { Logger } from './utils/Logger';
+import { ScheduledPost, PostStatus } from '../types';
+import { Logger } from '../utils/Logger';
 
 // Post status constants for type safety
 const POST_STATUS = {
@@ -31,7 +31,13 @@ export class ScheduledPostsStorage {
         try {
             if (!fs.existsSync(this.filePath)) return [];
             const data = fs.readFileSync(this.filePath, 'utf-8');
-            return JSON.parse(data);
+            const parsed = JSON.parse(data);
+            // Ensure parsed data is an array
+            if (!Array.isArray(parsed)) {
+                Logger.warn('Scheduled posts file contains non-array data, resetting to empty array');
+                return [];
+            }
+            return parsed;
         } catch (error) {
             Logger.error('Error reading scheduled posts:', error);
             return [];

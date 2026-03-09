@@ -3,8 +3,8 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import FormData from 'form-data';
-import { PostData } from './types';
-import { Logger } from './utils/Logger';
+import { PostData } from '../types';
+import { Logger } from '../utils/Logger';
 
 // Check if we're running in VS Code environment
 const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;

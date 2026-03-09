@@ -54,5 +54,7 @@ export const geminiKeyModal = document.getElementById('geminiKeyModal') as HTMLI
 export const geminiModelSelect = document.getElementById('geminiModel') as HTMLSelectElement;
 export const openaiKeyInput = document.getElementById('openaiKey') as HTMLInputElement;
 export const openaiModelSelect = document.getElementById('openaiModel') as HTMLSelectElement;
+export const claudeKeyInput = document.getElementById('claudeKey') as HTMLInputElement;
+export const claudeModelSelect = document.getElementById('claudeModel') as HTMLSelectElement;
 export const xaiKeyInput = document.getElementById('xaiKey') as HTMLInputElement;
 export const xaiModelSelect = document.getElementById('xaiModel') as HTMLSelectElement;

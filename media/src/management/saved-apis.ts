@@ -1,5 +1,5 @@
 // Saved API configuration management functions - extracted from app.ts
-import { ApiConfiguration, AccountOption } from '../../../src/types';
+import { ApiConfiguration, AccountOption } from '../../types';
 import { showStatus } from '../core/utils';
 import { logger } from '../utils/Logger';
 

@@ -102,7 +102,7 @@ export class RedditHandler {
         await this.context.secrets.store('redditPassword', currentPassword);
         this.context.globalState.update('redditApiName', currentApiName);
 
-        const { generateRedditTokens } = await import('../reddit');
+        const { generateRedditTokens } = await import('../platforms/reddit');
         const tokenData = await generateRedditTokens(
             currentClientId,
             currentClientSecret,
@@ -140,7 +140,7 @@ export class RedditHandler {
             return;
         }
 
-        const { getRedditFlairs } = await import('../reddit');
+        const { getRedditFlairs } = await import('../platforms/reddit');
         const subreddit = message.subreddit as string;
         const flairs = await getRedditFlairs(accessToken, subreddit);
         this.view.webview.postMessage({
@@ -158,7 +158,7 @@ export class RedditHandler {
             return;
         }
 
-        const { getRedditUserPosts } = await import('../reddit');
+        const { getRedditUserPosts } = await import('../platforms/reddit');
         const username = message.username as string;
         const limit = message.limit as number | undefined;
         const posts = await getRedditUserPosts(accessToken, username, limit);
@@ -176,7 +176,7 @@ export class RedditHandler {
             return;
         }
 
-        const { editRedditPost } = await import('../reddit');
+        const { editRedditPost } = await import('../platforms/reddit');
         const postId = message.postId as string;
         const newText = message.newText as string;
         const success = await editRedditPost(accessToken, postId, newText);
@@ -196,7 +196,7 @@ export class RedditHandler {
             return;
         }
 
-        const { deleteRedditPost } = await import('../reddit');
+        const { deleteRedditPost } = await import('../platforms/reddit');
         const postId = message.postId as string;
         const success = await deleteRedditPost(accessToken, postId);
 

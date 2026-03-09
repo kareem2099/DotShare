@@ -2,10 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { ScheduledPostsStorage } from './scheduled-posts';
-import { CredentialProvider, PlatformCredentials } from './credential-provider';
+import { CredentialProvider, PlatformCredentials } from '../storage/credential-provider';
 import { PostExecutor, PlatformResult } from './post-executor';
-import { ScheduledPost, PostStatus } from './types';
-import { Logger } from './utils/Logger';
+import { ScheduledPost, PostStatus } from '../types';
+import { Logger } from '../utils/Logger';
 
 // Post status constants for type safety
 const POST_STATUS = {

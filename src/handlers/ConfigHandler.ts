@@ -203,7 +203,7 @@ export class ConfigHandler {
 
     private async handleLoadSavedApis(message: Message): Promise<void> {
         const platform = message.platform as string;
-        const { StorageManager } = await import('../storage-manager');
+        const { StorageManager } = await import('../storage/storage-manager');
         const storageManager = new StorageManager(this.context);
         const savedApis = await storageManager.loadSavedApis(platform);
         this.view.webview.postMessage({
@@ -213,7 +213,7 @@ export class ConfigHandler {
     }
 
     private async handleSaveApiConfiguration(message: Message): Promise<void> {
-        const { StorageManager } = await import('../storage-manager');
+        const { StorageManager } = await import('../storage/storage-manager');
         const storageManager = new StorageManager(this.context);
         await storageManager.saveApiConfiguration(message.apiConfig as SavedApiConfiguration);
         this.view.webview.postMessage({ command: 'status', status: 'API configuration saved!', type: 'success' });
@@ -222,7 +222,7 @@ export class ConfigHandler {
 
     private async handleDeleteApiConfiguration(message: Message): Promise<void> {
         const apiId = message.apiId as string;
-        const { StorageManager } = await import('../storage-manager');
+        const { StorageManager } = await import('../storage/storage-manager');
         const storageManager = new StorageManager(this.context);
         await storageManager.deleteApiConfiguration(apiId);
         this.sendSuccess('API configuration deleted!');
@@ -231,7 +231,7 @@ export class ConfigHandler {
     private async handleSetDefaultApiConfiguration(message: Message): Promise<void> {
         const platform = message.platform as string;
         const apiId = message.apiId as string;
-        const { StorageManager } = await import('../storage-manager');
+        const { StorageManager } = await import('../storage/storage-manager');
         const storageManager = new StorageManager(this.context);
         await storageManager.setDefaultApiConfiguration(platform, apiId);
         this.sendSuccess(`${platform.charAt(0).toUpperCase() + platform.slice(1)} default configuration updated!`);
@@ -240,7 +240,7 @@ export class ConfigHandler {
 
     private async handleLoadApiConfiguration(message: Message): Promise<void> {
         const apiId = message.apiId as string;
-        const { StorageManager } = await import('../storage-manager');
+        const { StorageManager } = await import('../storage/storage-manager');
         const storageManager = new StorageManager(this.context);
         const apiConfig = await storageManager.loadApiConfiguration(apiId);
         if (apiConfig) {

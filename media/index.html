@@ -755,6 +755,7 @@
                 <div class="provider-tabs">
                     <button class="tab-btn active" data-provider="gemini">Gemini</button>
                     <button class="tab-btn" data-provider="openai">ChatGPT</button>
+                    <button class="tab-btn" data-provider="claude">Claude</button>
                     <button class="tab-btn" data-provider="xai">X-AI</button>
                 </div>
 
@@ -803,6 +804,31 @@
                             <li>Create a new secret key</li>
                             <li>Copy and paste the key above</li>
                             <li>Note: You'll need credits in your OpenAI account</li>
+                        </ol>
+                    </details>
+                </div>
+
+                <div id="claudePanel" class="provider-panel">
+                    <h4>Anthropic Claude</h4>
+                    <div class="input-group">
+                        <label for="claudeKey" data-key="apiKey">API Key</label>
+                        <input type="password" id="claudeKey" placeholder="" data-key="enterClaudeApiKey">
+                    </div>
+                    <div class="input-group">
+                        <label for="claudeModel" data-key="modelLabel">Model</label>
+                        <select id="claudeModel">
+                            <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                            <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                            <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+                        </select>
+                    </div>
+                    <details class="guidelines">
+                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
+                        <ol>
+                            <li>Go to <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a></li>
+                            <li>Sign in with your account</li>
+                            <li>Navigate to API Keys</li>
+                            <li>Create a new API key</li>
                         </ol>
                     </details>
                 </div>

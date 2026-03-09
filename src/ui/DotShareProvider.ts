@@ -5,7 +5,7 @@ import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { MediaService } from '../services/MediaService';
 import { MessageHandler } from '../handlers/MessageHandler';
-import { ScheduledPostsStorage } from '../scheduled-posts';
+import { ScheduledPostsStorage } from '../core/scheduled-posts';
 
 export class DotShareProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotshareView';

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Logger } from './utils/Logger';
+import { Logger } from '../utils/Logger';
 
 export interface FacebookPostData {
     text: string;

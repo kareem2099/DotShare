@@ -2,16 +2,16 @@ import * as vscode from 'vscode';
 import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { PostData } from '../types';
-import { ScheduledPostsStorage, generateScheduledPostId } from '../scheduled-posts';
+import { ScheduledPostsStorage, generateScheduledPostId } from '../core/scheduled-posts';
 import { Logger } from '../utils/Logger';
 
 // Imports for posting functions
-import { generatePost as generateGeminiPost } from '../gemini';
-import { generatePost as generateOpenAIPost } from '../openai';
-import { generatePost as generateXAIPost } from '../xai';
-import { shareToLinkedIn } from '../linkedin';
-import { shareToTelegram } from '../telegram';
-import { shareToReddit } from '../reddit';
+import { generatePost as generateGeminiPost } from '../ai/gemini';
+import { generatePost as generateOpenAIPost } from '../ai/openai';
+import { generatePost as generateXAIPost } from '../ai/xai';
+import { shareToLinkedIn } from '../platforms/linkedin';
+import { shareToTelegram } from '../platforms/telegram';
+import { shareToReddit } from '../platforms/reddit';
 
 interface Message {
     command: string;
