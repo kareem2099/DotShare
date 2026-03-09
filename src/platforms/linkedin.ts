@@ -1,10 +1,9 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
-import { PostData } from './types';
+import { PostData } from '../types';
 import * as path from 'path';
-// ✅ 1. استيراد رابط السيرفر الموحد
-import { DEFAULT_SERVER_URL } from './constants';
+import { DEFAULT_SERVER_URL } from '../constants';
 
 // Check if we're running in VS Code environment
 const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
@@ -34,7 +33,6 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
 
     try {
         // Use Python server API instead of direct LinkedIn API calls
-        // ✅ 2. استخدام الثابت هنا
         const serverUrl = process.env.DOTSHARE_SERVER_URL || DEFAULT_SERVER_URL;
         
         const mediaUrls = post.media ? post.media.map(file => {

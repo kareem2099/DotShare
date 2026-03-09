@@ -1,5 +1,5 @@
 // Scheduled posts management functions - extracted from app.ts
-import { ScheduledPost } from '../../../src/types';
+import { ScheduledPost } from '../../types';
 import { showStatus, getScheduledStatusBadge, scheduledList, scheduledPosts, currentEditingPostId, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduleReddit, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat, setCurrentEditingPostId } from '../core/utils';
 import { translations } from '../core/translations';
 import { currentLang } from '../core/utils';

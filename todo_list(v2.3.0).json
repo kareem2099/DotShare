@@ -1,0 +1,77 @@
+{
+  "version": "2.3.0",
+  "title": "DotShare Analytics & Smart Hashtags",
+  "description": "Introducing the Analytics Dashboard and Smart Hashtags.",
+  "status": "completed",
+  "start_date": "2026-03-04",
+  "planned_architecture": {
+    "services": [
+      {
+        "name": "AnalyticsService.ts",
+        "purpose": "Handle cross-platform engagement metrics",
+        "status": "completed"
+      }
+    ],
+    "handlers": [
+      {
+        "name": "AIHandler.ts",
+        "purpose": "Enhance prompt engineering for Smart Hashtags",
+        "status": "completed"
+      }
+    ],
+    "ui": [
+      {
+        "name": "AnalyticsDashboard.ts",
+        "purpose": "Webview panel for visualizing metrics",
+        "status": "completed"
+      }
+    ]
+  },
+  "planned_features": {
+    "analytics_dashboard": [
+      "Design and implement visual charts (Chart.js/D3) in webview.",
+      "Aggregate post success rates, view counts (where API allows), and platform usage.",
+      "Add historical data tracking (last 7, 30, 90 days)."
+    ],
+    "smart_ai_hashtags": [
+      "Modify AI generation prompts to request context-aware hashtags.",
+      "Extract language/framework from active editor context.",
+      "Append trending/relevant hashtags dynamically based on content."
+    ]
+  },
+  "technical_improvements": {
+    "api_resilience": [
+      "Implement exponential backoff specifically for HTTP 429 (Rate Limit) errors.",
+      "Add rate limit status tracking per platform to prevent unnecessary API calls."
+    ],
+    "memory_optimization": [
+      "Stream large media files during upload instead of loading entirely into memory.",
+      "Implement garbage collection triggers after large video/GIF uploads."
+    ],
+    "oauth_handling": [
+      "Improve token expiration detection.",
+      "Add automatic prompt for re-authentication before attempting to post."
+    ]
+  },
+  "implementation_phases": {
+    "phase_1_core_updates": [
+      "Update AI Prompts for Smart Hashtags.",
+      "Implement HTTP 429 Retry Logic across existing Handlers.",
+      "Fix Markdown rendering issues for Telegram/Discord."
+    ],
+    "phase_2_analytics_ui": [
+      "Develop Analytics Webview.",
+      "Connect UI to existing `AnalyticsService` data.",
+      "Add historical tracking logic."
+    ]
+  },
+  "success_metrics": {
+    "feature_completion": [
+      "Working Analytics Dashboard with accurate data.",
+      "Contextually relevant hashtags generated automatically."
+    ],
+    "performance": [
+      "Zero crashes during API rate limit scenarios."
+    ]
+  }
+}

@@ -7,12 +7,20 @@ export class AnalyticsPanel {
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
+    private readonly _version: string;
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, private readonly historyService: HistoryService, private readonly analyticsService: AnalyticsService) {
+    private constructor(
+        panel: vscode.WebviewPanel,
+        extensionUri: vscode.Uri,
+        private readonly historyService: HistoryService,
+        private readonly analyticsService: AnalyticsService,
+        version: string
+    ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        this._version = version;
 
-        this._update(); // Initial render
+        this._update();
 
         // Real-time updates
         historyService.onDidChangeHistory(() => {
@@ -22,7 +30,11 @@ export class AnalyticsPanel {
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     }
 
-    public static createOrShow(extensionUri: vscode.Uri, historyService: HistoryService, analyticsService: AnalyticsService) {
+    public static createOrShow(
+        extensionUri: vscode.Uri,
+        historyService: HistoryService,
+        analyticsService: AnalyticsService
+    ) {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -42,36 +54,43 @@ export class AnalyticsPanel {
             }
         );
 
-        AnalyticsPanel.currentPanel = new AnalyticsPanel(panel, extensionUri, historyService, analyticsService);
+        // Get version dynamically from package.json
+        let version = '2.3.0';
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            version = require('../../package.json').version;
+        } catch {
+            // fallback to default
+        }
+
+        AnalyticsPanel.currentPanel = new AnalyticsPanel(
+            panel, extensionUri, historyService, analyticsService, version
+        );
     }
 
     public dispose() {
         AnalyticsPanel.currentPanel = undefined;
-
         this._panel.dispose();
 
         while (this._disposables.length) {
             const x = this._disposables.pop();
-            if (x) {
-                x.dispose();
-            }
+            if (x) x.dispose();
         }
     }
 
     private _update() {
-        const webview = this._panel.webview;
-        this._panel.webview.html = this._getHtmlForWebview(webview);
+        this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
     }
 
-    private _getHtmlForWebview(webview: vscode.Webview) {
+    private _getHtmlForWebview(_webview: vscode.Webview) {
         const history = this.historyService.getHistory();
         const stats = this.analyticsService.calculate(history);
 
-        // Calculate max value for bar charts to normalize
         const maxPlatformShares = Math.max(
             stats.linkedinShares, stats.telegramShares, stats.xShares,
-            stats.facebookShares, stats.discordShares, stats.redditShares, stats.blueskyShares,
-            1 // Avoid division by zero
+            stats.facebookShares, stats.discordShares, stats.redditShares,
+            stats.blueskyShares,
+            1
         );
 
         return `<!DOCTYPE html>
@@ -87,10 +106,10 @@ export class AnalyticsPanel {
             --danger: #f44336;
             --bg: var(--vscode-editor-background);
             --fg: var(--vscode-editor-foreground);
-            --card-bg: var(--vscode-editor-inactiveSelectionBackground); 
+            --card-bg: var(--vscode-editor-inactiveSelectionBackground);
             --border: var(--vscode-panel-border);
         }
-        
+
         body {
             background-color: var(--bg);
             color: var(--fg);
@@ -101,7 +120,7 @@ export class AnalyticsPanel {
         }
 
         h1, h2, h3 { font-weight: 500; }
-        
+
         .header {
             display: flex;
             align-items: center;
@@ -171,7 +190,6 @@ export class AnalyticsPanel {
             height: 24px;
             border-radius: 4px;
             overflow: hidden;
-            position: relative;
         }
 
         .bar-fill {
@@ -187,12 +205,12 @@ export class AnalyticsPanel {
             color: white;
             min-width: 2px;
         }
-        
+
         .recent-list {
             list-style: none;
             padding: 0;
         }
-        
+
         .recent-item {
             background: rgba(255,255,255,0.03);
             margin-bottom: 10px;
@@ -204,24 +222,20 @@ export class AnalyticsPanel {
             align-items: center;
         }
 
-        .glass-effect {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        /* Success Rate Ring */
         .circle-chart {
             width: 150px;
             height: 150px;
             border-radius: 50%;
-            background: conic-gradient(var(--success) ${stats.successRate * 3.6}deg, rgba(255,255,255,0.05) 0deg);
+            background: conic-gradient(
+                var(--success) ${stats.successRate * 3.6}deg,
+                rgba(255,255,255,0.05) 0deg
+            );
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto;
-            position: relative;
         }
-        
+
         .circle-inner {
             width: 120px;
             height: 120px;
@@ -232,15 +246,12 @@ export class AnalyticsPanel {
             justify-content: center;
             flex-direction: column;
         }
-
-        .icon { font-size: 1.2em; margin-right: 5px; }
-
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📊 Analytics Dashboard</h1>
-        <div style="opacity: 0.7">DotShare v2.2.0</div>
+        <div style="opacity: 0.7">DotShare v${this._version}</div>
     </div>
 
     <div class="stats-grid">
@@ -249,13 +260,15 @@ export class AnalyticsPanel {
             <div class="stat-value">${stats.totalPosts}</div>
             <div>Lifetime shares</div>
         </div>
-        
+
         <div class="card" style="text-align: center;">
             <div class="stat-label">Success Rate</div>
             <div style="margin-top: 15px;">
                 <div class="circle-chart">
                     <div class="circle-inner">
-                        <span style="font-size: 1.8em; font-weight: bold; color: var(--success)">${stats.successRate}%</span>
+                        <span style="font-size: 1.8em; font-weight: bold; color: var(--success)">
+                            ${stats.successRate}%
+                        </span>
                     </div>
                 </div>
             </div>
@@ -274,38 +287,45 @@ export class AnalyticsPanel {
     <div class="chart-container">
         <h3>Platform Distribution</h3>
         <div class="bar-chart">
-            ${this._renderBar('LinkedIn', stats.linkedinShares, maxPlatformShares)}
-            ${this._renderBar('Twitter / X', stats.xShares, maxPlatformShares)}
-            ${this._renderBar('Telegram', stats.telegramShares, maxPlatformShares)}
-            ${this._renderBar('Reddit', stats.redditShares, maxPlatformShares)}
-            ${this._renderBar('Discord', stats.discordShares, maxPlatformShares)}
-            ${this._renderBar('Facebook', stats.facebookShares, maxPlatformShares)}
-            ${this._renderBar('BlueSky', stats.blueskyShares, maxPlatformShares)}
+            ${this._renderBar('LinkedIn',   stats.linkedinShares,  maxPlatformShares)}
+            ${this._renderBar('Twitter / X', stats.xShares,        maxPlatformShares)}
+            ${this._renderBar('Telegram',   stats.telegramShares,  maxPlatformShares)}
+            ${this._renderBar('Reddit',     stats.redditShares,    maxPlatformShares)}
+            ${this._renderBar('Discord',    stats.discordShares,   maxPlatformShares)}
+            ${this._renderBar('Facebook',   stats.facebookShares,  maxPlatformShares)}
+            ${this._renderBar('BlueSky',    stats.blueskyShares,   maxPlatformShares)}
         </div>
     </div>
 
     <div class="chart-container">
-        <h3>Recent Specifications</h3>
+        <h3>Recent Posts</h3>
         <ul class="recent-list">
-            ${history.slice(0, 5).map(post => {
-            const safeText = post.postData.text
-                .replace(/(token|key|auth|secret|password):[^\s]+/gi, '****')
-                .replace(/[a-zA-Z0-9]{20,}/g, '****'); // Aggressive catch-all for long strings that look like tokens
+            ${history.length === 0
+                ? '<div style="opacity: 0.5; padding: 10px;">No posts yet. Start sharing to see your history!</div>'
+                : history.slice(0, 5).map(post => {
+                    // Only mask actual credential patterns, not post content
+                    const safeText = post.postData.text
+                        .replace(/(token|key|auth|secret|password)\s*[:=]\s*\S+/gi, '$1: ****');
 
-            return `
-                <li class="recent-item">
-                    <div>
-                        <div style="font-weight: 500; margin-bottom: 4px;">${safeText.substring(0, 60)}${safeText.length > 60 ? '...' : ''}</div>
-                        <div style="font-size: 0.85em; opacity: 0.7;">
-                            ${new Date(post.timestamp).toLocaleDateString()} • ${post.aiProvider} • ${post.shares.length} platforms
-                        </div>
-                    </div>
-                    <div style="text-align: right">
-                       ${post.shares.map(s => s.success ? '✅' : '❌').join(' ')}
-                    </div>
-                </li>
-            `}).join('')}
-            ${history.length === 0 ? '<div style="opacity: 0.5; padding: 10px;">No posts yet. Start sharing to see your history!</div>' : ''}
+                    return `
+                        <li class="recent-item">
+                            <div>
+                                <div style="font-weight: 500; margin-bottom: 4px;">
+                                    ${safeText.substring(0, 60)}${safeText.length > 60 ? '...' : ''}
+                                </div>
+                                <div style="font-size: 0.85em; opacity: 0.7;">
+                                    ${new Date(post.timestamp).toLocaleDateString()} 
+                                    • ${post.aiProvider} 
+                                    • ${post.shares.length} platforms
+                                </div>
+                            </div>
+                            <div style="text-align: right">
+                                ${post.shares.map(s => s.success ? '✅' : '❌').join(' ')}
+                            </div>
+                        </li>
+                    `;
+                }).join('')
+            }
         </ul>
     </div>
 </body>

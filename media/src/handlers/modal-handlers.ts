@@ -25,24 +25,29 @@ const geminiKeyModal = document.getElementById('geminiKeyModal') as HTMLInputEle
 const geminiModelSelect = document.getElementById('geminiModel') as HTMLSelectElement | null;
 const openaiKeyInput = document.getElementById('openaiKey') as HTMLInputElement | null;
 const openaiModelSelect = document.getElementById('openaiModel') as HTMLSelectElement | null;
+const claudeKeyInput = document.getElementById('claudeKey') as HTMLInputElement | null;
+const claudeModelSelect = document.getElementById('claudeModel') as HTMLSelectElement | null;
 const xaiKeyInput = document.getElementById('xaiKey') as HTMLInputElement | null;
 const xaiModelSelect = document.getElementById('xaiModel') as HTMLSelectElement | null;
 
 // AI Model Modal functions
 export function openModal(): void {
-    if (!geminiKeyModal || !geminiModelSelect || !openaiKeyInput || !openaiModelSelect || !xaiKeyInput || !xaiModelSelect || !selectedModel) return;
+    if (!geminiKeyModal || !geminiModelSelect || !openaiKeyInput || !openaiModelSelect || !claudeKeyInput || !claudeModelSelect || !xaiKeyInput || !xaiModelSelect || !selectedModel) return;
 
     // Pre-fill modal with current values
     geminiKeyModal.value = selectedModel.provider === 'gemini' ? (selectedModel.apiKey || '') : '';
     geminiModelSelect.value = selectedModel.provider === 'gemini' ? selectedModel.model : '';
     openaiKeyInput.value = selectedModel.provider === 'openai' ? (selectedModel.apiKey || '') : '';
     openaiModelSelect.value = selectedModel.provider === 'openai' ? selectedModel.model : '';
+    claudeKeyInput.value = selectedModel.provider === 'claude' ? (selectedModel.apiKey || '') : '';
+    claudeModelSelect.value = selectedModel.provider === 'claude' ? selectedModel.model : '';
     xaiKeyInput.value = selectedModel.provider === 'xai' ? (selectedModel.apiKey || '') : '';
     xaiModelSelect.value = selectedModel.provider === 'xai' ? selectedModel.model : '';
 
     // Request models for all providers when modal opens, using their respective keys if available
     getVscode().postMessage({ command: 'fetchModels', provider: 'gemini', apiKey: geminiKeyModal.value });
     getVscode().postMessage({ command: 'fetchModels', provider: 'openai', apiKey: openaiKeyInput.value });
+    getVscode().postMessage({ command: 'fetchModels', provider: 'claude', apiKey: claudeKeyInput.value });
     getVscode().postMessage({ command: 'fetchModels', provider: 'xai', apiKey: xaiKeyInput.value });
 
     const modelModal = document.getElementById('modelModal') as HTMLDivElement;
@@ -82,6 +87,9 @@ export function applyModel(): void {
     } else if (activeProvider === 'openai') {
         apiKey = openaiKeyInput?.value.trim() || '';
         model = openaiModelSelect?.value || '';
+    } else if (activeProvider === 'claude') {
+        apiKey = claudeKeyInput?.value.trim() || '';
+        model = claudeModelSelect?.value || '';
     } else if (activeProvider === 'xai') {
         apiKey = xaiKeyInput?.value.trim() || '';
         model = xaiModelSelect?.value || '';
@@ -98,7 +106,7 @@ export function applyModel(): void {
     }
 
     const newModel: SelectedModel = {
-        provider: activeProvider as 'gemini' | 'openai' | 'xai',
+        provider: activeProvider as 'gemini' | 'openai' | 'claude' | 'xai',
         model,
         apiKey
     };
@@ -116,7 +124,7 @@ export function applyModel(): void {
     });
 }
 
-export function handleModelUpdate(message: { provider?: string; geminiModels?: string[]; openaiModels?: string[]; xaiModels?: string[] }): void {
+export function handleModelUpdate(message: { provider?: string; geminiModels?: string[]; openaiModels?: string[]; claudeModels?: string[]; xaiModels?: string[] }): void {
     if (message.provider === 'gemini' && message.geminiModels) {
         const geminiModelSelect = document.getElementById('geminiModel') as HTMLSelectElement | null;
         if (geminiModelSelect) {
@@ -126,6 +134,11 @@ export function handleModelUpdate(message: { provider?: string; geminiModels?: s
         const openaiModelSelect = document.getElementById('openaiModel') as HTMLSelectElement | null;
         if (openaiModelSelect) {
             populateModelDropdown(openaiModelSelect, message.openaiModels, selectedModel.model);
+        }
+    } else if (message.provider === 'claude' && message.claudeModels) {
+        const claudeModelSelect = document.getElementById('claudeModel') as HTMLSelectElement | null;
+        if (claudeModelSelect) {
+            populateModelDropdown(claudeModelSelect, message.claudeModels, selectedModel.model);
         }
     } else if (message.provider === 'xai' && message.xaiModels) {
         const xaiModelSelect = document.getElementById('xaiModel') as HTMLSelectElement | null;

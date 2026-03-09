@@ -2,9 +2,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as vscode from 'vscode';
-import { ScheduledPostsStorage } from './scheduled-posts';
-import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary, SavedApiConfiguration } from './types';
-import { Logger } from './utils/Logger';
+import { ScheduledPostsStorage } from '../core/scheduled-posts';
+import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary, SavedApiConfiguration } from '../types';
+import { Logger } from '../utils/Logger';
 
 export class StorageManager {
     private _context: vscode.ExtensionContext;

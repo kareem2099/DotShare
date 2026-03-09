@@ -1,4 +1,4 @@
-import { HistoricalPost, AnalyticsSummary } from '../types';
+import { HistoricalPost, AnalyticsSummary, SocialPlatform } from '../types';
 
 export class AnalyticsService {
     public calculate(history: HistoricalPost[]): AnalyticsSummary {
@@ -7,7 +7,7 @@ export class AnalyticsService {
         let failedShares = 0;
 
         // Initialize counters dynamically or statically as you prefer
-        const platformCounts: Record<string, number> = {
+        const platformCounts: Record<SocialPlatform, number> = {
             linkedin: 0, telegram: 0, x: 0, facebook: 0,
             discord: 0, reddit: 0, bluesky: 0
         };

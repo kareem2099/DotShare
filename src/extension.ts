@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { DotShareProvider } from './ui/DotShareProvider';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
-import { StorageManager } from './storage-manager';
+import { StorageManager } from './storage/storage-manager';
 import { AnalyticsPanel } from './ui/AnalyticsPanel';
 import { HistoryService } from './services/HistoryService';
 import { AnalyticsService } from './services/AnalyticsService';
-import { Scheduler } from './scheduler';
+import { Scheduler } from './core/scheduler';
 import { Logger } from './utils/Logger';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -23,6 +23,11 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(DotShareProvider.viewType, provider)
     );
+
+    // --- NEW: Register the URI Handler to catch OAuth redirects ---
+    const uriHandler = new DotShareUriHandler(context, provider);
+    context.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
+    // --------------------------------------------------------------
 
     // Simple commands that just focus the view or show info
     const commands = ['generatePost', 'shareToLinkedIn', 'shareToTelegram'];
@@ -106,6 +111,35 @@ async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext) {
         Logger.error('Failed to check for updates:', error);
     }
 }
+
+// --- NEW: Custom URI Handler Class ---
+class DotShareUriHandler implements vscode.UriHandler {
+    constructor(private context: vscode.ExtensionContext, private provider: DotShareProvider) {}
+
+    public async handleUri(uri: vscode.Uri): Promise<void> {
+        Logger.info(`Received URI: ${uri.toString()}`);
+        
+        // Parse the query parameters (e.g., ?token=XYZ)
+        const query = new URLSearchParams(uri.query);
+
+        // Check if the redirect is for Facebook Auth
+        if (uri.path === '/facebook' || uri.path.includes('facebook')) {
+            const token = query.get('token');
+            
+            if (token) {
+                // Save the token securely
+                await this.context.secrets.store('facebookToken', token);
+                vscode.window.showInformationMessage('DotShare: Facebook connected successfully! 🎉');
+                
+                // If you have a method in DotShareProvider to refresh the Webview UI, call it here:
+                // this.provider.refreshWebview();
+            } else {
+                vscode.window.showErrorMessage('DotShare: Facebook authentication failed. No token received.');
+            }
+        }
+    }
+}
+// -------------------------------------
 
 export function deactivate(): void {
     // Cleanup if needed - currently no resources to clean up

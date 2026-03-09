@@ -1,0 +1,84 @@
+{
+  "version": "2.4.0",
+  "title": "DotShare Threads & Webhooks",
+  "description": "Adding X (Twitter) Threads functionality and Custom Webhooks support.",
+  "status": "planned",
+  "start_date": "2026-03-09",
+  "planned_architecture": {
+    "services": [
+      {
+        "name": "ThreadService.ts",
+        "purpose": "Manage multi-part post creation and validation",
+        "status": "planned"
+      },
+      {
+        "name": "WebhookService.ts",
+        "purpose": "Handle custom API endpoint payloads and authentication",
+        "status": "planned"
+      }
+    ],
+    "handlers": [
+      {
+        "name": "TwitterHandler.ts",
+        "purpose": "Implement thread posting logic via X API",
+        "status": "pending_update"
+      }
+    ],
+    "ui": [
+      {
+        "name": "ThreadBuilderUI",
+        "purpose": "UI component for chaining multiple posts",
+        "status": "planned"
+      }
+    ]
+  },
+  "planned_features": {
+    "x_twitter_threads": [
+      "Update UI to allow adding 'Next Post' to create a chain.",
+      "Implement character count validation per thread item.",
+      "Update `TwitterHandler` to use `in_reply_to_tweet_id` for sequential posting.",
+      "Handle partial thread failures gracefully."
+    ],
+    "custom_webhooks": [
+      "Add 'Custom API' option to platform selector.",
+      "UI for configuring Webhook URL, Headers (Auth), and Payload mapping.",
+      "Implement `WebhookService` to fire POST requests with post content."
+    ],
+    "enhanced_progress_indicators": [
+      "Implement real-time progress bars for media uploads in UI.",
+      "Add CLI progress spinners/bars for large files.",
+      "Update `MediaService` to emit progress events."
+    ]
+  },
+  "technical_improvements": {
+    "memory_optimization": [
+      "Stream large media files during upload instead of loading entirely into memory.",
+      "Implement garbage collection triggers after large video/GIF uploads."
+    ]
+  },
+  "implementation_phases": {
+    "phase_1_threads": [
+      "Build UI for Thread Creation.",
+      "Implement `ThreadService` logic.",
+      "Update X (Twitter) integration to support sequential posting."
+    ],
+    "phase_2_webhooks": [
+      "Create UI configuration for Custom Webhooks.",
+      "Implement `WebhookService` and execution logic."
+    ],
+    "phase_3_media_optimization": [
+      "Implement file streaming for uploads.",
+      "Add visual progress indicators to UI and CLI."
+    ]
+  },
+  "success_metrics": {
+    "feature_completion": [
+      "Successful multi-part X thread posting.",
+      "Successful payload delivery to a custom webhook."
+    ],
+    "performance": [
+      "No memory spikes during >10MB media uploads.",
+      "Real-time progress indicators working for all media uploads."
+    ]
+  }
+}
