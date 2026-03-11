@@ -26,7 +26,7 @@ export async function detectProjectType(workspacePath: string): Promise<string> 
         dotnet: ['.csproj', 'Program.cs', 'Startup.cs'],
         web: ['index.html', 'app.js', 'style.css', 'webpack.config.js'],
         docker: ['Dockerfile', 'docker-compose.yml'],
-        php: ['composer.json', 'artisan', 'index.php'] // ضفتلك PHP بالمرة كهدية 😉
+        php: ['composer.json', 'artisan', 'index.php'] // Added PHP support as a gift to the community
     };
 
     let maxMatches = 0;

@@ -24,11 +24,6 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(DotShareProvider.viewType, provider)
     );
 
-    // --- NEW: Register the URI Handler to catch OAuth redirects ---
-    const uriHandler = new DotShareUriHandler(context, provider);
-    context.subscriptions.push(vscode.window.registerUriHandler(uriHandler));
-    // --------------------------------------------------------------
-
     // Simple commands that just focus the view or show info
     const commands = ['generatePost', 'shareToLinkedIn', 'shareToTelegram'];
     commands.forEach(cmd => {
@@ -53,6 +48,78 @@ export async function activate(context: vscode.ExtensionContext) {
             AnalyticsPanel.createOrShow(context.extensionUri, historyService, analyticsService);
         })
     );
+
+    // ── URI Handler ────────────────────────────────────────────────────────────
+    // Handles: vscode://freerave.dotshare/auth?platform=linkedin&access_token=...
+    const uriHandler = vscode.window.registerUriHandler({
+        async handleUri(uri: vscode.Uri) {
+            if (uri.path !== '/auth') return;
+
+            const params = new URLSearchParams(uri.query);
+            const platform    = params.get('platform');
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            if (!platform || !accessToken) {
+                vscode.window.showErrorMessage('DotShare: Invalid auth callback — missing platform or token.');
+                return;
+            }
+
+            try {
+                // Save tokens to VS Code secure storage
+                switch (platform) {
+                    case 'linkedin':
+                        await context.secrets.store('linkedinToken', accessToken);
+                        break;
+
+                    case 'x':
+                        await context.secrets.store('xAccessToken', accessToken);
+                        if (refreshToken) {
+                            await context.secrets.store('xRefreshToken', refreshToken);
+                        }
+                        break;
+
+                    case 'facebook':
+                        await context.secrets.store('facebookToken', accessToken);
+                        break;
+
+                    case 'reddit':
+                        await context.secrets.store('redditAccessToken', accessToken);
+                        if (refreshToken) {
+                            await context.secrets.store('redditRefreshToken', refreshToken);
+                        }
+                        break;
+
+                    default:
+                        vscode.window.showErrorMessage(`DotShare: Unknown platform "${platform}"`);
+                        return;
+                }
+
+                // Notify the webview to refresh its configuration
+                provider.postMessage({ command: 'loadConfiguration' });
+
+                // Show success notification
+                const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+                vscode.window.showInformationMessage(
+                    `✓ ${platformName} connected successfully!`,
+                    'Open DotShare'
+                ).then(selection => {
+                    if (selection === 'Open DotShare') {
+                        vscode.commands.executeCommand('workbench.view.extension.dotshare-activity-bar');
+                    }
+                });
+
+                Logger.info(`DotShare: ${platform} token saved via OAuth callback`);
+
+            } catch (error) {
+                Logger.error('DotShare URI Handler error:', error);
+                vscode.window.showErrorMessage('DotShare: Failed to save token. Please try again.');
+            }
+        }
+    });
+
+    context.subscriptions.push(uriHandler);
+    // ──────────────────────────────────────────────────────────────────────────
 
     // Start the scheduler for scheduled posts
     const storagePath = context.globalStorageUri ? context.globalStorageUri.fsPath : context.extensionPath;
@@ -112,35 +179,6 @@ async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext) {
     }
 }
 
-// --- NEW: Custom URI Handler Class ---
-class DotShareUriHandler implements vscode.UriHandler {
-    constructor(private context: vscode.ExtensionContext, private provider: DotShareProvider) {}
-
-    public async handleUri(uri: vscode.Uri): Promise<void> {
-        Logger.info(`Received URI: ${uri.toString()}`);
-        
-        // Parse the query parameters (e.g., ?token=XYZ)
-        const query = new URLSearchParams(uri.query);
-
-        // Check if the redirect is for Facebook Auth
-        if (uri.path === '/facebook' || uri.path.includes('facebook')) {
-            const token = query.get('token');
-            
-            if (token) {
-                // Save the token securely
-                await this.context.secrets.store('facebookToken', token);
-                vscode.window.showInformationMessage('DotShare: Facebook connected successfully! 🎉');
-                
-                // If you have a method in DotShareProvider to refresh the Webview UI, call it here:
-                // this.provider.refreshWebview();
-            } else {
-                vscode.window.showErrorMessage('DotShare: Facebook authentication failed. No token received.');
-            }
-        }
-    }
-}
-// -------------------------------------
-
 export function deactivate(): void {
-    // Cleanup if needed - currently no resources to clean up
+    // Cleanup if needed
 }

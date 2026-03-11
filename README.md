@@ -4,7 +4,7 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/kareem2099/DotShare)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/kareem2099/DotShare)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -96,11 +96,20 @@ Speak to your global audience:
 
 ### 📊 Analytics Dashboard
 
-Track your reach and engagement across platforms (coming in v2.4):
-- Post performance metrics
-- Engagement trends
-- Best posting times
-- Audience insights
+Track your reach and engagement across platforms:
+- Post performance metrics per platform
+- Per-platform success rates and share counts
+- Post history with AI model and timestamp
+- Real-time analytics update after each share
+
+### #️⃣ Smart Hashtag Engine
+
+Context-aware hashtags generated automatically on every post:
+- Reads your project name, type, and `package.json` keywords
+- Scans recent git commit messages for intent (`#Fix`, `#Feature`, `#Refactor`)
+- Detects tech terms and frameworks mentioned in the generated post
+- Platform-aware: hashtags are **skipped** for Reddit and Discord where they have no effect
+- Add your own permanent tags via **VS Code Settings → DotShare → Custom Hashtags**
 
 ---
 
@@ -515,26 +524,20 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## 📈 Roadmap
 
-### v2.4 (Q1 2025)
-- [ ] Analytics dashboard
-- [ ] Post scheduling UI in VS Code
-- [ ] Instagram integration
-- [ ] TikTok support
-- [ ] Thread/conversation support
+### v3.0 — "The Publishing Suite" (Planned)
+- [ ] Dev.to and Medium article publishing
+- [ ] Active file reader (load `.md` directly into post area)
+- [ ] YAML frontmatter parser for auto-fill
+- [ ] Dedicated "Publish Article" tab with Markdown preview
+- [ ] Advanced Hashtag Manager UI (add/remove/track usage frequency)
+- [ ] Draft vs. Publish toggle for Dev.to/Medium
+- [ ] Social vs. Blog logic decoupling
 
-### v2.6 (Q2 2025)
-- [ ] Team collaboration features
-- [ ] Content calendar view
-- [ ] A/B testing for posts
-- [ ] Advanced media editing
-- [ ] YouTube community posts
-
-### v3.0 (Q3 2025)
-- [ ] AI-powered hashtag suggestions
-- [ ] Automated content series
-- [ ] Cross-platform analytics
-- [ ] Custom AI model training
-- [ ] White-label solution
+### v2.5 (Planned)
+- [ ] X/Twitter thread posting
+- [ ] Custom API webhooks
+- [ ] Media upload progress bars
+- [ ] Memory-optimized streaming uploads
 
 [Vote on features →](https://github.com/kareem2099/DotShare/discussions)
 
@@ -542,21 +545,30 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## 📜 Changelog
 
-### v2.2.0 (Current)
+### v2.4.0 (Latest)
+- 🔐 **One-Click OAuth**: Browser-based auth for LinkedIn, X, Facebook, Reddit via hosted auth server
+- 🏷️ **Smart Hashtag Engine**: Auto-detects hashtags from project context, git history, and post content
+- 🤖 **Claude AI**: Anthropic Claude added as a 4th AI provider
+- 🔧 **Custom Hashtags Setting**: Now configurable directly from VS Code's Settings UI
+- 🐛 **Reddit Hashtag Fix**: No hashtags appended to Reddit/Discord posts
+- 📦 **Bundle Optimization**: Reduced `.vsix` size significantly
+
+### v2.3.0
+- 🧠 **Smart AI Hashtags**: Introduced `HashtagService` with 7 auto-detection sources and relevance scoring
+- 📊 **Analytics Dashboard**: Visual tracking of post history and per-platform success rates
+- 🏗️ **Context Builder**: Single `buildProjectContext()` function shared across all AI providers
+- 🎯 **Better AI Prompts**: Models instructed to avoid hallucinating technologies not in the codebase
+
+### v2.2.0
 - 🏗️ **Complete Architecture Refactoring**: Transformed from monolithic class to clean architecture with 9 focused files
 - 🔒 **Critical Security Fix**: Migrated to VSCode SecretStorage for encrypted API credential storage
 - 🎨 **Premium UI Design**: Modern glassmorphism effects, gradient accents, and professional modal designs
 - ⏰ **Hybrid Scheduling System**: Server-side scheduling for Telegram, client-side for other platforms
-- 🔧 **Advanced Scheduler**: Atomic operations, intelligent retry logic, and stuck posts recovery
-- 📊 **Enhanced Type Safety**: 100% TypeScript coverage with zero ESLint warnings
-- 🎯 **Clean Architecture**: Applied SOLID principles with dependency injection and separation of concerns
 
 ### v2.1.0
 - ✨ Added Reddit integration with subreddit posting
 - ✨ BlueSky early adopter support
 - 🎨 Enhanced media upload with drag-and-drop
-- 🐛 Fixed LinkedIn character limit truncation
-- 🚀 CLI performance improvements (30% faster)
 - 📖 Russian language support
 
 ### v2.0.0

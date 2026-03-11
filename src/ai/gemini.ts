@@ -16,10 +16,13 @@ export async function generatePost(geminiKey: string, modelName = 'gemini-3.0-fl
 
         context.hashtagContext.postContent = generatedText;
         const platform = vscode.workspace.getConfiguration('dotshare').get<string>('defaultPlatform', 'twitter');
-        const hashtagSuggestions = await HashtagService.generateHashtags(context.hashtagContext, platform, 5);
-        const formattedHashtags = HashtagService.formatHashtags(hashtagSuggestions);
 
-        const finalPost = `${generatedText.trim()}\n\n${formattedHashtags}`.trim();
+        let finalPost = generatedText.trim();
+        if (HashtagService.supportsHashtags(platform)) {
+            const hashtagSuggestions = await HashtagService.generateHashtags(context.hashtagContext, platform, 5);
+            const formattedHashtags = HashtagService.formatHashtags(hashtagSuggestions);
+            finalPost = `${finalPost}\n\n${formattedHashtags}`.trim();
+        }
 
         return {
             text: finalPost,

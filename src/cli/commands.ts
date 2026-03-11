@@ -63,7 +63,7 @@ export function setupInitCommand(program: Command) {
                 // Get server URL
                 const currentConfig = configManager.getConfig();
                 
-                // ✅ 2. استخدام الثابت هنا بدلاً من كتابة الرابط يدوياً
+                // Use the constant here instead of manually writing the URL
                 const defaultServerUrl = currentConfig.serverUrl || DEFAULT_SERVER_URL;
 
                 const serverUrl = await question(rl, `Python server URL [${defaultServerUrl}]: `);

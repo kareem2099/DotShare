@@ -64,6 +64,25 @@ export class MessageHandler {
 
         try {
             switch (cmd) {
+                case 'openOAuth': {
+                    const platform = message.platform as string;
+                    const validPlatforms = ['linkedin', 'x', 'facebook', 'reddit'];
+                    if (!platform || !validPlatforms.includes(platform)) {
+                        this.sendError(`DotShare: Unknown OAuth platform "${platform}"`);
+                        return;
+                    }
+                    // ── Auth Server URL ─────────────────────────────────────────────
+                    // Update this constant once your auth server is deployed.
+                    // Local development  → 'http://localhost:3000'
+                    // Production example → 'https://dotshare-auth.vercel.app'
+                    const AUTH_SERVER_URL = 'https://dotshare-auth-server.vercel.app';
+                    // ────────────────────────────────────────────────────────────────
+                    const authUrl = `${AUTH_SERVER_URL}/auth/${platform}`;
+                    Logger.info(`DotShare: Opening OAuth for ${platform} → ${authUrl}`);
+                    vscode.env.openExternal(vscode.Uri.parse(authUrl));
+                    break;
+                }
+
                 case 'selectMediaFiles':
                     await this.handleSelectMediaFiles();
                     break;

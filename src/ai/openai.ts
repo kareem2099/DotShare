@@ -20,10 +20,15 @@ export async function generatePost(apiKey: string, model = 'gpt-4o'): Promise<Po
 
         context.hashtagContext.postContent = generatedText;
         const platform = vscode.workspace.getConfiguration('dotshare').get<string>('defaultPlatform', 'twitter');
-        const hashtags = await HashtagService.generateHashtags(context.hashtagContext, platform, 5);
+
+        let postText = generatedText.trim();
+        if (HashtagService.supportsHashtags(platform)) {
+            const hashtags = await HashtagService.generateHashtags(context.hashtagContext, platform, 5);
+            postText = `${postText}\n\n${HashtagService.formatHashtags(hashtags)}`.trim();
+        }
 
         return {
-            text: `${generatedText.trim()}\n\n${HashtagService.formatHashtags(hashtags)}`.trim(),
+            text: postText,
             media: undefined
         };
     } catch (error: unknown) {

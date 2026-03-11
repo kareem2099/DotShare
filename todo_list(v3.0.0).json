@@ -1,0 +1,91 @@
+{
+    "version": "3.0.0",
+    "codename": "The Publishing Suite",
+    "status": "planned",
+    "target_audience": "Tech Writers, Open Source Contributors, and DevRel",
+    "milestones": [
+        {
+            "id": "M1_NEW_PLATFORMS",
+            "title": "Blogging Platforms Integration",
+            "description": "Integrate long-form content platforms.",
+            "tasks": [
+                {
+                    "task_id": "DEVTO_API",
+                    "title": "Dev.to Integration",
+                    "description": "Implement Dev.to API for publishing articles. Handle Title, Markdown Body, Tags (max 4), Canonical URL, and Publish/Draft status.",
+                    "priority": "High",
+                    "status": "todo"
+                },
+                {
+                    "task_id": "MEDIUM_API",
+                    "title": "Medium Integration",
+                    "description": "Implement Medium API. Fetch User ID (/v1/me), then POST to (/v1/users/{authorId}/posts). Handle contentFormat (markdown), tags, and publishStatus (public, draft, unlisted).",
+                    "priority": "High",
+                    "status": "todo"
+                }
+            ]
+        },
+        {
+            "id": "M2_CORE_ENGINE",
+            "title": "Editor & Workspace Synergy",
+            "description": "Bridge the gap between VS Code text editor and the extension.",
+            "tasks": [
+                {
+                    "task_id": "READ_ACTIVE_FILE",
+                    "title": "Active File Reader",
+                    "description": "Add a button 'Load Current File' to automatically read the content of the currently active `.md` file in VS Code (vscode.window.activeTextEditor).",
+                    "priority": "High",
+                    "status": "todo"
+                },
+                {
+                    "task_id": "FRONTMATTER_PARSER",
+                    "title": "Markdown Frontmatter Parser",
+                    "description": "Extract YAML frontmatter (title, tags, canonical_url) from the markdown file to auto-fill the publishing form.",
+                    "priority": "Medium",
+                    "status": "todo"
+                }
+            ]
+        },
+        {
+            "id": "M3_UI_UX",
+            "title": "User Interface Revamp",
+            "description": "Prevent clutter by separating Micro-blogging from Long-form publishing.",
+            "tasks": [
+                {
+                    "task_id": "UI_TAB_PUBLISH",
+                    "title": "Dedicated 'Publish Article' Tab",
+                    "description": "Create a new main tab specifically for articles. Keep it clean with inputs for Title, Tags, Canonical URL, and a large Markdown preview area.",
+                    "priority": "High",
+                    "status": "todo"
+                },
+                {
+                    "task_id": "UI_HASHTAG_MANAGER",
+                    "title": "Advanced Hashtag Manager",
+                    "description": "Build a visual Hashtag Manager in the UI (postponed from v2.x). Allow users to add/remove custom tags and track usage frequency.",
+                    "priority": "Medium",
+                    "status": "todo"
+                },
+                {
+                    "task_id": "UI_PUBLISH_STATUS",
+                    "title": "Draft vs. Publish Toggle",
+                    "description": "Add distinct UI buttons/toggles for 'Save as Draft 🟡' vs 'Publish Live 🟢' for Dev.to and Medium.",
+                    "priority": "High",
+                    "status": "todo"
+                }
+            ]
+        },
+        {
+            "id": "M4_REFACTORING",
+            "title": "Codebase Architecture",
+            "tasks": [
+                {
+                    "task_id": "SPLIT_WORKFLOWS",
+                    "title": "Separate Social vs. Blog Logic",
+                    "description": "Ensure the logic for Social Media (text limits, thread splitting) is strictly decoupled from Blogging logic (Markdown parsing, metadata).",
+                    "priority": "High",
+                    "status": "todo"
+                }
+            ]
+        }
+    ]
+}

@@ -308,6 +308,132 @@ export function setupRedditEventListeners() {
     }
 }
 
+// ── OAuth Connect Buttons ──────────────────────────────────────────────────────
+
+/** Wire up the "Connect with X" OAuth buttons for LinkedIn, X, Facebook, Reddit. */
+export function setupOAuthButtons() {
+    const oauthPlatforms = [
+        { platform: 'linkedin', label: 'Connect with LinkedIn' },
+        { platform: 'x',        label: 'Connect with X'        },
+        { platform: 'facebook', label: 'Connect with Facebook' },
+        { platform: 'reddit',   label: 'Connect with Reddit'   },
+    ];
+
+    oauthPlatforms.forEach(({ platform, label }) => {
+        // Connect Button
+        const btn = document.getElementById(`oauthConnect_${platform}`) as HTMLButtonElement | null;
+        if (btn) {
+            btn.addEventListener('click', () => {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="oauth-icon">⏳</span><span>Opening browser…</span>';
+
+                getVscode()?.postMessage({ command: 'openOAuth', platform });
+
+                // Re-enable after 6s ONLY if disconnected
+                setTimeout(() => {
+                    if (!btn.classList.contains('oauth-connect-btn--connected')) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<span class="oauth-icon">🔗</span><span class="oauth-btn-text">${label}</span>`;
+                    }
+                }, 6000);
+            });
+        }
+
+        // Disconnect Button
+        const disconnectBtn = document.getElementById(`oauthDisconnect_${platform}`) as HTMLButtonElement | null;
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', () => {
+                if (platform === 'linkedin') {
+                    getVscode()?.postMessage({ command: 'saveLinkedinToken', linkedinToken: '' });
+                } else if (platform === 'x') {
+                    getVscode()?.postMessage({ command: 'saveXCredentials', xAccessToken: '', xAccessSecret: '' });
+                } else if (platform === 'facebook') {
+                    getVscode()?.postMessage({ command: 'saveFacebookToken', facebookToken: '', facebookPageToken: '', facebookPageId: '' });
+                } else if (platform === 'reddit') {
+                    getVscode()?.postMessage({ command: 'saveRedditCredentials', redditAccessToken: '', redditRefreshToken: '' });
+                }
+                
+                // Immediately request a config reload to update the UI
+                setTimeout(() => {
+                    getVscode()?.postMessage({ command: 'loadConfiguration' });
+                }, 100);
+            });
+        }
+
+        // Advanced Toggle
+        const toggleBtn = document.getElementById(`oauthAdvancedToggle_${platform}`);
+        const advancedContent = document.getElementById(`oauthAdvancedContent_${platform}`);
+        if (toggleBtn && advancedContent) {
+            toggleBtn.addEventListener('click', () => {
+                const isOpen = advancedContent.style.display !== 'none';
+                if (isOpen) {
+                    advancedContent.style.display = 'none';
+                    toggleBtn.classList.remove('open');
+                } else {
+                    advancedContent.style.display = 'block';
+                    toggleBtn.classList.add('open');
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Call this after `updateConfiguration` is received from the extension.
+ * Shows "✅ Connected" badge and sets UI for tokens presence.
+ */
+export function showOAuthStatus(config: {
+    linkedinToken?: string;
+    xAccessToken?: string;
+    facebookToken?: string;
+    redditAccessToken?: string;
+}) {
+    const map = [
+        { platform: 'linkedin', token: config.linkedinToken,     label: 'Connect with LinkedIn', connectedText: 'LinkedIn Connected' },
+        { platform: 'x',        token: config.xAccessToken,      label: 'Connect with X',        connectedText: 'X Connected' },
+        { platform: 'facebook', token: config.facebookToken,     label: 'Connect with Facebook', connectedText: 'Facebook Connected' },
+        { platform: 'reddit',   token: config.redditAccessToken, label: 'Connect with Reddit',   connectedText: 'Reddit Connected' },
+    ];
+
+    map.forEach(({ platform, token, label, connectedText }) => {
+        const btn            = document.getElementById(`oauthConnect_${platform}`) as HTMLButtonElement | null;
+        const disconnectBtn  = document.getElementById(`oauthDisconnect_${platform}`) as HTMLButtonElement | null;
+        const advancedToggle = document.getElementById(`oauthAdvancedToggle_${platform}`) as HTMLElement | null;
+        const advancedContent= document.getElementById(`oauthAdvancedContent_${platform}`) as HTMLElement | null;
+
+        if (!btn) return;
+
+        if (token) {
+            // Connected State
+            btn.classList.add('oauth-connect-btn--connected');
+            btn.disabled = true; // Typically don't need to click when connected unless doing something else
+            btn.innerHTML = `<span class="oauth-icon">✅</span><span>${connectedText}</span>`;
+            
+            if (disconnectBtn) disconnectBtn.style.display = 'inline-block';
+            
+            // Hide manual input completely
+            if (advancedToggle) advancedToggle.style.display = 'none';
+            if (advancedContent) advancedContent.style.display = 'none';
+        } else {
+            // Disconnected State
+            btn.classList.remove('oauth-connect-btn--connected');
+            btn.disabled = false;
+            btn.innerHTML = `<span class="oauth-icon">🔗</span><span class="oauth-btn-text">${label}</span>`;
+            
+            if (disconnectBtn) disconnectBtn.style.display = 'none';
+            
+            // Show advanced toggle
+            if (advancedToggle) {
+                advancedToggle.style.display = 'inline-flex';
+                advancedToggle.classList.remove('open');
+            }
+            if (advancedContent) advancedContent.style.display = 'none';
+        }
+    });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 
 
 // Initialize all critical event listeners immediately

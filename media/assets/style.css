@@ -3435,3 +3435,155 @@ body.dark-cyber {
         font-size: 0.8rem;
     }
 }
+
+/* ── OAuth Connect Buttons ────────────────────────────────────────────────── */
+
+.oauth-connect-section {
+    margin: 8px 0 4px 0;
+}
+
+.oauth-btn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Base OAuth button */
+.oauth-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: linear-gradient(135deg, #0073b1, #005582);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 115, 177, 0.3);
+    white-space: nowrap;
+}
+
+.oauth-connect-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 115, 177, 0.4);
+    filter: brightness(1.1);
+}
+
+.oauth-connect-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Already-connected state: muted/green tint */
+.oauth-connect-btn--connected {
+    background: linear-gradient(135deg, #2ea043, #1a7f37);
+    box-shadow: 0 2px 6px rgba(46, 160, 67, 0.3);
+}
+
+.oauth-connect-btn--connected:hover:not(:disabled) {
+    box-shadow: 0 4px 10px rgba(46, 160, 67, 0.4);
+}
+
+/* Platform colour overrides */
+.oauth-connect-btn--x {
+    background: linear-gradient(135deg, #14171a, #2d2d2d);
+    box-shadow: 0 2px 6px rgba(20, 23, 26, 0.4);
+}
+
+.oauth-connect-btn--x:hover:not(:disabled) {
+    box-shadow: 0 4px 10px rgba(20, 23, 26, 0.5);
+}
+
+.oauth-connect-btn--facebook {
+    background: linear-gradient(135deg, #1877f2, #0a5dc2);
+    box-shadow: 0 2px 6px rgba(24, 119, 242, 0.35);
+}
+
+.oauth-connect-btn--facebook:hover:not(:disabled) {
+    box-shadow: 0 4px 10px rgba(24, 119, 242, 0.5);
+}
+
+.oauth-connect-btn--reddit {
+    background: linear-gradient(135deg, #ff4500, #cc3700);
+    box-shadow: 0 2px 6px rgba(255, 69, 0, 0.35);
+}
+
+.oauth-connect-btn--reddit:hover:not(:disabled) {
+    box-shadow: 0 4px 10px rgba(255, 69, 0, 0.5);
+}
+
+/* Disconnect Button */
+.oauth-disconnect-btn {
+    padding: 6px 10px;
+    border: 1px solid rgba(218, 54, 51, 0.4);
+    background: rgba(218, 54, 51, 0.1);
+    color: #da3633;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.oauth-disconnect-btn:hover {
+    background: rgba(218, 54, 51, 0.2);
+    border-color: rgba(218, 54, 51, 0.6);
+}
+
+body.dark .oauth-disconnect-btn {
+    border-color: rgba(248, 81, 73, 0.4);
+    color: #f85149;
+}
+
+/* Advanced Token Toggle */
+.oauth-advanced-toggle {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, #717171);
+    opacity: 0.8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    transition: opacity 0.2s ease;
+}
+
+.oauth-advanced-toggle:hover {
+    opacity: 1;
+    color: var(--vscode-foreground, #cccccc);
+}
+
+.oauth-advanced-toggle .toggle-icon {
+    font-size: 10px;
+    transition: transform 0.2s ease;
+}
+
+.oauth-advanced-toggle.open .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Advanced Content Container */
+.oauth-advanced-content {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--vscode-panel-border, #444);
+    animation: fadeIn 0.2s ease;
+}
+
+/* Base Form Input override if inside advanced container to look integrated */
+.oauth-advanced-content > .input-group:first-child {
+    margin-top: 0;
+}
+
+/* oauth icon inside the button */
+.oauth-icon {
+    font-size: 13px;
+    line-height: 1;
+}

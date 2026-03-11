@@ -1,9 +1,72 @@
 {
   "version": "2.4.0",
-  "title": "DotShare Threads & Webhooks",
-  "description": "Adding X (Twitter) Threads functionality and Custom Webhooks support.",
-  "status": "planned",
+  "title": "DotShare OAuth UI Refinements & Bundle Optimization",
+  "description": "Implemented Advanced OAuth UI components (Connect/Disconnect toggles, connected badges) and optimized the VSIX build size.",
+  "status": "completed",
   "start_date": "2026-03-09",
+  "completed_date": "2026-03-11",
+
+  "completed_in_2_3_0": {
+    "title": "Seamless OAuth 2.0 — Auth Server + Extension Integration",
+    "description": "Full one-click OAuth flow: browser opens auth server → user clicks once → token delivered automatically to VS Code via deep link.",
+    "completed_date": "2026-03-09",
+    "auth_server_changes": [
+      "Removed all credential input forms (LinkedIn, X, Facebook, Reddit auth pages)",
+      "All app secrets moved exclusively to server .env — zero client-side exposure",
+      "All API routes (/api/auth/*) read credentials from process.env only",
+      "All callback pages now auto-redirect via vscode://freerave.dotshare/auth after 1.5s",
+      "sessionStorage limited to non-secret PKCE verifier and CSRF state only",
+      "Deployed and live at https://dotshare-auth-server.vercel.app"
+    ],
+    "extension_changes": [
+      "Added URI Handler in extension.ts for vscode://freerave.dotshare/auth deep link",
+      "Handler stores tokens directly in context.secrets per platform automatically",
+      "Handler triggers webview loadConfiguration refresh after token save",
+      "Added success notification with 'Open DotShare' action button",
+      "Registered uriHandlers in package.json contributes"
+    ],
+    "platforms_completed": [
+      "LinkedIn  — OAuth 2.0               → stores: linkedinToken",
+      "X         — OAuth 2.0 PKCE          → stores: xAccessToken + xRefreshToken",
+      "Facebook  — OAuth 2.0               → stores: facebookToken",
+      "Reddit    — OAuth 2.0 + CSRF State  → stores: redditAccessToken + redditRefreshToken"
+    ]
+  },
+
+  "completed_in_2_4_0": {
+    "title": "OAuth UI Refinements, Bundle Optimization & Direct Platform APIs",
+    "description": "Enhanced user experience for OAuth connection management, reduced VS Code extension bundle size, and fully migrated all platforms to post directly to their respective APIs.",
+    "completed_date": "2026-03-11",
+    "ui_improvements": [
+      "Added Connected ✓ badges and green states for all platforms",
+      "Created Disconnect buttons to easily clear secrets",
+      "Wrapped manual token inputs in an 'Advanced' collapsible accordion",
+      "All platforms (LinkedIn, X, Facebook, Reddit) use identical unified UI"
+    ],
+    "build_optimizations": [
+      "Updated .vscodeignore to exclude dev dependencies (e.g. __tests__, src/)",
+      "Reduced final .vsix bundle size significantly by excluding unnecessary config files",
+      "Verified clean builds for both tsc and esbuild"
+    ],
+    "direct_api_migrations_completed": [
+      "LinkedIn: Migrated to post directly to LinkedIn API using linkedinToken.",
+      "X/Twitter: Migrated to post directly to Twitter API v2 using xAccessToken.",
+      "Facebook: Enabled shareToFacebookWithUpdate and post directly to Graph API.",
+      "Reddit: Rewrote reddit.ts to post directly to oauth.reddit.com/api/submit.",
+      "PostHandler: Wired up all platform platform SDKs to use context.secrets."
+    ],
+    "hashtag_logic_fixes": [
+      "HashtagService: Added HASHTAG_UNSUPPORTED_PLATFORMS set (reddit, discord) and supportsHashtags(platform) method.",
+      "gemini.ts / openai.ts / xai.ts / claude.ts: All 4 AI providers now skip hashtag appending when platform is reddit or discord.",
+      "HashtagContext: Added optional projectName? field — populated from package.json name or Cargo.toml name, with workspace folder basename as fallback.",
+      "HashtagService.extractKeywords(): Refactored to return { keywords, projectName } instead of a plain string[]. projectName no longer mixed into keywords array.",
+      "HashtagService.getProjectHashtags(): Now prefers context.projectName over guessing from keywords (prevents random keywords like 'test' or 'lint' becoming hashtags).",
+      "contextBuilder.ts: HashtagContext now receives projectData.projectName directly.",
+      "HashtagService.getContentBasedHashtags(): Split regex simplified from /[^a-zA-Z0-9.\\-/]/ to /[^a-zA-Z0-9]/ — techTerms updated accordingly (ci/cd → cicd, node.js → nodejs), and the redundant cleanTerm step removed.",
+      "package.json: Registered dotshare.customHashtags (array) and dotshare.defaultPlatform (enum) in contributes.configuration so both settings appear in VS Code's built-in Settings UI."
+    ]
+  },
+
   "planned_architecture": {
     "services": [
       {
@@ -32,6 +95,7 @@
       }
     ]
   },
+
   "planned_features": {
     "x_twitter_threads": [
       "Update UI to allow adding 'Next Post' to create a chain.",
@@ -50,13 +114,22 @@
       "Update `MediaService` to emit progress events."
     ]
   },
+
   "technical_improvements": {
     "memory_optimization": [
       "Stream large media files during upload instead of loading entirely into memory.",
       "Implement garbage collection triggers after large video/GIF uploads."
     ]
   },
+
   "implementation_phases": {
+    "phase_0_fix_posting": [
+      "Fix linkedin.ts to post directly to LinkedIn API.",
+      "Fix x.ts to use xAccessToken from context.secrets.",
+      "Fix facebook.ts and enable shareToFacebookWithUpdate in PostHandler.",
+      "Fix reddit.ts to post directly to Reddit API.",
+      "Enable shareToXWithUpdate in PostHandler."
+    ],
     "phase_1_threads": [
       "Build UI for Thread Creation.",
       "Implement `ThreadService` logic.",
@@ -71,10 +144,12 @@
       "Add visual progress indicators to UI and CLI."
     ]
   },
+
   "success_metrics": {
     "feature_completion": [
       "Successful multi-part X thread posting.",
-      "Successful payload delivery to a custom webhook."
+      "Successful payload delivery to a custom webhook.",
+      "All 4 platforms (LinkedIn, X, Facebook, Reddit) posting directly via their APIs."
     ],
     "performance": [
       "No memory spikes during >10MB media uploads.",
