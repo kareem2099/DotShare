@@ -1,10 +1,49 @@
-.vscode/**
+# Development & Config files
+.github/
+.vscode/
+tmp/
+temp/
+node_modules/
+src/
+dist/
+build/
+tsconfig.json
+jest.config.js
+.eslintrc.json
+.eslintignore
+.gitignore
+.prettierrc
+babel.config.js
+webpack.config.js
 **/*.ts
 **/*.map
-src/**
-.gitignore
-tsconfig.json
-.vscodeignore
-**/*.vsix
-**/.eslintrc.json
-**/.vscode-test/**
+
+# Tests and Coverage
+coverage/
+__tests__/
+**/*.test.*
+**/*.spec.*
+
+# Specific Project files
+todo_list*
+scan_report.txt
+test-telegram.js
+dotshare-scheduler.service
+CLI_README.md
+CLI_SCHEDULER_README.md
+package.cli.json
+
+# Webview Source Files (only media/app.js is bundled)
+out/**/__tests__/       
+media/src/               
+media/main.ts
+media/locales/
+media/media/
+media/tsconfig.json
+media/package.json
+media/package-lock.json
+
+# Build and package artifacts
+*.vsix
+*.tgz
+package.vscode.backup.json

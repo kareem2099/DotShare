@@ -60,6 +60,7 @@ CRITICAL: DO NOT INCLUDE ANY HASHTAGS IN YOUR RESPONSE. The system will add them
 
     const hashtagContext: HashtagContext = {
         projectType,
+        projectName: projectData.projectName,
         keywords: projectData.keywords,
         gitChanges: gitInfo.recentChanges,
         postContent: ''

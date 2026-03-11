@@ -9,6 +9,7 @@ const execAsync = promisify(exec);
 
 export interface HashtagContext {
     projectType: string;
+    projectName?: string;  // Real name from package.json/Cargo.toml or workspace folder
     keywords: string[];
     activeFile?: string;
     gitChanges?: string;
@@ -49,6 +50,17 @@ export class HashtagService {
         'bluesky': ['#Tech', '#Programming', '#OpenSource', '#Web3', '#Decentralized']
     };
 
+    /** Platforms where hashtags have no functional effect and should NOT be appended */
+    private static readonly HASHTAG_UNSUPPORTED_PLATFORMS = new Set(['reddit', 'discord']);
+
+    /**
+     * Returns true if the given platform supports/benefits from hashtags.
+     * Use this before appending hashtags to a post.
+     */
+    public static supportsHashtags(platform: string): boolean {
+        return !this.HASHTAG_UNSUPPORTED_PLATFORMS.has(platform.toLowerCase());
+    }
+
     /**
      * 1. Get Custom Hashtags from VS Code Settings
      */
@@ -56,10 +68,10 @@ export class HashtagService {
         try {
             const config = vscode.workspace.getConfiguration('dotshare');
             const customTags: string[] = config.get('customHashtags', []);
-            
+
             return customTags.map(tag => ({
                 hashtag: tag.startsWith('#') ? tag : `#${tag}`,
-                relevance: 1.0, 
+                relevance: 1.0,
                 reason: 'User custom settings'
             }));
         } catch {
@@ -73,7 +85,7 @@ export class HashtagService {
     public static async generateHashtags(
         context: HashtagContext,
         platform = 'twitter',
-        limit = 5 
+        limit = 5
     ): Promise<HashtagSuggestion[]> {
         try {
             const suggestions: HashtagSuggestion[] = [];
@@ -88,7 +100,7 @@ export class HashtagService {
 
             const uniqueSuggestions = this.removeDuplicates(suggestions);
             return uniqueSuggestions.sort((a, b) => b.relevance - a.relevance).slice(0, limit);
-            
+
         } catch (error) {
             console.error('[DotShare] Error generating hashtags:', error);
             return [
@@ -118,15 +130,15 @@ export class HashtagService {
 
     private static getContentBasedHashtags(content: string): HashtagSuggestion[] {
         if (!content) return [];
-        
+
         const suggestions: HashtagSuggestion[] = [];
-        const words = content.toLowerCase().split(/[^a-zA-Z0-9.\-/]/).filter(w => w.length > 2);
+        const words = content.toLowerCase().split(/[^a-zA-Z0-9]/).filter(w => w.length > 2);
 
         const techTerms = [
             'api', 'backend', 'frontend', 'mobile', 'web', 'desktop', 'cli', 'ui', 'ux',
             'performance', 'security', 'testing', 'debugging', 'refactoring', 'architecture',
             'design', 'database', 'cache', 'authentication', 'authorization', 'deployment',
-            'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'ci/cd', 'devops', 'monitoring', 'node.js'
+            'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'cicd', 'devops', 'monitoring', 'nodejs'
         ];
 
         const foundTerms = new Set<string>();
@@ -136,9 +148,8 @@ export class HashtagService {
         });
 
         foundTerms.forEach(term => {
-            const cleanTerm = term.replace(/[.\-/]/g, '');
             suggestions.push({
-                hashtag: `#${cleanTerm.charAt(0).toUpperCase() + cleanTerm.slice(1)}`,
+                hashtag: `#${term.charAt(0).toUpperCase() + term.slice(1)}`,
                 relevance: 0.7,
                 reason: `Content mentions: ${term}`
             });
@@ -154,7 +165,7 @@ export class HashtagService {
 
     private static getTrendingHashtags(content: string): HashtagSuggestion[] {
         if (!content) return [];
-        
+
         const suggestions: HashtagSuggestion[] = [];
         const lowerContent = content.toLowerCase();
 
@@ -180,20 +191,26 @@ export class HashtagService {
 
     private static getProjectHashtags(context: HashtagContext): HashtagSuggestion[] {
         const suggestions: HashtagSuggestion[] = [];
-        const projectName = context.keywords.find(k => k.length > 3 && k.length < 20);
-        
+
+        // Prefer the explicit projectName; fall back to first plausible keyword
+        const projectName = context.projectName
+            || context.keywords.find(k => k.length > 3 && k.length < 20);
+
         if (projectName) {
-            suggestions.push({
-                hashtag: `#${projectName.replace(/[^a-zA-Z0-9]/g, '')}`,
-                relevance: 1.0,
-                reason: `Project name: ${projectName}`
-            });
+            const cleanName = projectName.replace(/[^a-zA-Z0-9]/g, '');
+            if (cleanName.length > 2) {
+                suggestions.push({
+                    hashtag: `#${cleanName}`,
+                    relevance: 1.0,
+                    reason: `Project name: ${projectName}`
+                });
+            }
         }
 
         if (context.postContent) {
             const frameworks = ['react', 'vue', 'angular', 'django', 'flask', 'spring', 'express', 'fastapi'];
             const lowerContent = context.postContent.toLowerCase();
-            
+
             frameworks.forEach(framework => {
                 if (lowerContent.includes(framework)) {
                     suggestions.push({
@@ -266,15 +283,16 @@ export class HashtagService {
             }
 
             const workspacePath = workspaceFolder.uri.fsPath;
-            
-            // ✅ التعديل هنا: شيلنا this. عشان نستدعيها من الملف الخارجي
+
+            // Modification here: Removed 'this.' to call from external file
             const projectType = await detectProjectType(workspacePath);
-            const keywords = await this.extractKeywords(workspacePath, projectType);
+            const { keywords, projectName } = await this.extractKeywords(workspacePath, projectType);
             const activeFile = vscode.window.activeTextEditor?.document.fileName;
             const gitChanges = await this.getRecentChanges(workspacePath);
 
             return {
                 projectType,
+                projectName,
                 keywords,
                 activeFile,
                 gitChanges,
@@ -286,7 +304,10 @@ export class HashtagService {
         }
     }
 
-    private static async extractKeywords(workspacePath: string, projectType: string): Promise<string[]> {
+    private static async extractKeywords(
+        workspacePath: string,
+        projectType: string
+    ): Promise<{ keywords: string[]; projectName: string }> {
         const relevantFiles: { [key: string]: string[] } = {
             node: ['package.json'],
             rust: ['Cargo.toml'],
@@ -300,11 +321,13 @@ export class HashtagService {
         };
 
         const keywords: string[] = [];
+        // Reliable fallback: the workspace folder name itself
+        let projectName: string = path.basename(workspacePath);
         const filesToCheck = relevantFiles[projectType] || [];
 
         for (const file of filesToCheck) {
             const filePath = path.join(workspacePath, file);
-            // ✅ التعديل هنا: شيلنا this.
+            // Modification here: Removed 'this.'
             if (await fileExists(filePath)) {
                 try {
                     const fileContent = await fsPromises.readFile(filePath, 'utf8');
@@ -312,13 +335,14 @@ export class HashtagService {
                     if (file.toLowerCase().includes('package.json')) {
                         const packageJson = JSON.parse(fileContent);
                         keywords.push(...(packageJson.keywords || []));
-                        if (packageJson.name) keywords.push(packageJson.name);
+                        // package.json name is the canonical project name
+                        if (packageJson.name) projectName = packageJson.name;
                     } else if (file.toLowerCase().includes('cargo.toml')) {
                         const lines = fileContent.split('\n');
                         for (const line of lines) {
                             if (line.startsWith('name = ')) {
-                                const name = line.split('=')[1].trim().replace(/"/g, '');
-                                keywords.push(name);
+                                projectName = line.split('=')[1].trim().replace(/"/g, '');
+                                keywords.push(projectName);
                             }
                         }
                     }
@@ -328,7 +352,7 @@ export class HashtagService {
             }
         }
 
-        return [...new Set(keywords)];
+        return { keywords: [...new Set(keywords)], projectName };
     }
 
     private static async getRecentChanges(workspacePath: string): Promise<string> {

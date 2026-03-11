@@ -5,7 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-03-11
+
+### Added
+- **One-Click OAuth Flow**: Full browser-based OAuth for LinkedIn, X (Twitter), Facebook, and Reddit via dedicated auth server (`dotshare-auth-server.vercel.app`) — zero credential input in the extension
+- **OAuth UI Polish**: Connected ✓ badges, green connected states, and Disconnect buttons for all OAuth platforms
+- **Advanced Accordion**: Manual token inputs collapsed under an "Advanced" section to reduce clutter
+- **Direct Platform APIs**: All 4 platforms (LinkedIn, X, Facebook, Reddit) now post directly to their respective APIs using tokens from VS Code SecretStorage
+- **Smart Hashtag System**: Intelligent `HashtagService` with 7 auto-detection sources — project name, git commits, tech keywords, content analysis, framework detection, trending topics, and platform-specific tags
+- **Custom Hashtags Setting**: Registered `dotshare.customHashtags` and `dotshare.defaultPlatform` in VS Code Settings UI (`contributes.configuration`) — no more manual `settings.json` editing
+- **Claude AI Support**: Added Anthropic Claude as a 4th AI provider alongside Gemini, OpenAI, and xAI
+
+### Fixed
+- **Reddit Hashtag Bug**: Hashtags are no longer appended to Reddit posts (Reddit does not use functional hashtags); same applies to Discord — controlled via `HASHTAG_UNSUPPORTED_PLATFORMS`
+- **Project Name Accuracy**: `HashtagContext.projectName` now sourced from `package.json → name` or `Cargo.toml → name`, falling back to workspace folder basename — no longer guessed from random keywords like `test` or `lint`
+- **Content Term Detection**: Simplified word-split regex in `getContentBasedHashtags` from `/[^a-zA-Z0-9.\-/]/` to `/[^a-zA-Z0-9]/`; updated `techTerms` to alphanumeric-only (`cicd`, `nodejs`)
+
+### Changed
+- **`extractKeywords()`**: Refactored to return `{ keywords, projectName }` instead of a flat `string[]`; project name is no longer mixed into the keywords array
+- **All 4 AI Providers**: Now check `HashtagService.supportsHashtags(platform)` before appending hashtags
+- **Build Optimization**: Updated `.vscodeignore` to exclude `__tests__/`, `src/`, and dev config files — significantly reduced `.vsix` bundle size
+
+### Technical Details
+- Auth server deployed on Vercel; all secrets server-side only via `process.env`
+- Deep link handler `vscode://freerave.dotshare/auth` registered in `package.json` `uriHandlers`
+- `HashtagService.supportsHashtags()` is the single source of truth for platform hashtag support
+
+---
+
+## [2.3.0] - 2026-03-04
+
+### Added
+- **Smart AI Hashtags**: Automatic hashtag generation using 7 context sources — project type, keywords, git commit history, post content, detected frameworks, trending topics, and platform-specific tags
+- **`HashtagService`**: New dedicated service (`src/services/HashtagService.ts`) encapsulating all hashtag logic with relevance scoring (0–1 scale), deduplication, and a configurable limit
+- **`HashtagContext`**: Structured context interface passing project type, keywords, active file, git changes, and post content to the hashtag engine
+- **Analytics Dashboard**: Visual analytics panel tracking post history, per-platform success rates, and share counts
+- **`AnalyticsService`**: New service for cross-platform engagement metric aggregation and calculation
+- **Context-Aware Prompts**: AI prompts updated to instruct models NOT to include hashtags (the system appends them automatically based on real project context)
+- **`contextBuilder.ts`**: Centralized project context builder — single source of truth for all AI providers, scanning `package.json`, `Cargo.toml`, `README.md`, `CHANGELOG.md`, and git history
+
+### Fixed
+- **AI Hallucination Reduction**: Prompts now include explicit project files and git info, instructing the AI to only mention technologies and features actually present in the codebase
+
+### Changed
+- **AI Providers (Gemini, OpenAI, xAI)**: All refactored to use shared `buildProjectContext()` from `contextBuilder.ts` instead of each building their own context
+- **Post Generation Flow**: `postContent` is set on `hashtagContext` after AI text is generated, enabling content-based hashtag detection
+
+### Technical Details
+- Hashtag suggestions sorted by relevance score descending; top 5 selected
+- Git log scanned for last 3–5 commits to infer hashtags (`#Fix`, `#Feature`, `#Refactor`, `#Docs`, `#Testing`)
+- `workspace.getConfiguration('dotshare').get('customHashtags', [])` reads user-defined tags with highest priority (relevance 1.0)
+
+---
+
 ## [2.2.0] - 2026-01-22
+
 
 ### Added
 - **Clean Architecture Refactoring**: Complete transformation from single Monolithic Class (2000+ lines) to 9 focused files with clear separation of concerns

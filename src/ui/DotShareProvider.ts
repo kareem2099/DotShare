@@ -24,9 +24,9 @@ export class DotShareProvider implements vscode.WebviewViewProvider {
         this._analyticsService = new AnalyticsService();
         this._mediaService = new MediaService(_context);
 
-        // Initialize simple storage for scheduler
-        // (You can keep the initialization logic from original file or move it to a util)
-        const storagePath = _context.globalStorageUri ? _context.globalStorageUri.fsPath : path.join(_context.extensionPath, 'storage');
+        const storagePath = _context.globalStorageUri
+            ? _context.globalStorageUri.fsPath
+            : path.join(_context.extensionPath, 'storage');
         this._scheduledPostsStorage = new ScheduledPostsStorage(storagePath);
     }
 
@@ -63,7 +63,13 @@ export class DotShareProvider implements vscode.WebviewViewProvider {
         // Load initial data
         handler.handleMessage({ command: 'loadPostHistory' });
         handler.handleMessage({ command: 'loadConfiguration' });
-        // Add scheduler loading here if needed
+    }
+
+    // Send Message to Webview
+    public postMessage(message: Record<string, unknown>): void {
+        if (this._view) {
+            this._view.webview.postMessage(message);
+        }
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {

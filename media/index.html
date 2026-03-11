@@ -66,9 +66,26 @@
                             </select>
                         </div>
                         <p data-key="linkedinDesc">Share directly to your LinkedIn feed</p>
-                        <div class="input-group">
-                            <label for="linkedinToken" data-key="accessTokenLabel">Access Token</label>
-                            <input type="password" id="linkedinToken" placeholder="" data-key="linkedinTokenPlaceholder">
+
+                        <!-- OAuth Quick Connect -->
+                        <div class="oauth-connect-section" id="oauthSection_linkedin">
+                            <div class="oauth-btn-row" id="oauthBtnRow_linkedin">
+                                <button class="oauth-connect-btn" id="oauthConnect_linkedin" data-platform="linkedin">
+                                    <span class="oauth-icon">🔗</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_linkedin">Connect with LinkedIn</span>
+                                </button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_linkedin" data-platform="linkedin" style="display:none;" title="Disconnect LinkedIn">Disconnect</button>
+                            </div>
+                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_linkedin">
+                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                            </div>
+                        </div>
+
+                        <div class="oauth-advanced-content" id="oauthAdvancedContent_linkedin" style="display:none;">
+                            <div class="input-group">
+                                <label for="linkedinToken" data-key="accessTokenLabel">Access Token</label>
+                                <input type="password" id="linkedinToken" placeholder="" data-key="linkedinTokenPlaceholder">
+                            </div>
                         </div>
                         <details class="guidelines">
                             <summary data-key="howToGetLinkedinToken">How to get a LinkedIn Access Token</summary>
@@ -119,13 +136,30 @@
                             <button class="saved-apis-btn" data-platform="x">📚 Saved APIs</button>
                         </div>
                         <p data-key="xTwitterDescription">Share real-time updates to X</p>
-                        <div class="input-group">
-                            <label for="xAccessToken">Access Token</label>
-                            <input type="password" id="xAccessToken" placeholder="Enter your X Access Token">
+
+                        <!-- OAuth Quick Connect -->
+                        <div class="oauth-connect-section" id="oauthSection_x">
+                            <div class="oauth-btn-row" id="oauthBtnRow_x">
+                                <button class="oauth-connect-btn oauth-connect-btn--x" id="oauthConnect_x" data-platform="x">
+                                    <span class="oauth-icon">🔗</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_x">Connect with X</span>
+                                </button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_x" data-platform="x" style="display:none;" title="Disconnect X/Twitter">Disconnect</button>
+                            </div>
+                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_x">
+                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label for="xAccessSecret">Access Secret</label>
-                            <input type="password" id="xAccessSecret" placeholder="Enter your X Access Secret">
+
+                        <div class="oauth-advanced-content" id="oauthAdvancedContent_x" style="display:none;">
+                            <div class="input-group">
+                                <label for="xAccessToken">Access Token</label>
+                                <input type="password" id="xAccessToken" placeholder="Enter your X Access Token">
+                            </div>
+                            <div class="input-group">
+                                <label for="xAccessSecret">Access Secret</label>
+                                <input type="password" id="xAccessSecret" placeholder="Enter your X Access Secret">
+                            </div>
                         </div>
                         <details class="guidelines">
                             <summary>How to get X/Twitter credentials</summary>
@@ -149,17 +183,34 @@
                             </select>
                         </div>
                         <p data-key="facebookDescription">Share to Facebook profiles and pages</p>
-                        <div class="input-group">
-                            <label for="facebookToken">Access Token</label>
-                            <input type="password" id="facebookToken" placeholder="Enter your Facebook Access Token">
+
+                        <!-- OAuth Quick Connect -->
+                        <div class="oauth-connect-section" id="oauthSection_facebook">
+                            <div class="oauth-btn-row" id="oauthBtnRow_facebook">
+                                <button class="oauth-connect-btn oauth-connect-btn--facebook" id="oauthConnect_facebook" data-platform="facebook">
+                                    <span class="oauth-icon">🔗</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_facebook">Connect with Facebook</span>
+                                </button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_facebook" data-platform="facebook" style="display:none;" title="Disconnect Facebook">Disconnect</button>
+                            </div>
+                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_facebook">
+                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label for="facebookPageToken">Page Token (Optional)</label>
-                            <input type="password" id="facebookPageToken" placeholder="Page access token for posting to pages">
-                        </div>
-                        <div class="input-group">
-                            <label for="facebookPageId">Page ID (Optional)</label>
-                            <input type="text" id="facebookPageId" placeholder="Facebook page ID">
+
+                        <div class="oauth-advanced-content" id="oauthAdvancedContent_facebook" style="display:none;">
+                            <div class="input-group">
+                                <label for="facebookToken">Access Token</label>
+                                <input type="password" id="facebookToken" placeholder="Enter your Facebook Access Token">
+                            </div>
+                            <div class="input-group">
+                                <label for="facebookPageToken">Page Token (Optional)</label>
+                                <input type="password" id="facebookPageToken" placeholder="Page access token for posting to pages">
+                            </div>
+                            <div class="input-group">
+                                <label for="facebookPageId">Page ID (Optional)</label>
+                                <input type="text" id="facebookPageId" placeholder="Facebook page ID">
+                            </div>
                         </div>
                         <details class="guidelines">
                             <summary>How to get Facebook tokens</summary>
@@ -210,6 +261,20 @@
                         </div>
                         <p data-key="redditDescription">Share posts to Reddit communities</p>
 
+                        <!-- OAuth Quick Connect -->
+                        <div class="oauth-connect-section" id="oauthSection_reddit">
+                            <div class="oauth-btn-row" id="oauthBtnRow_reddit">
+                                <button class="oauth-connect-btn oauth-connect-btn--reddit" id="oauthConnect_reddit" data-platform="reddit">
+                                    <span class="oauth-icon">🔗</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_reddit">Connect with Reddit</span>
+                                </button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_reddit" data-platform="reddit" style="display:none;" title="Disconnect Reddit">Disconnect</button>
+                            </div>
+                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_reddit">
+                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                            </div>
+                        </div>
+
                         <!-- Reddit Subreddit Selection (only shown when Reddit is configured) -->
                         <div id="redditSubredditSection" class="reddit-subreddit-section" style="display: none;">
                             <div class="section-divider">
@@ -232,46 +297,48 @@
                             </div>
                         </div>
 
-                        <!-- Existing token inputs -->
-                        <div class="input-group">
-                            <label for="redditAccessToken">Access Token</label>
-                            <input type="password" id="redditAccessToken" placeholder="Enter your Reddit Access Token">
-                        </div>
-                        <!-- <div class="input-group">
-                            <label for="redditRefreshToken">Refresh Token</label>
-                            <input type="password" id="redditRefreshToken" placeholder="Enter your Reddit Refresh Token">
-                        </div> -->
-
-                        <!-- Token Generation Section -->
-                        <div class="token-generation-section">
-                            <div class="section-divider">
-                                <span class="divider-text">Or Generate Tokens Automatically</span>
+                        <div class="oauth-advanced-content" id="oauthAdvancedContent_reddit" style="display:none;">
+                            <!-- Existing token inputs -->
+                            <div class="input-group">
+                                <label for="redditAccessToken">Access Token</label>
+                                <input type="password" id="redditAccessToken" placeholder="Enter your Reddit Access Token">
                             </div>
-                            <div class="token-gen-form">
-                                <div class="input-group">
-                                    <label for="redditClientId">Client ID</label>
-                                    <input type="text" id="redditClientId" placeholder="App client ID from Reddit">
+                            <!-- <div class="input-group">
+                                <label for="redditRefreshToken">Refresh Token</label>
+                                <input type="password" id="redditRefreshToken" placeholder="Enter your Reddit Refresh Token">
+                            </div> -->
+
+                            <!-- Token Generation Section -->
+                            <div class="token-generation-section">
+                                <div class="section-divider">
+                                    <span class="divider-text">Or Generate Tokens Automatically</span>
                                 </div>
-                                <div class="input-group">
-                                    <label for="redditClientSecret">Client Secret</label>
-                                    <input type="password" id="redditClientSecret" placeholder="App client secret from Reddit">
+                                <div class="token-gen-form">
+                                    <div class="input-group">
+                                        <label for="redditClientId">Client ID</label>
+                                        <input type="text" id="redditClientId" placeholder="App client ID from Reddit">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="redditClientSecret">Client Secret</label>
+                                        <input type="password" id="redditClientSecret" placeholder="App client secret from Reddit">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="redditApiName">Configuration Name</label>
+                                        <input type="text" id="redditApiName" placeholder="e.g., Personal Account" value="Reddit Account">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="redditUsername">Reddit Username</label>
+                                        <input type="text" id="redditUsername" placeholder="Your Reddit username">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="redditPassword">Reddit Password</label>
+                                        <input type="password" id="redditPassword" placeholder="Your Reddit password">
+                                    </div>
+                                    <button id="generateRedditTokensBtn" class="generate-tokens-btn">
+                                        <span class="btn-icon">🔑</span>
+                                        <span>Generate Tokens</span>
+                                    </button>
                                 </div>
-                                <div class="input-group">
-                                    <label for="redditApiName">Configuration Name</label>
-                                    <input type="text" id="redditApiName" placeholder="e.g., Personal Account" value="Reddit Account">
-                                </div>
-                                <div class="input-group">
-                                    <label for="redditUsername">Reddit Username</label>
-                                    <input type="text" id="redditUsername" placeholder="Your Reddit username">
-                                </div>
-                                <div class="input-group">
-                                    <label for="redditPassword">Reddit Password</label>
-                                    <input type="password" id="redditPassword" placeholder="Your Reddit password">
-                                </div>
-                                <button id="generateRedditTokensBtn" class="generate-tokens-btn">
-                                    <span class="btn-icon">🔑</span>
-                                    <span>Generate Tokens</span>
-                                </button>
                             </div>
                         </div>
 

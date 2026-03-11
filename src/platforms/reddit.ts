@@ -96,47 +96,49 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 
 export async function shareToReddit(accessToken: string, refreshToken: string | undefined, postData: RedditPostData): Promise<string> {
     try {
-        // Use Python server API instead of direct Reddit API calls
-        // ✅ 2. استخدام الثابت هنا
-        const serverUrl = process.env.DOTSHARE_SERVER_URL || DEFAULT_SERVER_URL;
-
-        // For Reddit, we need title, text, and subreddit
-        const title = postData.title || postData.text.substring(0, 300);
-        const text = postData.isSelfPost !== false ? postData.text : undefined;
-        const subreddit = postData.subreddit || 'test';
-
-        // Convert media files to data URLs
-        const mediaUrls = postData.media ? postData.media.map(file => {
-            if (fs.existsSync(file)) {
-                const fileContent = fs.readFileSync(file);
-                const ext = path.extname(file).toLowerCase();
-                let mimeType = 'application/octet-stream';
-                if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
-                else if (ext === '.png') mimeType = 'image/png';
-                else if (ext === '.gif') mimeType = 'image/gif';
-                else if (ext === '.mp4') mimeType = 'video/mp4';
-                return `data:${mimeType};base64,${fileContent.toString('base64')}`;
-            }
-            return file;
-        }) : [];
-
-        const response = await axios.post(`${serverUrl}/api/post/reddit`, {
-            access_token: accessToken,
-            subreddit: subreddit.replace(/^r\//, ''), // Remove r/ prefix if present
-            title: title,
-            text: text,
-            media_urls: mediaUrls
-        });
-
-        if (response.data.success) {
-            return 'posted'; // Return a dummy post ID for compatibility
-        } else {
-            throw new Error(response.data.error || 'Unknown error from server');
+        const title = postData.title || postData.text.split('\n')[0].substring(0, 300) || 'Post from DotShare';
+        const subreddit = postData.subreddit.replace(/^r\//, '');
+        
+        const data = new URLSearchParams();
+        data.append('api_type', 'json');
+        data.append('sr', subreddit);
+        data.append('title', title);
+        
+        if (postData.flairId) {
+            data.append('flair_id', postData.flairId);
         }
+        if (postData.spoiler) {
+            data.append('spoiler', 'true');
+        }
+
+        if (postData.isSelfPost === false) {
+            data.append('kind', 'link');
+            data.append('url', postData.text);
+        } else {
+            data.append('kind', 'self');
+            data.append('text', postData.text);
+        }
+        
+        const headers = {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'DotShare/1.0'
+        };
+
+        const response = await axios.post('https://oauth.reddit.com/api/submit', data, { headers });
+        
+        if (response.data.json?.errors?.length > 0) {
+            const errorStrings = response.data.json.errors.map((e: any[]) => e.join(': ')).join(', ');
+            throw new Error(`Reddit API Error: ${errorStrings}`);
+        }
+        
+        const postId = response.data.json?.data?.name || 'posted';
+        return postId;
+        
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('Error posting to Reddit:', errorMessage);
-        throw new Error('Failed to post to Reddit');
+        throw new Error(`Failed to post to Reddit: ${errorMessage}`);
     }
 }
 

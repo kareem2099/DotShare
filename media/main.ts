@@ -41,7 +41,7 @@ import {
 } from './src/core/utils';
 import { updateTexts } from './src/core/translations';
 import { initializeDOMElements, updateRedditSubredditSectionVisibility } from './src/ui/ui-initialization';
-import { initializeCriticalEventListeners, setupPlatformEventListeners, setupRedditEventListeners } from './src/handlers/event-handlers';
+import { initializeCriticalEventListeners, setupPlatformEventListeners, setupRedditEventListeners, setupOAuthButtons, showOAuthStatus } from './src/handlers/event-handlers';
 import {
     loadHistoryAndAnalytics,
     updatePostHistory,
@@ -117,6 +117,9 @@ window.addEventListener('load', () => {
 
         // Setup Reddit-specific event listeners
         setupRedditEventListeners();
+
+        // Setup OAuth connect buttons (LinkedIn, X, Facebook, Reddit)
+        setupOAuthButtons();
 
         Logger.info('Translations loaded statically');
         updateTexts();
@@ -288,6 +291,13 @@ window.addEventListener('message', (event: MessageEvent<Message>) => {
             updateButtonStates();
             updateDynamicPlatformSelector();
             updateRedditSubredditSectionVisibility();
+            // Reflect OAuth connection status on platform cards
+            showOAuthStatus({
+                linkedinToken: message.linkedinToken,
+                xAccessToken: message.xAccessToken,
+                facebookToken: message.facebookToken,
+                redditAccessToken: message.redditAccessToken
+            });
             break;
         case 'updateModels':
             handleModelUpdate(message);

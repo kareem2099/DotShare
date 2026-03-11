@@ -12,6 +12,8 @@ import { generatePost as generateXAIPost } from '../ai/xai';
 import { shareToLinkedIn } from '../platforms/linkedin';
 import { shareToTelegram } from '../platforms/telegram';
 import { shareToReddit } from '../platforms/reddit';
+import { shareToX } from '../platforms/x';
+import { shareToFacebook } from '../platforms/facebook';
 
 interface Message {
     command: string;
@@ -463,16 +465,49 @@ export class PostHandler {
     }
 
     // Helper methods for sharing to individual platforms
-    private async shareToFacebookWithUpdate(post: PostData, _postId: string | undefined): Promise<void> {
-        Logger.info('Facebook sharing not yet implemented', { post, postId: _postId });
+    private async shareToFacebookWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const facebookToken = await this.context.secrets.get('facebookToken') || '';
+            const facebookPageToken = await this.context.secrets.get('facebookPageToken') || null;
+            const facebookPageId = await this.context.secrets.get('facebookPageId') || undefined;
+            
+            await shareToFacebook(facebookToken, facebookPageToken, { ...post, pageId: facebookPageId });
+            
+            this.sendSuccess('Successfully posted to Facebook!');
+            if (postId) {
+                this.historyService.recordShare(postId, 'facebook', true);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(`Error sharing to Facebook: ${errorMessage}`);
+            if (postId) {
+                this.historyService.recordShare(postId, 'facebook', false, errorMessage);
+            }
+        }
     }
 
     private async shareToDiscordWithUpdate(post: PostData, _postId: string | undefined): Promise<void> {
         Logger.info('Discord sharing not yet implemented', { post, postId: _postId });
     }
 
-    private async shareToXWithUpdate(post: PostData, _postId: string | undefined): Promise<void> {
-        Logger.info('X/Twitter sharing not yet implemented', { post, postId: _postId });
+    private async shareToXWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
+            const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
+            
+            await shareToX(xAccessToken, xAccessSecret, post);
+            
+            this.sendSuccess('Successfully posted to X!');
+            if (postId) {
+                this.historyService.recordShare(postId, 'x', true);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(`Error sharing to X: ${errorMessage}`);
+            if (postId) {
+                this.historyService.recordShare(postId, 'x', false, errorMessage);
+            }
+        }
     }
 
     private async shareToRedditWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<string | undefined> {
