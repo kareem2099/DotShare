@@ -1,0 +1,880 @@
+/* ── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── App Shell ────────────────────────────────────────────── */
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Left Nav ─────────────────────────────────────────────── */
+#nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
+  min-width: 40px;
+  background: var(--vscode-activityBar-background, #2c2c2c);
+  border-right: 1px solid var(--vscode-panel-border);
+  padding: 8px 0;
+  gap: 2px;
+}
+
+.nav-logo {
+  font-size: 18px;
+  padding: 6px;
+  cursor: default;
+}
+
+.nav-divider {
+  width: 24px;
+  height: 1px;
+  background: var(--vscode-panel-border);
+  margin: 4px 0;
+}
+
+.nav-spacer { flex: 1; }
+
+.nav-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--vscode-activityBar-foreground, #ccc);
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.nav-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
+.nav-btn.active { opacity: 1; background: var(--vscode-toolbar-activeBackground); }
+
+.nav-tooltip {
+  position: absolute;
+  left: 44px;
+  background: var(--vscode-editorHoverWidget-background);
+  border: 1px solid var(--vscode-editorHoverWidget-border);
+  color: var(--vscode-editorHoverWidget-foreground);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+.nav-btn:hover .nav-tooltip { opacity: 1; }
+
+/* ── Pages Container ──────────────────────────────────────── */
+#pages {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Page Header ──────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.page-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.page-subtitle {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 2px;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.card {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.card-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 10px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-sm  { padding: 4px 10px; font-size: 11px; }
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  padding: 6px 14px;
+}
+.btn-primary:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
+
+.btn-secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  padding: 6px 14px;
+}
+.btn-secondary:hover:not(:disabled) { background: var(--vscode-button-secondaryHoverBackground); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border);
+  padding: 5px 10px;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--vscode-toolbar-hoverBackground); }
+
+/* ── Action Bar ───────────────────────────────────────────── */
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.spacer { flex: 1; }
+
+/* ── Compose Area ─────────────────────────────────────────── */
+.compose-area {
+  position: relative;
+}
+
+.compose-area textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 90px;
+  padding: 8px 10px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.compose-area textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.compose-counter {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  pointer-events: none;
+}
+
+.compose-counter.warn { color: #e0a800; }
+.compose-counter.error { color: var(--vscode-errorForeground); }
+
+/* ── Platform Pills ───────────────────────────────────────── */
+.platforms-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.platform-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+  color: var(--vscode-foreground);
+}
+
+.platform-pill input[type="checkbox"] { display: none; }
+
+.platform-pill:hover { border-color: var(--vscode-focusBorder); }
+
+.platform-pill.checked {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
+}
+
+/* ── Locked Pills (Pro teaser) ────────────────────────────── */
+.platform-pill--locked {
+  opacity: 0.38;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+  pointer-events: none;
+}
+
+/* ── Pro Teaser Banner ────────────────────────────────────── */
+.pro-teaser-banner {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.btn-pro-teaser {
+  padding: 7px 16px;
+  background: linear-gradient(90deg, #0078d4, #0099ff);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  gap: 8px;
+  box-shadow: 0 0 10px rgba(0, 120, 212, 0.45);
+  transition: box-shadow 0.2s, transform 0.15s;
+  animation: pro-pulse 2.8s ease-in-out infinite;
+}
+
+.btn-pro-teaser:hover {
+  box-shadow: 0 0 18px rgba(0, 153, 255, 0.65);
+  transform: translateY(-1px);
+}
+
+@keyframes pro-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 120, 212, 0.45); }
+  50%       { box-shadow: 0 0 20px rgba(0, 153, 255, 0.7); }
+}
+
+.pro-badge {
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.pro-star { font-size: 14px; }
+
+.pro-teaser-hint {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin-left: 4px;
+}
+
+/* ── Stats Grid ───────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.stat-card {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--vscode-foreground);
+}
+
+/* ── List Container ───────────────────────────────────────── */
+.list-container {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ── Empty State ──────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.empty-state-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
+.empty-state-title { font-size: 12px; }
+
+/* ── Scheduled / History Items ────────────────────────────── */
+.scheduled-item,
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  gap: 8px;
+  font-size: 12px;
+}
+
+.scheduled-item:last-child,
+.history-item:last-child { border-bottom: none; }
+
+.scheduled-time,
+.history-meta {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+}
+
+.scheduled-text,
+.history-text {
+  color: var(--vscode-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+/* ── Input Group ──────────────────────────────────────────── */
+.input-group { margin-bottom: 10px; }
+
+.input-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 4px;
+}
+
+.input-group input,
+.input-group select,
+.input-group textarea {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.input-group input:focus,
+.input-group select:focus,
+.input-group textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+/* ── Control Select ───────────────────────────────────────── */
+.control-select {
+  padding: 4px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Guidelines (details) ─────────────────────────────────── */
+.guidelines { margin-top: 10px; }
+
+.guidelines summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--vscode-textLink-foreground);
+  list-style: none;
+}
+
+.guidelines summary::before { content: '▶ '; font-size: 9px; }
+details[open] > summary::before { content: '▼ '; }
+
+.guidelines ol {
+  margin: 8px 0 0 16px;
+  font-size: 11px;
+  color: var(--vscode-foreground);
+}
+
+.guidelines li { margin-bottom: 4px; }
+
+.guidelines code {
+  background: var(--vscode-textCodeBlock-background);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* ── OAuth Buttons ────────────────────────────────────────── */
+.oauth-connect-section { margin: 8px 0 4px; }
+
+.oauth-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.oauth-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #0073b1;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.oauth-connect-btn:hover { filter: brightness(1.15); }
+.oauth-connect-btn--x        { background: #14171a; }
+.oauth-connect-btn--facebook { background: #1877f2; }
+.oauth-connect-btn--reddit   { background: #ff4500; }
+
+.oauth-disconnect-btn {
+  padding: 5px 10px;
+  background: transparent;
+  color: #da3633;
+  border: 1px solid rgba(218,54,51,0.4);
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.oauth-disconnect-btn:hover { background: rgba(218,54,51,0.1); }
+
+.oauth-advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.8;
+}
+
+.oauth-advanced-toggle:hover { opacity: 1; }
+
+.oauth-advanced-content {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+/* ── Account Selector ─────────────────────────────────────── */
+.account-selector {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.account-select {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* ── Modal ────────────────────────────────────────────────── */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  width: 92%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.modal-header h3 { font-size: 14px; font-weight: 600; }
+
+.close-modal {
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  opacity: 0.6;
+  line-height: 1;
+}
+
+.close-modal:hover { opacity: 1; }
+
+.modal-body { padding: 16px; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+/* ── Provider Tabs ────────────────────────────────────────── */
+.provider-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.15s;
+}
+
+.tab-btn:hover { opacity: 1; }
+
+.tab-btn.active {
+  opacity: 1;
+  border-bottom-color: var(--vscode-focusBorder);
+  color: var(--vscode-focusBorder);
+}
+
+.provider-panel { display: none; }
+.provider-panel.active { display: block; }
+.provider-panel h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+
+.provider-panel select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* ── Platform Checkboxes (modals) ─────────────────────────── */
+.platform-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.platform-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Radio / Checkbox Groups ──────────────────────────────── */
+.radio-group,
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.radio-group label,
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Reddit Warnings ──────────────────────────────────────── */
+.reddit-warnings {
+  padding: 8px 12px;
+  background: rgba(255,152,0,0.1);
+  border: 1px solid rgba(255,152,0,0.3);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #ff9800;
+  margin-top: 8px;
+}
+
+/* ── Subreddit ────────────────────────────────────────────── */
+.subreddit-input-group {
+  display: flex;
+  align-items: center;
+}
+
+.subreddit-prefix {
+  padding: 6px 8px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-focusBorder);
+}
+
+.subreddit-input {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+
+.subreddit-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.subreddit-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.suggestion-title {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.subreddit-suggestion {
+  padding: 3px 8px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 10px;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  transition: all 0.15s;
+}
+
+.subreddit-suggestion:hover {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
+}
+
+/* ── Saved APIs ───────────────────────────────────────────── */
+.saved-apis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.saved-apis-header h4 { font-size: 13px; font-weight: 600; }
+
+.saved-apis-list {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 5px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.no-saved-apis {
+  padding: 24px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.saved-api-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  gap: 8px;
+}
+
+.saved-api-item:last-child { border-bottom: none; }
+.saved-api-name { font-size: 12px; font-weight: 600; }
+.saved-api-last-used { font-size: 11px; color: var(--vscode-descriptionForeground); }
+.saved-api-actions { display: flex; gap: 6px; }
+
+.edit-api-form { margin-top: 14px; }
+.edit-api-form h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.api-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+/* ── Status Message ───────────────────────────────────────── */
+.status-message {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* ── Toast ────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  min-width: 200px;
+  max-width: 320px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: opacity 0.2s;
+  background: var(--vscode-notifications-background);
+  border: 1px solid var(--vscode-notifications-border);
+  color: var(--vscode-notifications-foreground);
+}
+
+.toast.success { border-left: 3px solid #4caf50; }
+.toast.error   { border-left: 3px solid #f44336; }
+.toast.warning { border-left: 3px solid #ff9800; }
+.toast.info    { border-left: 3px solid #2196f3; }
+
+.toast-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 13px;
+}
+
+.toast-close:hover { opacity: 1; }
+
+/* ── Platform Card (Settings) ─────────────────────────────── */
+.platform-card {
+  border-left: 3px solid var(--vscode-panel-border);
+}
+
+.platform-card.linkedin { border-left-color: #0077b5; }
+.platform-card.telegram { border-left-color: #0088cc; }
+.platform-card.x        { border-left-color: #14171a; }
+.platform-card.facebook { border-left-color: #1877f2; }
+.platform-card.discord  { border-left-color: #5865f2; }
+.platform-card.reddit   { border-left-color: #ff4500; }
+.platform-card.bluesky  { border-left-color: #0085ff; }
+
+/* ── Media Preview ────────────────────────────────────────── */
+.media-preview {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }

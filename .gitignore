@@ -3,9 +3,10 @@ node_modules/
 
 # Compiled output
 out/
-*.js.map
 
-# Webview compiled files
+# Compiled webview & sidebar bundles
+media/webview/app.js
+media/webview/app.js.map
 media/app.js
 media/app.js.map
 
@@ -45,3 +46,8 @@ temp/
 .idea/
 .vscode/settings.json
 .vscode/launch.json.bak
+
+# Project-specific generated / local files
+scan_report.txt
+todo_list
+todo_list*.json

@@ -3,11 +3,12 @@
 .vscode/
 tmp/
 temp/
-node_modules/
+node_modules/**
 src/
 dist/
 build/
 tsconfig.json
+esbuild.js
 jest.config.js
 .eslintrc.json
 .eslintignore
@@ -33,11 +34,13 @@ CLI_README.md
 CLI_SCHEDULER_README.md
 package.cli.json
 
-# Webview Source Files (only media/app.js is bundled)
+# Webview Source Files (only bundled .js files ship with the extension)
 out/**/__tests__/       
 media/src/               
 media/main.ts
-media/locales/
+media/webview/app.ts
+media/webview/tsconfig.webview.json
+# media/locales/ — kept: locale JSON files must ship with the extension
 media/media/
 media/tsconfig.json
 media/package.json

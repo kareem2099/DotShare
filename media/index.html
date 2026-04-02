@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="{{CSP}}">
     <title>DotShare</title>
     <link rel="stylesheet" href="./assets/style.css">
 </head>
+
 <body>
     <header>
         <div class="header-content">
@@ -27,88 +30,68 @@
         </div>
     </header>
 
-    <!-- Tab Navigation -->
-    <div class="tab-navigation">
-        <button class="tab-nav-btn active" data-tab="platforms">
-            <span class="tab-icon">🔗</span>
-            <span data-key="platformsTab">Platforms</span>
-        </button>
-        <button class="tab-nav-btn" data-tab="create">
-            <span class="tab-icon">✨</span>
-            <span data-key="createPost">Create Post</span>
-        </button>
-        <button class="tab-nav-btn" data-tab="analytics">
-            <span class="tab-icon">📊</span>
-            <span data-key="analyticsTab">Analytics</span>
-        </button>
-    </div>
-
-    <!-- Tab Content -->
-    <div class="tab-content">
-
-        <!-- Platforms Setup Tab -->
+    <div class="sidebar-content">
         <div class="tab-pane active" id="platformsTab">
             <section class="api-settings">
                 <div class="section-header">
-                    <h2 data-key="socialMedia">⚙️ Platform Configuration</h2>
-                    <p>Set up your social media accounts</p>
+                    <h2 data-key="platformConfig">⚙️ Platform Configuration</h2>
+                    <p data-key="setupAccounts">Set up your social media accounts</p>
                 </div>
                 <div class="platform-settings">
                     <div class="platform-card linkedin">
                         <div class="card-header">
-                            <h3>LinkedIn</h3>
-                            <button class="saved-apis-btn" data-platform="linkedin">📚 Saved APIs</button>
+                            <h3 data-key="linkedin">LinkedIn</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="linkedin" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="linkedin" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <div class="account-selector" id="accountSelector_linkedin" style="display: none;">
-                            <label for="accountSelect_linkedin">Active Account:</label>
+                            <label for="accountSelect_linkedin" data-key="activeAccount">Active Account:</label>
                             <select id="accountSelect_linkedin" class="account-select">
-                                <option value="">No saved accounts</option>
+                                <option value="" data-key="noSavedAccounts">No saved accounts</option>
                             </select>
                         </div>
                         <p data-key="linkedinDesc">Share directly to your LinkedIn feed</p>
 
-                        <!-- OAuth Quick Connect -->
                         <div class="oauth-connect-section" id="oauthSection_linkedin">
                             <div class="oauth-btn-row" id="oauthBtnRow_linkedin">
                                 <button class="oauth-connect-btn" id="oauthConnect_linkedin" data-platform="linkedin">
-                                    <span class="oauth-icon">🔗</span>
-                                    <span class="oauth-btn-text" id="oauthBtnText_linkedin">Connect with LinkedIn</span>
+                                    <span class="oauth-icon" data-key="connectWithLinkedin">🔗 Connect with
+                                        LinkedIn</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_linkedin"
+                                        style="display:none;"></span>
                                 </button>
-                                <button class="oauth-disconnect-btn" id="oauthDisconnect_linkedin" data-platform="linkedin" style="display:none;" title="Disconnect LinkedIn">Disconnect</button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_linkedin"
+                                    data-platform="linkedin" style="display:none;" title="Disconnect LinkedIn"
+                                    data-key="disconnect">Disconnect</button>
                             </div>
                             <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_linkedin">
-                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
+                                <span class="toggle-icon">⌄</span>
                             </div>
                         </div>
 
                         <div class="oauth-advanced-content" id="oauthAdvancedContent_linkedin" style="display:none;">
                             <div class="input-group">
                                 <label for="linkedinToken" data-key="accessTokenLabel">Access Token</label>
-                                <input type="password" id="linkedinToken" placeholder="" data-key="linkedinTokenPlaceholder">
+                                <input type="password" id="linkedinToken" placeholder=""
+                                    data-key="linkedinTokenPlaceholder">
                             </div>
                         </div>
-                        <details class="guidelines">
-                            <summary data-key="howToGetLinkedinToken">How to get a LinkedIn Access Token</summary>
-                            <ol>
-                                <li>Go to <a href="https://developer.linkedin.com/" target="_blank">LinkedIn Developers</a></li>
-                                <li>Create an app and get your app credentials</li>
-                                <li>Use OAuth 2.0 to generate a user access token</li>
-                                <li>Note: Requires approval for certain scopes</li>
-                            </ol>
-                            <p><em data-key="linkedinNote">Without token, sharing will open LinkedIn in your browser</em></p>
-                        </details>
                     </div>
 
                     <div class="platform-card telegram">
                         <div class="card-header">
-                            <h3>Telegram</h3>
-                            <button class="saved-apis-btn" data-platform="telegram">📚 Saved APIs</button>
-                        </div>
-                        <div class="account-selector" id="accountSelector_telegram" style="display: none;">
-                            <label for="accountSelect_telegram">Active Account:</label>
-                            <select id="accountSelect_telegram" class="account-select">
-                                <option value="">No saved accounts</option>
-                            </select>
+                            <h3 data-key="telegram">Telegram</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="telegram" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="telegram" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <p data-key="telegramDesc">Send posts to Telegram channels or groups</p>
                         <div class="input-group">
@@ -119,861 +102,214 @@
                             <label for="telegramChat" data-key="chatIdLabel">Chat ID</label>
                             <input type="text" id="telegramChat" placeholder="" data-key="telegramChatPlaceholder">
                         </div>
-                        <details class="guidelines">
-                            <summary data-key="howToGetTelegramBot">How to get a Telegram Bot</summary>
-                            <ol>
-                                <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram</li>
-                                <li>Send <code>/newbot</code> and follow the instructions</li>
-                                <li>Copy the bot token provided</li>
-                                <li>For Chat ID: Add your bot to a group or channel, or use your user ID. <a href="https://t.me/DotFreeID_bot" target="_blank">Get your User ID using @DotFreeID_bot</a></li>
-                            </ol>
-                        </details>
                     </div>
 
                     <div class="platform-card x">
                         <div class="card-header">
-                            <h3>X/Twitter</h3>
-                            <button class="saved-apis-btn" data-platform="x">📚 Saved APIs</button>
+                            <h3 data-key="xTwitter">X/Twitter</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="x" data-key="createPostBtn">✨ Create
+                                    Post</button>
+                                <button class="saved-apis-btn" data-platform="x" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <p data-key="xTwitterDescription">Share real-time updates to X</p>
 
-                        <!-- OAuth Quick Connect -->
                         <div class="oauth-connect-section" id="oauthSection_x">
                             <div class="oauth-btn-row" id="oauthBtnRow_x">
-                                <button class="oauth-connect-btn oauth-connect-btn--x" id="oauthConnect_x" data-platform="x">
-                                    <span class="oauth-icon">🔗</span>
-                                    <span class="oauth-btn-text" id="oauthBtnText_x">Connect with X</span>
+                                <button class="oauth-connect-btn oauth-connect-btn--x" id="oauthConnect_x"
+                                    data-platform="x">
+                                    <span class="oauth-icon" data-key="connectWithX">🔗 Connect with X</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_x" style="display:none;"></span>
                                 </button>
-                                <button class="oauth-disconnect-btn" id="oauthDisconnect_x" data-platform="x" style="display:none;" title="Disconnect X/Twitter">Disconnect</button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_x" data-platform="x"
+                                    style="display:none;" title="Disconnect X/Twitter"
+                                    data-key="disconnect">Disconnect</button>
                             </div>
                             <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_x">
-                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
+                                <span class="toggle-icon">⌄</span>
                             </div>
                         </div>
 
                         <div class="oauth-advanced-content" id="oauthAdvancedContent_x" style="display:none;">
                             <div class="input-group">
-                                <label for="xAccessToken">Access Token</label>
-                                <input type="password" id="xAccessToken" placeholder="Enter your X Access Token">
+                                <label for="xAccessToken" data-key="accessTokenLabel">Access Token</label>
+                                <input type="password" id="xAccessToken" placeholder="">
                             </div>
                             <div class="input-group">
-                                <label for="xAccessSecret">Access Secret</label>
-                                <input type="password" id="xAccessSecret" placeholder="Enter your X Access Secret">
+                                <label for="xAccessSecret" data-key="accessTokenSecret">Access Secret</label>
+                                <input type="password" id="xAccessSecret" placeholder="">
                             </div>
                         </div>
-                        <details class="guidelines">
-                            <summary>How to get X/Twitter credentials</summary>
-                            <ol>
-                                <li>Create a Twitter Developer Account</li>
-                                <li>Go to <a href="https://developer.twitter.com/" target="_blank">Twitter Developers</a></li>
-                                <li>Create an app and get your access tokens</li>
-                            </ol>
-                        </details>
                     </div>
 
                     <div class="platform-card facebook">
                         <div class="card-header">
-                            <h3>Facebook</h3>
-                            <button class="saved-apis-btn" data-platform="facebook">📚 Saved APIs</button>
-                        </div>
-                        <div class="account-selector" id="accountSelector_facebook" style="display: none;">
-                            <label for="accountSelect_facebook">Active Account:</label>
-                            <select id="accountSelect_facebook" class="account-select">
-                                <option value="">No saved accounts</option>
-                            </select>
+                            <h3 data-key="facebook">Facebook</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="facebook" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="facebook" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <p data-key="facebookDescription">Share to Facebook profiles and pages</p>
 
-                        <!-- OAuth Quick Connect -->
                         <div class="oauth-connect-section" id="oauthSection_facebook">
                             <div class="oauth-btn-row" id="oauthBtnRow_facebook">
-                                <button class="oauth-connect-btn oauth-connect-btn--facebook" id="oauthConnect_facebook" data-platform="facebook">
-                                    <span class="oauth-icon">🔗</span>
-                                    <span class="oauth-btn-text" id="oauthBtnText_facebook">Connect with Facebook</span>
+                                <button class="oauth-connect-btn oauth-connect-btn--facebook" id="oauthConnect_facebook"
+                                    data-platform="facebook">
+                                    <span class="oauth-icon" data-key="connectWithFacebook">🔗 Connect with
+                                        Facebook</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_facebook"
+                                        style="display:none;"></span>
                                 </button>
-                                <button class="oauth-disconnect-btn" id="oauthDisconnect_facebook" data-platform="facebook" style="display:none;" title="Disconnect Facebook">Disconnect</button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_facebook"
+                                    data-platform="facebook" style="display:none;" title="Disconnect Facebook"
+                                    data-key="disconnect">Disconnect</button>
                             </div>
                             <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_facebook">
-                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
+                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
+                                <span class="toggle-icon">⌄</span>
                             </div>
                         </div>
 
                         <div class="oauth-advanced-content" id="oauthAdvancedContent_facebook" style="display:none;">
                             <div class="input-group">
                                 <label for="facebookToken">Access Token</label>
-                                <input type="password" id="facebookToken" placeholder="Enter your Facebook Access Token">
+                                <input type="password" id="facebookToken"
+                                    placeholder="Enter your Facebook Access Token">
                             </div>
                             <div class="input-group">
                                 <label for="facebookPageToken">Page Token (Optional)</label>
-                                <input type="password" id="facebookPageToken" placeholder="Page access token for posting to pages">
+                                <input type="password" id="facebookPageToken"
+                                    placeholder="Page access token for posting to pages">
                             </div>
                             <div class="input-group">
                                 <label for="facebookPageId">Page ID (Optional)</label>
                                 <input type="text" id="facebookPageId" placeholder="Facebook page ID">
                             </div>
                         </div>
-                        <details class="guidelines">
-                            <summary>How to get Facebook tokens</summary>
-                            <ol>
-                                <li>Create a Facebook App at <a href="https://developers.facebook.com/" target="_blank">developers.facebook.com</a></li>
-                                <li>Get your user access token for profile posting</li>
-                                <li>For pages: Get page access token and page ID</li>
-                            </ol>
-                        </details>
                     </div>
 
                     <div class="platform-card discord">
                         <div class="card-header">
-                            <h3>Discord</h3>
-                            <button class="saved-apis-btn" data-platform="discord">📚 Saved APIs</button>
-                        </div>
-                        <div class="account-selector" id="accountSelector_discord" style="display: none;">
-                            <label for="accountSelect_discord">Active Account:</label>
-                            <select id="accountSelect_discord" class="account-select">
-                                <option value="">No saved accounts</option>
-                            </select>
+                            <h3 data-key="discord">Discord</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="discord" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="discord" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <p data-key="discordDescription">Post updates to Discord channels via webhooks</p>
                         <div class="input-group">
-                            <label for="discordWebhook">Webhook URL</label>
-                            <input type="url" id="discordWebhook" placeholder="Enter your Discord webhook URL">
+                            <label for="discordWebhook" data-key="webhookUrl">Webhook URL</label>
+                            <input type="url" id="discordWebhook" placeholder="">
                         </div>
-                        <details class="guidelines">
-                            <summary>How to get Discord webhook</summary>
-                            <ol>
-                                <li>Go to your Discord server settings</li>
-                                <li>Navigate to Integrations → Webhooks</li>
-                                <li>Create a new webhook and copy the URL</li>
-                            </ol>
-                        </details>
                     </div>
 
                     <div class="platform-card reddit">
                         <div class="card-header">
-                            <h3>Reddit</h3>
-                            <button class="saved-apis-btn" data-platform="reddit">📚 Saved APIs</button>
-                        </div>
-                        <div class="account-selector" id="accountSelector_reddit" style="display: none;">
-                            <label for="accountSelect_reddit">Active Account:</label>
-                            <select id="accountSelect_reddit" class="account-select">
-                                <option value="">No saved accounts</option>
-                            </select>
+                            <h3 data-key="reddit">Reddit</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="reddit" data-key="createPostBtn">✨ Create
+                                    Post</button>
+                                <button class="saved-apis-btn" data-platform="reddit" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <p data-key="redditDescription">Share posts to Reddit communities</p>
 
-                        <!-- OAuth Quick Connect -->
                         <div class="oauth-connect-section" id="oauthSection_reddit">
                             <div class="oauth-btn-row" id="oauthBtnRow_reddit">
-                                <button class="oauth-connect-btn oauth-connect-btn--reddit" id="oauthConnect_reddit" data-platform="reddit">
-                                    <span class="oauth-icon">🔗</span>
-                                    <span class="oauth-btn-text" id="oauthBtnText_reddit">Connect with Reddit</span>
+                                <button class="oauth-connect-btn oauth-connect-btn--reddit" id="oauthConnect_reddit"
+                                    data-platform="reddit">
+                                    <span class="oauth-icon" data-key="connectWithReddit">🔗 Connect with Reddit</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_reddit" style="display:none;"></span>
                                 </button>
-                                <button class="oauth-disconnect-btn" id="oauthDisconnect_reddit" data-platform="reddit" style="display:none;" title="Disconnect Reddit">Disconnect</button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_reddit" data-platform="reddit"
+                                    style="display:none;" title="Disconnect Reddit"
+                                    data-key="disconnect">Disconnect</button>
                             </div>
                             <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_reddit">
-                                <span class="toggle-text">Advanced: Enter token manually</span> <span class="toggle-icon">⌄</span>
-                            </div>
-                        </div>
-
-                        <!-- Reddit Subreddit Selection (only shown when Reddit is configured) -->
-                        <div id="redditSubredditSection" class="reddit-subreddit-section" style="display: none;">
-                            <div class="section-divider">
-                                <span class="divider-text">Community Selection</span>
-                            </div>
-                            <div class="input-group">
-                                <label for="redditPostSubreddit">Target Reddit Community</label>
-                                <div class="subreddit-input-group">
-                                    <span class="subreddit-prefix">r/</span>
-                                    <input type="text" id="redditPostSubreddit" placeholder="programming, u/alexjohnson or technology..." class="subreddit-input">
-                                </div>
-                                <small>Enter r/community for subreddits or u/username for user profiles</small>
-                            </div>
-                            <div class="subreddit-suggestions">
-                                <span class="suggestion-title">Communities:</span>
-                                <button class="subreddit-suggestion" data-subreddit="programming">r/programming</button>
-                                <button class="subreddit-suggestion" data-subreddit="technology">r/technology</button>
-                                <button class="subreddit-suggestion" data-subreddit="javascript">r/javascript</button>
-                                <button class="subreddit-suggestion" data-subreddit="webdev">r/webdev</button>
+                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
+                                <span class="toggle-icon">⌄</span>
                             </div>
                         </div>
 
                         <div class="oauth-advanced-content" id="oauthAdvancedContent_reddit" style="display:none;">
-                            <!-- Existing token inputs -->
                             <div class="input-group">
                                 <label for="redditAccessToken">Access Token</label>
-                                <input type="password" id="redditAccessToken" placeholder="Enter your Reddit Access Token">
-                            </div>
-                            <!-- <div class="input-group">
-                                <label for="redditRefreshToken">Refresh Token</label>
-                                <input type="password" id="redditRefreshToken" placeholder="Enter your Reddit Refresh Token">
-                            </div> -->
-
-                            <!-- Token Generation Section -->
-                            <div class="token-generation-section">
-                                <div class="section-divider">
-                                    <span class="divider-text">Or Generate Tokens Automatically</span>
-                                </div>
-                                <div class="token-gen-form">
-                                    <div class="input-group">
-                                        <label for="redditClientId">Client ID</label>
-                                        <input type="text" id="redditClientId" placeholder="App client ID from Reddit">
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="redditClientSecret">Client Secret</label>
-                                        <input type="password" id="redditClientSecret" placeholder="App client secret from Reddit">
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="redditApiName">Configuration Name</label>
-                                        <input type="text" id="redditApiName" placeholder="e.g., Personal Account" value="Reddit Account">
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="redditUsername">Reddit Username</label>
-                                        <input type="text" id="redditUsername" placeholder="Your Reddit username">
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="redditPassword">Reddit Password</label>
-                                        <input type="password" id="redditPassword" placeholder="Your Reddit password">
-                                    </div>
-                                    <button id="generateRedditTokensBtn" class="generate-tokens-btn">
-                                        <span class="btn-icon">🔑</span>
-                                        <span>Generate Tokens</span>
-                                    </button>
-                                </div>
+                                <input type="password" id="redditAccessToken"
+                                    placeholder="Enter your Reddit Access Token">
                             </div>
                         </div>
-
-                        <details class="guidelines">
-                            <summary>How to get Reddit credentials</summary>
-                            <ol>
-                                <li>
-                                    <strong>Create Reddit App:</strong> Go to <a href="https://www.reddit.com/prefs/apps" target="_blank">Reddit Apps</a>
-                                </li>
-                                <li>
-                                    <strong>Fill Details:</strong>
-                                    <ul>
-                                        <li>Name: Your app name</li>
-                                        <li>App type: "script"</li>
-                                        <li>Redirect URI: <code>http://localhost:8080</code></li>
-                                    </ul>
-                                </li>
-                                <li>
-                                    <strong>Get Credentials:</strong> Copy Client ID and Client Secret from the app
-                                </li>
-                                <li>
-                                    <strong>Generate Tokens:</strong> Enter your Reddit login details above and click "Generate Tokens"
-                                </li>
-                                <li>
-                                    <strong>Ready:</strong> Tokens will be automatically saved and configured
-                                </li>
-                            </ol>
-                            <div class="guidance-note">
-                                <p><strong>💡 Tip:</strong> The system automatically handles token refresh - you only need to do this setup once!</p>
-                            </div>
-                        </details>
                     </div>
 
                     <div class="platform-card bluesky">
                         <div class="card-header">
-                            <h3>BlueSky</h3>
-                            <button class="saved-apis-btn" data-platform="bluesky">📚 Saved APIs</button>
-                        </div>
-                        <div class="account-selector" id="accountSelector_bluesky" style="display: none;">
-                            <label for="accountSelect_bluesky">Active Account:</label>
-                            <select id="accountSelect_bluesky" class="account-select">
-                                <option value="">No saved accounts</option>
-                            </select>
+                            <h3 data-key="bluesky">BlueSky</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="bluesky" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="bluesky" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
                         </div>
                         <p data-key="blueskyDescription">Share posts to the decentralized BlueSky network</p>
                         <div class="input-group">
-                            <label for="blueskyIdentifier">Username/Handle</label>
+                            <label for="blueskyIdentifier" data-key="usernameHandle">Username/Handle</label>
                             <input type="text" id="blueskyIdentifier" placeholder="your-handle.bsky.social">
                         </div>
                         <div class="input-group">
-                            <label for="blueskyPassword">App Password</label>
-                            <input type="password" id="blueskyPassword" placeholder="Enter your BlueSky app password">
-                        </div>
-                        <details class="guidelines">
-                            <summary>How to get BlueSky credentials</summary>
-                            <ol>
-                                <li>Go to <a href="https://bsky.app/settings/app-passwords" target="_blank">BlueSky app passwords</a></li>
-                                <li>Create an app password (not your main password)</li>
-                                <li>Use your handle as username (e.g. yourname.bsky.social)</li>
-                            </ol>
-                        </details>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- Create Post Tab -->
-        <div class="tab-pane" id="createTab">
-            <div class="workspace">
-                <div class="post-creation">
-                    <div class="section-header">
-                        <h2 data-key="createPost">🚀 Create Your Post</h2>
-                        <p data-key="createPostDesc">Generate engaging content and share across platforms</p>
-                    </div>
-
-                    <section class="post-editor">
-                        <div class="editor-header">
-                            <h3>📝 Write Your Post</h3>
-                            <button id="generateBtn" class="editor-action-btn">
-                                <span>🧠</span> Generate AI Content
-                            </button>
-                        </div>
-                        <textarea id="postText" placeholder="Write your post here... or use AI to generate content"></textarea>
-                        <div class="post-type-indicator">
-                            <span id="postTypeIndicator">Manual Post</span>
-                        </div>
-                    </section>
-
-                    <section class="generate-section" style="border-top: 1px solid #e1e5e9; padding-top: 20px; margin-top: 20px;">
-                        <div class="generate-controls">
-                            <label>🤖 AI Enhancement (Optional):</label>
-                            <button id="generateBtnSecondary" class="generate-secondary-btn" disabled>
-                                <div class="btn-content">
-                                    <span class="btn-icon">🎲</span>
-                                    <span class="btn-text">Generate Content</span>
-                                </div>
-                            </button>
-                            <div id="selectedAIBadge" class="selected-model-badge"></div>
-                        </div>
-                        <p class="generate-note">
-                            <small>Use AI to generate content and enhance your manual post, or start typing above to create your post manually.</small>
-                        </p>
-                    </section>
-
-                    <section class="media-section">
-                        <div id="mediaAttachment" class="media-always-visible">
-                            <h3>📎 Media Attachment</h3>
-                            <div id="uploadArea" class="modern-upload-area">
-                                <div class="upload-zone">
-                                    <div class="upload-prompt">
-                                        <span class="upload-icon">📁</span>
-                                        <span class="upload-text">Select files from your workspace</span>
-                                        <span class="upload-hint">Supports images (JPG, PNG, GIF) and videos (MP4)</span>
-                                        <button id="selectMediaBtn" class="select-media-btn">Select Files</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="attachedFile" class="modern-attached-file" style="display: none;">
-                                <div class="file-preview">
-                                    <span class="file-icon">📄</span>
-                                </div>
-                                <div class="file-meta">
-                                    <span id="fileName" class="file-name"></span>
-                                    <span id="fileSize" class="file-size"></span>
-                                </div>
-                                <button id="removeMediaBtn" class="file-remove-btn">🗑️</button>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="platform-selector-section">
-                        <div class="section-title">
-                            <span>📡 Sharing Platforms</span>
-                        </div>
-
-                        <div class="platforms-grid">
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-linkedin" value="linkedin">
-                                <div class="card-content">
-                                    <span class="platform-icon">💼</span> <span class="platform-name">LinkedIn</span>
-                                </div>
-                            </label>
-
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-telegram" value="telegram" checked>
-                                <div class="card-content">
-                                    <span class="platform-icon">📱</span>
-                                    <span class="platform-name">Telegram</span>
-                                </div>
-                            </label>
-
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-x" value="x">
-                                <div class="card-content">
-                                    <span class="platform-icon">🐦</span>
-                                    <span class="platform-name">X / Twitter</span>
-                                </div>
-                            </label>
-
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-facebook" value="facebook">
-                                <div class="card-content">
-                                    <span class="platform-icon">📘</span>
-                                    <span class="platform-name">Facebook</span>
-                                </div>
-                            </label>
-
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-discord" value="discord">
-                                <div class="card-content">
-                                    <span class="platform-icon">💬</span>
-                                    <span class="platform-name">Discord</span>
-                                </div>
-                            </label>
-
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-reddit" value="reddit">
-                                <div class="card-content">
-                                    <span class="platform-icon">🟠</span>
-                                    <span class="platform-name">Reddit</span>
-                                </div>
-                            </label>
-
-                            <label class="platform-card">
-                                <input type="checkbox" class="platform-checkbox" id="select-bluesky" value="bluesky">
-                                <div class="card-content">
-                                    <span class="platform-icon">🌅</span>
-                                    <span class="platform-name">BlueSky</span>
-                                </div>
-                            </label>
-                        </div>
-                    </section>
-
-                    <section class="action-section">
-                        <div class="action-buttons">
-                            <button id="scheduleBtn" class="action-btn secondary">
-                                <span class="btn-icon">⏰</span>
-                                <span>Schedule Post</span>
-                            </button>
-                            <button id="shareBtn" class="action-btn primary">
-                                <span class="btn-icon">🚀</span>
-                                <span>Share</span>
-                            </button>
-                        </div>
-                    </section>
-                </div>
-
-                <div class="preview-panel">
-                    <div class="panel-header">
-                        <h3>📱 Preview</h3>
-                        <span class="preview-count">0 selected</span>
-                    </div>
-                    <div id="platformPreview" class="platform-preview-list">
-                        <div class="preview-placeholder">
-                            <span class="placeholder-icon">🔮</span>
-                            <span class="placeholder-text">Select platforms to see preview</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Analytics Tab -->
-        <div class="tab-pane" id="analyticsTab">
-            <section class="analytics-section">
-                <div class="section-header">
-                    <h2>📊 Analytics Dashboard</h2>
-                    <p>Track your post performance and scheduling</p>
-                </div>
-
-                <div class="analytics-summary">
-                    <div class="analytics-grid">
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="totalPosts">Total Posts:</span>
-                            <span class="analytics-value" id="totalPostsValue">0</span>
-                        </div>
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="successRate">Success Rate:</span>
-                            <span class="analytics-value" id="successRateValue">0%</span>
-                        </div>
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="linkedinShares">LinkedIn Shares:</span>
-                            <span class="analytics-value" id="linkedinSharesValue">0</span>
-                        </div>
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="telegramShares">Telegram Shares:</span>
-                            <span class="analytics-value" id="telegramSharesValue">0</span>
-                        </div>
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="facebookShares">Facebook Shares:</span>
-                            <span class="analytics-value" id="facebookSharesValue">0</span>
-                        </div>
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="discordShares">Discord Shares:</span>
-                            <span class="analytics-value" id="discordSharesValue">0</span>
-                        </div>
-                        <div class="analytics-item">
-                            <span class="analytics-label" data-key="blueskyShares">BlueSky Shares:</span>
-                            <span class="analytics-value" id="blueskySharesValue">0</span>
+                            <label for="blueskyPassword" data-key="appPassword">App Password</label>
+                            <input type="password" id="blueskyPassword" placeholder="">
                         </div>
                     </div>
                 </div>
             </section>
-
-            <section class="post-history">
-                <details class="history-accordion">
-                    <summary data-key="postHistory">Post History & Analytics</summary>
-
-                    <div class="history-list" id="historyList">
-                        <p data-key="noHistory">No posts in history yet. Generate your first post!</p>
-                    </div>
-                </details>
-            </section>
-
-            <section class="scheduled-posts" id="scheduledPosts">
-                <details class="history-accordion">
-                    <summary data-key="scheduledPosts">📅 Scheduled Posts</summary>
-                    <div class="scheduled-list" id="scheduledList">
-                        <p data-key="noScheduled">No scheduled posts yet. Schedule your first post!</p>
-                    </div>
-                </details>
-            </section>
-
-            <section class="reddit-management" id="redditManagement">
-                <details class="history-accordion">
-                    <summary>🟠 Reddit Post Management</summary>
-                    <div class="reddit-management-header">
-                        <button id="loadRedditPostsBtn" class="load-reddit-btn">
-                            <span class="btn-icon">📋</span>
-                            <span>Load My Posts</span>
-                        </button>
-                    </div>
-                    <div id="redditPostsList" class="reddit-posts-list">
-                        <div class="reddit-posts-container">
-                            <div class="reddit-post-item">
-                                <div class="reddit-post-content">
-                                    <div class="reddit-post-header">
-                                        <span class="reddit-post-subreddit">Configure Reddit tokens first</span>
-                                        <span class="reddit-post-score"></span>
-                                    </div>
-                                    <div class="reddit-post-title">Click "Load My Posts" to view your Reddit posts for editing and deletion.</div>
-                                    <div class="reddit-post-meta">
-                                        <span class="reddit-post-time"></span>
-                                        <a href="#" class="reddit-post-link"></a>
-                                    </div>
-                                </div>
-                                <div class="reddit-post-actions">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </details>
-            </section>
-        </div>
-
-    </section>
-
-
-
-    <section class="model-selection">
-        <button id="configureAIBtn" class="model-select-btn">
-            <span class="icon">🧠</span>
-            <span data-key="chooseAIModel">Choose AI Model</span>
-        </button>
-        <div id="selectedAIDisplay" class="selected-model-display"></div>
-    </section>
-
-    <!-- Reddit Post Settings Modal -->
-    <div id="redditPostModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🟠 Reddit Post Settings</h3>
-                <span id="closeRedditPostModal" class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="input-group">
-                    <label for="redditSubreddit">Subreddit</label>
-                    <input type="text" id="redditSubreddit" placeholder="e.g., r/programming, r/technology" required>
-                    <small>Select the subreddit where you want to post</small>
-                </div>
-
-                <div class="input-group">
-                    <label for="redditTitle">Post Title</label>
-                    <input type="text" id="redditTitle" placeholder="Enter an engaging title..." maxlength="300">
-                    <small>Title is required for Reddit posts (first 300 chars shown)</small>
-                </div>
-
-                <div class="input-group">
-                    <label for="redditFlair">Post Flair (Optional)</label>
-                    <select id="redditFlair">
-                        <option value="">No flair</option>
-                        <!-- Flairs will be loaded dynamically -->
-                    </select>
-                    <small>Add flair to categorize your post</small>
-                </div>
-
-                <div class="input-group">
-                    <label>Post Type</label>
-                    <div class="radio-group">
-                        <label>
-                            <input type="radio" name="redditPostType" value="self" checked> Text Post (Self Post)
-                        </label>
-                        <label>
-                            <input type="radio" name="redditPostType" value="link"> Link Post
-                        </label>
-                    </div>
-                    <small>Choose whether this is a text post or link to external content</small>
-                </div>
-
-                <div class="checkbox-group">
-                    <label>
-                        <input type="checkbox" id="redditSpoiler"> Mark as Spoiler
-                        <small>Hide post content behind a spoiler warning</small>
-                    </label>
-                </div>
-
-                <div id="redditWarnings" class="reddit-warnings" style="display: none;">
-                    <!-- Subreddit warnings will appear here -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelRedditPostBtn" class="secondary-btn">Cancel</button>
-                <button id="shareRedditPostBtn" class="primary-btn">Share to Reddit</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Schedule Post Modal -->
-    <div id="scheduleModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 data-key="scheduleModalTitle">Schedule Post</h3>
-                <span id="closeScheduleModal" class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="input-group">
-                    <label for="scheduleDate" data-key="scheduleDate">Date & Time</label>
-                    <input type="datetime-local" id="scheduleDate" required>
-                </div>
-                <div class="input-group">
-                    <label data-key="platforms">Platforms</label>
-                    <div class="platform-checkboxes">
-                        <label>
-                            <input type="checkbox" id="scheduleLinkedIn" value="linkedin"> 💼 LinkedIn
-                        </label>
-                        <label>
-                            <input type="checkbox" id="scheduleTelegram" value="telegram"> 📱 Telegram
-                        </label>
-                        <label>
-                            <input type="checkbox" id="scheduleX" value="x"> 🐦 X/Twitter
-                        </label>
-                        <label>
-                            <input type="checkbox" id="scheduleReddit" value="reddit"> 🟠 Reddit
-                        </label>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="scheduledPostText" data-key="postContent">Post Content</label>
-                    <textarea id="scheduledPostText" placeholder="Your post content..." readonly></textarea>
-                </div>
-                <div id="scheduledMediaPreview" class="media-preview">
-                    <p data-key="noMediaPreview">No media attached</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelScheduleBtn" class="secondary-btn" data-key="cancel">Cancel</button>
-                <button id="confirmScheduleBtn" class="primary-btn" data-key="schedulePost">Schedule Post</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Scheduled Post Modal -->
-    <div id="editScheduledModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Edit Scheduled Post</h3>
-                <span id="closeEditScheduledModal" class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="input-group">
-                    <label for="editScheduleDate">Date & Time</label>
-                    <input type="datetime-local" id="editScheduleDate" required>
-                </div>
-                <div class="input-group">
-                    <label>Platforms</label>
-                    <div class="platform-checkboxes">
-                        <label>
-                            <input type="checkbox" id="editScheduleLinkedIn" value="linkedin"> 💼 LinkedIn
-                        </label>
-                        <label>
-                            <input type="checkbox" id="editScheduleTelegram" value="telegram"> 📱 Telegram
-                        </label>
-                        <label>
-                            <input type="checkbox" id="editScheduleReddit" value="reddit"> 🟠 Reddit
-                        </label>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="editScheduledPostText">Post Content</label>
-                    <textarea id="editScheduledPostText" placeholder="Your post content..." rows="4"></textarea>
-                </div>
-                <div id="editScheduledMediaPreview" class="media-preview">
-                    <p data-key="noMediaPreview">No media attached</p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelEditScheduledBtn" class="secondary-btn">Cancel</button>
-                <button id="saveEditScheduledBtn" class="primary-btn">Save Changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Model Selection Modal -->
-    <div id="modelModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 data-key="selectAiModel">Select AI Model</h3>
-                <span id="closeModal" class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="provider-tabs">
-                    <button class="tab-btn active" data-provider="gemini">Gemini</button>
-                    <button class="tab-btn" data-provider="openai">ChatGPT</button>
-                    <button class="tab-btn" data-provider="claude">Claude</button>
-                    <button class="tab-btn" data-provider="xai">X-AI</button>
-                </div>
-
-                <div id="geminiPanel" class="provider-panel active">
-                    <h4>Google Gemini</h4>
-                    <div class="input-group">
-                        <label for="geminiKeyModal" data-key="apiKey">API Key</label>
-                        <input type="password" id="geminiKeyModal" placeholder="" data-key="enterGeminiApiKey">
-                    </div>
-                    <div class="input-group">
-                        <label for="geminiModel" data-key="modelLabel">Model</label>
-                        <select id="geminiModel">
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                            <option value="gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash Lite Preview</option>
-                        </select>
-                    </div>
-                    <details class="guidelines">
-                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
-                        <ol>
-                            <li>Visit <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
-                            <li>Sign in with your Google account</li>
-                            <li>Create a new API key</li>
-                        </ol>
-                    </details>
-                </div>
-
-                <div id="openaiPanel" class="provider-panel">
-                    <h4>OpenAI ChatGPT</h4>
-                    <div class="input-group">
-                        <label for="openaiKey" data-key="apiKey">API Key</label>
-                        <input type="password" id="openaiKey" placeholder="" data-key="enterOpenaiApiKey">
-                    </div>
-                    <div class="input-group">
-                        <label for="openaiModel" data-key="modelLabel">Model</label>
-                        <select id="openaiModel">
-                            <option value="gpt-5-2025-08-07">GPT-5 (2025-08-07)</option>
-                            <option value="gpt-5-mini-2025-08-07">GPT-5 Mini (2025-08-07)</option>
-                            <option value="gpt-nano-5-2025-08-07">GPT-Nano-5 (2025-08-07)</option>
-                        </select>
-                    </div>
-                    <details class="guidelines">
-                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
-                        <ol>
-                            <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a></li>
-                            <li>Create a new secret key</li>
-                            <li>Copy and paste the key above</li>
-                            <li>Note: You'll need credits in your OpenAI account</li>
-                        </ol>
-                    </details>
-                </div>
-
-                <div id="claudePanel" class="provider-panel">
-                    <h4>Anthropic Claude</h4>
-                    <div class="input-group">
-                        <label for="claudeKey" data-key="apiKey">API Key</label>
-                        <input type="password" id="claudeKey" placeholder="" data-key="enterClaudeApiKey">
-                    </div>
-                    <div class="input-group">
-                        <label for="claudeModel" data-key="modelLabel">Model</label>
-                        <select id="claudeModel">
-                            <option value="claude-opus-4-6">Claude Opus 4.6</option>
-                            <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-                            <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
-                        </select>
-                    </div>
-                    <details class="guidelines">
-                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
-                        <ol>
-                            <li>Go to <a href="https://console.anthropic.com/" target="_blank">Anthropic Console</a></li>
-                            <li>Sign in with your account</li>
-                            <li>Navigate to API Keys</li>
-                            <li>Create a new API key</li>
-                        </ol>
-                    </details>
-                </div>
-
-                <div id="xaiPanel" class="provider-panel">
-                    <h4>xAI Grok</h4>
-                    <div class="input-group">
-                        <label for="xaiKey" data-key="apiKey">API Key</label>
-                        <input type="password" id="xaiKey" placeholder="" data-key="enterXaiApiKey">
-                    </div>
-                    <div class="input-group">
-                        <label for="xaiModel" data-key="modelLabel">Model</label>
-                        <select id="xaiModel">
-                            <option value="grok-beta">Grok Beta</option>
-                            <option value="grok-1">Grok-1</option>
-                        </select>
-                    </div>
-                    <details class="guidelines">
-                        <summary data-key="apiSetupGuide">API Setup Guide</summary>
-                        <ol>
-                            <li>Visit <a href="https://console.x.ai/" target="_blank">xAI Console</a></li>
-                            <li>Create an account and generate an API key</li>
-                        </ol>
-                    </details>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="applyModelBtn" class="primary-btn" data-key="applySelection">Apply Selection</button>
-            </div>
         </div>
     </div>
 
 
 
-    <!-- Saved APIs Modal -->
     <div id="savedApisModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Saved API Configurations <span id="currentPlatformName"></span></h3>
+                <h3><span data-key="savedApiSets">Saved API Configurations</span> <span id="currentPlatformName"></span>
+                </h3>
                 <span id="closeSavedApisModal" class="close-modal">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="saved-apis-section">
                     <div class="saved-apis-header">
-                        <h4>Your Saved API Sets</h4>
-                        <button id="addNewApiSetBtn" class="add-new-btn">➕ Add New</button>
+                        <h4 data-key="savedApiSets">Your Saved API Sets</h4>
+                        <button id="addNewApiSetBtn" class="add-new-btn" data-key="addNewBtn">➕ Add New</button>
                     </div>
                     <div id="savedApisList" class="saved-apis-list">
                         <div class="no-saved-apis">
-                            <p>No saved API configurations yet.</p>
-                            <p>Click "Add New" to save your first API set.</p>
+                            <p data-key="noSavedApisYet">No saved API configurations yet.</p>
                         </div>
-                    </div>
-                </div>
-
-                <div id="editApiForm" class="edit-api-form" style="display: none;">
-                    <h4 id="formTitle">Add New API Configuration</h4>
-                    <div class="input-group">
-                        <label for="apiSetName">Configuration Name</label>
-                        <input type="text" id="apiSetName" placeholder="e.g., Personal, Work, Business..." required>
-                    </div>
-                    <div id="apiFields" class="api-fields">
-                        <!-- API fields will be dynamically inserted here -->
-                    </div>
-                    <div class="form-actions">
-                        <button id="saveApiSetBtn" class="primary-btn">💾 Save Configuration</button>
-                        <button id="cancelApiEditBtn" class="secondary-btn">❌ Cancel</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Status Message -->
     <div id="statusMessage" class="status-message" style="display: none;"></div>
 
-    <!-- Logger must be loaded first for global access -->
-    <script src="./src/utils/Logger.js"></script>
-    <script src="./app.js"></script>
+    <!-- Initialize VS Code API for sidebar -->
+    <script nonce="{{NONCE}}">
+        // Make vscode API available globally for the compiled bundle
+        const vscodeSidebar = acquireVsCodeApi();
+        window.vscodeSidebar = vscodeSidebar;
+        globalThis.vscodeSidebar = vscodeSidebar;
+    </script>
+
+    <script src="./app.js" nonce="{{NONCE}}"></script>
 </body>
+
 </html>

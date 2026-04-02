@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
 import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { MediaService } from '../services/MediaService';
@@ -83,6 +84,13 @@ export class MessageHandler {
                     break;
                 }
 
+                case 'openFullWebview': {
+                    const page = (message.action === 'analytics' || message.page === 'analytics') ? 'analytics' : 'post';
+                    const options = message.platform ? { platform: message.platform } : {};
+                    vscode.commands.executeCommand('dotshare.openFullWebview', page, options);
+                    break;
+                }
+
                 case 'selectMediaFiles':
                     await this.handleSelectMediaFiles();
                     break;
@@ -98,6 +106,68 @@ export class MessageHandler {
                 case 'removeMedia':
                     await this.handleRemoveMedia();
                     break;
+
+                case 'toggleTheme': {
+                    const currentTheme = await this.context.globalState.get('dotshareTheme') || 'light';
+                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    await this.context.globalState.update('dotshareTheme', newTheme);
+                    this.view.webview.postMessage({ command: 'themeChanged', theme: newTheme });
+                    this.sendSuccess(`Theme changed to ${newTheme}`);
+                    break;
+                }
+
+                case 'disconnectOAuth': {
+                    const platform = message.platform as string;
+                    const validPlatforms = ['linkedin', 'x', 'facebook', 'reddit'];
+                    if (!platform || !validPlatforms.includes(platform)) {
+                        this.sendError(`Unknown platform: ${platform}`);
+                        return;
+                    }
+                    switch (platform) {
+                        case 'linkedin': await this.context.secrets.store('linkedinToken', ''); break;
+                        case 'x':
+                            await this.context.secrets.store('xAccessToken', '');
+                            await this.context.secrets.store('xRefreshToken', '');
+                            break;
+                        case 'facebook': await this.context.secrets.store('facebookToken', ''); break;
+                        case 'reddit':
+                            await this.context.secrets.store('redditAccessToken', '');
+                            await this.context.secrets.store('redditRefreshToken', '');
+                            break;
+                    }
+                    // Reload full config so webview reflects disconnected state immediately
+                    const { ConfigHandler } = await import('./ConfigHandler');
+                    const cfgHandler = new ConfigHandler(this.view, this.context);
+                    await cfgHandler.handleMessage({ command: 'loadConfiguration' });
+                    this.sendSuccess(`${platform} disconnected`);
+                    break;
+                }
+
+                case 'changeLanguage': {
+                    const language = message.language as string || 'en';
+                    const validLanguages = ['en', 'ar', 'ru'];
+                    if (!validLanguages.includes(language)) {
+                        this.sendError(`Invalid language: ${language}`);
+                        return;
+                    }
+                    await this.context.globalState.update('dotshareLanguage', language);
+                    
+                    let translations = {};
+                    try {
+                        const filePath = path.join(this.context.extensionPath, 'media', 'locales', `${language}.json`);
+                        if (fs.existsSync(filePath)) {
+                            translations = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                        }
+                    } catch (e) {
+                        Logger.warn(`Failed to load translations for ${language}`, e);
+                    }
+                    
+                    this.view.webview.postMessage({ command: 'languageChanged', language, translations });
+                    this.sendSuccess(`Language changed to ${language}`);
+                    break;
+                }
+
+
 
                 default:
                     Logger.info('MessageHandler: Unhandled command:', cmd);

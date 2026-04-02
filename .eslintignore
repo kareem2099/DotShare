@@ -1,0 +1,12 @@
+# esbuild compiled output
+media/app.js
+media/app.js.map
+media/webview/app.js
+media/webview/app.js.map
+
+# Bundler output
+out/
+dist/
+
+# Dependencies
+node_modules/

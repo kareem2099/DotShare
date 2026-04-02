@@ -14,6 +14,7 @@ import { shareToTelegram } from '../platforms/telegram';
 import { shareToReddit } from '../platforms/reddit';
 import { shareToX } from '../platforms/x';
 import { shareToFacebook } from '../platforms/facebook';
+import { shareToBlueSky } from '../platforms/bluesky';
 
 interface Message {
     command: string;
@@ -507,6 +508,9 @@ export class PostHandler {
             if (postId) {
                 this.historyService.recordShare(postId, 'x', false, errorMessage);
             }
+        } finally {
+            // Re-enable share button
+            this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
 
@@ -603,8 +607,32 @@ export class PostHandler {
         }
     }
 
-    private async shareToBlueSkyWithUpdate(post: PostData, _postId: string | undefined): Promise<void> {
-        Logger.info('BlueSky sharing not yet implemented', { post, postId: _postId });
+    private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const identifier = await this.context.secrets.get('blueskyIdentifier') || '';
+            const password = await this.context.secrets.get('blueskyPassword') || '';
+
+            if (!identifier || !password) {
+                this.sendError('BlueSky credentials not configured. Go to Settings to add them.');
+                return;
+            }
+
+            await shareToBlueSky(identifier, password, post);
+
+            this.sendSuccess('Successfully posted to Bluesky!');
+            if (postId) {
+                this.historyService.recordShare(postId, 'bluesky', true);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(`Error sharing to Bluesky: ${errorMessage}`);
+            if (postId) {
+                this.historyService.recordShare(postId, 'bluesky', false, errorMessage);
+            }
+        } finally {
+            // Re-enable share button
+            this.view.webview.postMessage({ command: 'shareComplete' });
+        }
     }
 
     private async unifiedSharePost(platforms: string[], post: PostData, mediaFilePaths: string[] = [], postId?: string): Promise<void> {

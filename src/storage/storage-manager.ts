@@ -404,6 +404,45 @@ export class StorageManager {
         }
     }
 
+    public async clearAllCredentials(): Promise<void> {
+        try {
+            Logger.info('🗑️ Clearing all credentials and saved APIs from secure storage...');
+            
+            // 1. Clear individual platform secrets and model API keys
+            const secretKeys = [
+                'linkedinToken',
+                'telegramBot', 'telegramChat',
+                'facebookToken', 'facebookPageToken', 'facebookPageId',
+                'discordWebhookUrl',
+                'redditAccessToken', 'redditRefreshToken',
+                'blueskyIdentifier', 'blueskyPassword',
+                'xAccessToken', 'xAccessSecret',
+                'redditClientId', 'redditClientSecret', 'redditUsername', 'redditPassword',
+                'geminiApiKey', 'openaiApiKey', 'xaiApiKey'
+            ];
+
+            for (const key of secretKeys) {
+                await this._context.secrets.delete(key);
+            }
+
+            // 2. Clear all saved API configurations lists (both from secrets and globalState)
+            const platforms = ['linkedin', 'telegram', 'x', 'facebook', 'discord', 'reddit', 'bluesky'];
+            for (const platform of platforms) {
+                const key = `savedApis_${platform}`;
+                await this._context.secrets.delete(key);
+                this._context.globalState.update(key, undefined);
+            }
+            
+            // Optional: Unset the selected model so they are completely "logged out"
+            this._context.globalState.update('selectedModel', undefined);
+            
+            Logger.info('✅ All credentials cleared successfully.');
+        } catch (error) {
+            Logger.error('Failed to clear all credentials:', error);
+            throw error;
+        }
+    }
+
     public async loadFromSecretsOrDefault(secretKey: string): Promise<string> {
         // First try to get from secrets directly
         let value = await this._context.secrets.get(secretKey) || '';

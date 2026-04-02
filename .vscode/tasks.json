@@ -2,36 +2,62 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "npm: compile",
       "type": "npm",
-      "script": "compile",
-      "group": "build",
-      "presentation": {
-        "reveal": "silent"
+      "script": "watch",
+      "problemMatcher": {
+        "owner": "esbuild",
+        "pattern": [
+          {
+            "regexp": "^✘ \\[ERROR\\] (.*)$",
+            "message": 1
+          },
+          {
+            "regexp": "^\\s+([^:]+):(\\d+):(\\d+):$",
+            "file": 1,
+            "line": 2,
+            "column": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[watch\\] build started",
+          "endsPattern": "^\\[watch\\] build finished"
+        }
       },
-      "problemMatcher": "$tsc"
-    },
-    {
-      "label": "npm: build:webview",
-      "type": "npm",
-      "script": "build:webview",
-      "group": "build",
+      "isBackground": true,
       "presentation": {
-        "reveal": "silent"
+        "reveal": "always",
+        "clear": true
       },
-      "problemMatcher": "$tsc"
-    },
-    {
-      "label": "compile:all",
-      "dependsOn": ["npm: compile", "npm: build:webview"],
       "group": {
         "kind": "build",
         "isDefault": true
       },
+      "label": "npm: watch"
+    },
+    {
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": {
+        "owner": "esbuild",
+        "pattern": [
+          {
+            "regexp": "^✘ \\[ERROR\\] (.*)$",
+            "message": 1
+          },
+          {
+            "regexp": "^\\s+([^:]+):(\\d+):(\\d+):$",
+            "file": 1,
+            "line": 2,
+            "column": 3
+          }
+        ]
+      },
+      "group": "build",
       "presentation": {
         "reveal": "silent"
       },
-      "problemMatcher": []
+      "label": "npm: compile"
     }
   ]
 }
