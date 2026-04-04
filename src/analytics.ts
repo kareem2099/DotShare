@@ -12,6 +12,8 @@ export class Analytics {
         let discordShares = 0;
         let redditShares = 0;
         let blueskyShares = 0;
+        let devtoShares = 0;
+        let mediumShares = 0;
 
         for (const post of history) {
             for (const share of post.shares) {
@@ -23,6 +25,8 @@ export class Analytics {
                     case 'discord': discordShares++; break;
                     case 'reddit': redditShares++; break;
                     case 'bluesky': blueskyShares++; break;
+                    case 'devto': devtoShares++; break;
+                    case 'medium': mediumShares++; break;
                 }
 
                 if (share.success) {
@@ -47,6 +51,8 @@ export class Analytics {
             discordShares,
             redditShares,
             blueskyShares,
+            devtoShares,
+            mediumShares,
             successRate
         };
     }

@@ -67,7 +67,94 @@ const platformSavers: Record<string, () => void> = {
     discord: () => send({ command: 'saveDiscordWebhook', discordWebhookUrl: getValue('discordWebhook') }),
     reddit: () => send({ command: 'saveRedditCredentials', redditAccessToken: getValue('redditAccessToken'), redditRefreshToken: '' }),
     bluesky: () => send({ command: 'saveBlueSkyCredentials', blueskyIdentifier: getValue('blueskyIdentifier'), blueskyPassword: getValue('blueskyPassword') }),
+    devto: () => send({ command: 'saveDevToCredentials', devtoApiKey: getValue('devtoApiKey') }),
+    medium: () => send({ command: 'saveMediumCredentials', mediumAccessToken: getValue('mediumAccessToken') }),
 };
+
+// ── Article publisher (Dev.to / Medium) — mirrors media/webview ─────────
+const BLOG_BTN_LABEL_DEVTO = '🚀 Publish to Dev.to';
+const BLOG_BTN_LABEL_MEDIUM = '🚀 Publish to Medium';
+
+function getBlogBodyText(): string {
+    return getEl<HTMLTextAreaElement>('blog-body')?.value.trim() || '';
+}
+
+function revealBlogPublisherUi(): void {
+    const preview = getEl('blog-preview');
+    if (preview) preview.style.display = 'block';
+    const devtoCard = getEl('blog-publish-devto-card');
+    const mediumCard = getEl('blog-publish-medium-card');
+    if (devtoCard) devtoCard.style.display = 'block';
+    if (mediumCard) mediumCard.style.display = 'block';
+    updateBlogPublishButtonsState();
+}
+
+function updateBlogPublishButtonsState(): void {
+    const has = getBlogBodyText().length > 0;
+    const bDev = getEl<HTMLButtonElement>('btn-publish-blog-devto');
+    const bMed = getEl<HTMLButtonElement>('btn-publish-blog-medium');
+    if (bDev) bDev.disabled = !has;
+    if (bMed) bMed.disabled = !has;
+}
+
+function resetBlogPublishUi(): void {
+    const has = getBlogBodyText().length > 0;
+    const bDev = getEl<HTMLButtonElement>('btn-publish-blog-devto');
+    if (bDev) {
+        bDev.disabled = !has;
+        bDev.textContent = BLOG_BTN_LABEL_DEVTO;
+    }
+    const bMed = getEl<HTMLButtonElement>('btn-publish-blog-medium');
+    if (bMed) {
+        bMed.disabled = !has;
+        bMed.textContent = BLOG_BTN_LABEL_MEDIUM;
+    }
+}
+
+function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): void {
+    const postText = getBlogBodyText();
+    if (!postText) {
+        showStatus('No article body to publish. Read a Markdown file or paste content first.', 'error');
+        return;
+    }
+    const title = getValue('blog-title');
+    const tagsInput = getValue('blog-tags');
+    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : undefined;
+    const description = getEl<HTMLTextAreaElement>('blog-description')?.value.trim();
+    const coverImage = getValue('blog-cover-image');
+    const canonicalUrl = getValue('blog-canonical-url');
+    const series = getValue('blog-series');
+    send({
+        command: 'shareBlog',
+        platforms: [platform],
+        post: postText,
+        title: title || undefined,
+        tags,
+        description: description || undefined,
+        coverImage: coverImage || undefined,
+        canonicalUrl: canonicalUrl || undefined,
+        series: series || undefined,
+        publishStatus,
+        published: publishStatus === 'published',
+    });
+    showStatus('Publishing article…', 'info');
+}
+
+function wireBlogPublishButton(btn: HTMLButtonElement | null, platform: 'devto' | 'medium', getStatus: () => string): void {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        try {
+            const publishStatus = getStatus() || 'draft';
+            btn.disabled = true;
+            btn.textContent = '⏳ Publishing...';
+            sendBlogShare(platform, publishStatus);
+        } catch (e) {
+            console.error('[DotShare Sidebar] Publish error', e);
+            showStatus('Failed to publish article', 'error');
+            resetBlogPublishUi();
+        }
+    });
+}
 
 // ── OAuth ────────────────────────────────────────────────────
 function openOAuth(platform: string): void {
@@ -176,13 +263,35 @@ function escapeHtml(str: string): string {
 // ── Event Listeners ──────────────────────────────────────────
 function initEventListeners(): void {
 
-    // ① Save buttons (data-save attribute on button)
-    document.querySelectorAll<HTMLElement>('[data-save]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const platform = btn.getAttribute('data-save') ?? '';
-            const saver = platformSavers[platform];
-            if (saver) { saver(); showStatus(`${platform} credentials saved!`, 'success'); }
-        });
+    // ① Auto-Save on Blur (replacing old data-save buttons)
+    const blurAutoSaves: Record<string, string> = {
+        linkedinToken: 'linkedin',
+        telegramBot: 'telegram',
+        telegramChat: 'telegram',
+        xAccessToken: 'x',
+        xAccessSecret: 'x',
+        facebookToken: 'facebook',
+        facebookPageToken: 'facebook',
+        facebookPageId: 'facebook',
+        discordWebhook: 'discord',
+        redditAccessToken: 'reddit',
+        blueskyIdentifier: 'bluesky',
+        blueskyPassword: 'bluesky',
+        devtoApiKey: 'devto',
+        mediumAccessToken: 'medium'
+    };
+
+    Object.entries(blurAutoSaves).forEach(([inputId, platform]) => {
+        const input = getEl<HTMLInputElement>(inputId);
+        if (input) {
+            input.addEventListener('blur', () => {
+                const saver = platformSavers[platform];
+                if (saver) {
+                    saver();
+                    showStatus('Credentials auto-saved!', 'success');
+                }
+            });
+        }
     });
 
     // ② OAuth connect (id pattern: oauthConnect_<platform>)
@@ -314,6 +423,8 @@ window.addEventListener('message', (event: MessageEvent) => {
             setInputValue('redditAccessToken', msg.redditAccessToken ?? '');
             setInputValue('blueskyIdentifier', msg.blueskyIdentifier ?? '');
             setInputValue('blueskyPassword', msg.blueskyPassword ?? '');
+            setInputValue('devtoApiKey', msg.devtoApiKey ?? '');
+            setInputValue('mediumAccessToken', msg.mediumAccessToken ?? '');
 
             // OAuth buttons
             updateOAuthButtons({
@@ -357,6 +468,57 @@ window.addEventListener('message', (event: MessageEvent) => {
 
         case 'status':
             if (msg.status && msg.type) showStatus(msg.status, msg.type);
+            if (msg.type === 'error') {
+                // error handling
+            }
+            break;
+
+        case 'updatePost':
+            if (msg.post) {
+                const blogBodyEl = getEl<HTMLTextAreaElement>('blog-body');
+                if (blogBodyEl) blogBodyEl.value = String(msg.post);
+                updateBlogPublishButtonsState();
+                showStatus('Article body updated', 'success');
+            }
+            break;
+
+        case 'revealBlogPublisher':
+            revealBlogPublisherUi();
+            break;
+
+        case 'updateBlogFrontmatter': {
+            const fm = msg.frontmatter as {
+                title?: string;
+                tags?: string[];
+                description?: string;
+                cover_image?: string;
+                canonical_url?: string;
+                series?: string;
+                published?: boolean;
+            };
+            if (!fm) break;
+            if (fm.title) setInputValue('blog-title', fm.title);
+            if (fm.tags?.length) setInputValue('blog-tags', fm.tags.join(', '));
+            if (fm.description) {
+                const el = getEl<HTMLTextAreaElement>('blog-description');
+                if (el) el.value = fm.description;
+            }
+            if (fm.cover_image) setInputValue('blog-cover-image', fm.cover_image);
+            if (fm.canonical_url) setInputValue('blog-canonical-url', fm.canonical_url);
+            if (fm.series) setInputValue('blog-series', fm.series);
+            if (fm.published !== undefined) {
+                const v = fm.published ? 'published' : 'draft';
+                const sd = getEl<HTMLSelectElement>('blog-publish-status-devto');
+                const sm = getEl<HTMLSelectElement>('blog-publish-status-medium');
+                if (sd) sd.value = v;
+                if (sm) sm.value = v;
+            }
+            showStatus('Frontmatter loaded', 'success');
+            break;
+        }
+
+        case 'shareComplete':
+            // reset UI handled elsewhere
             break;
 
         case 'savedApisLoaded':

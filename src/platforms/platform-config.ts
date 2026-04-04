@@ -1,5 +1,6 @@
 /**
  * Platform Configuration — Single Source of Truth
+ * 
  * DotShare v3.0
  *
  * Used by:

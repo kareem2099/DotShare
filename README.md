@@ -5,7 +5,7 @@
 ### *Share Your Code Journey, Amplify Your Voice*
 
 [![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/kareem2099/DotShare)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
 <a href="https://www.buymeacoffee.com/freerave"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
@@ -631,7 +631,7 @@ Your support keeps this project alive!
 
 ## 📄 License
 
-DotShare is MIT licensed. See [LICENSE](LICENSE) for details.
+DotShare is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 
 <div align="center">

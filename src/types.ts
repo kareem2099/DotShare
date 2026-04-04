@@ -2,7 +2,7 @@
 // Core Types
 // ---------------------------------------------------------
 
-export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky';
+export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky' | 'devto' | 'medium';
 export type AIProvider = 'gemini' | 'openai' | 'xai' | 'claude';
 export type PostStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying' | 'server-scheduled';
 
@@ -54,6 +54,8 @@ export interface AnalyticsSummary {
     discordShares: number;
     redditShares: number;
     blueskyShares: number;
+    devtoShares: number;
+    mediumShares: number;
     successRate: number;
 }
 

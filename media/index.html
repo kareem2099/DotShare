@@ -81,6 +81,18 @@
                                     data-key="linkedinTokenPlaceholder">
                             </div>
                         </div>
+                        <details class="guidelines">
+                            <summary data-key="howToGetLinkedinToken">How to get a LinkedIn Access Token</summary>
+                            <ol>
+                                <li>Go to <a href="https://developer.linkedin.com/" target="_blank">LinkedIn
+                                        Developers</a></li>
+                                <li>Create an app and get your app credentials</li>
+                                <li>Use OAuth 2.0 to generate a user access token</li>
+                                <li>Note: Requires approval for certain scopes</li>
+                            </ol>
+                            <p><em data-key="linkedinNote">Without token, sharing will open LinkedIn in your
+                                    browser</em></p>
+                        </details>
                     </div>
 
                     <div class="platform-card telegram">
@@ -102,6 +114,17 @@
                             <label for="telegramChat" data-key="chatIdLabel">Chat ID</label>
                             <input type="text" id="telegramChat" placeholder="" data-key="telegramChatPlaceholder">
                         </div>
+                        <details class="guidelines">
+                            <summary data-key="howToGetTelegramBot">How to get a Telegram Bot</summary>
+                            <ol>
+                                <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a>
+                                </li>
+                                <li>Send <code>/newbot</code> and follow the instructions</li>
+                                <li>Copy the bot token provided</li>
+                                <li>For Chat ID: <a href="https://t.me/DotFreeID_bot" target="_blank">use
+                                        @DotFreeID_bot</a></li>
+                            </ol>
+                        </details>
                     </div>
 
                     <div class="platform-card x">
@@ -143,6 +166,14 @@
                                 <input type="password" id="xAccessSecret" placeholder="">
                             </div>
                         </div>
+                        <details class="guidelines">
+                            <summary>How to get X/Twitter credentials</summary>
+                            <ol>
+                                <li>Go to <a href="https://developer.twitter.com/" target="_blank">Twitter
+                                        Developers</a></li>
+                                <li>Create an app and get your access tokens</li>
+                            </ol>
+                        </details>
                     </div>
 
                     <div class="platform-card facebook">
@@ -192,6 +223,15 @@
                                 <input type="text" id="facebookPageId" placeholder="Facebook page ID">
                             </div>
                         </div>
+                        <details class="guidelines">
+                            <summary>How to get Facebook tokens</summary>
+                            <ol>
+                                <li>Create a Facebook App at <a href="https://developers.facebook.com/"
+                                        target="_blank">developers.facebook.com</a></li>
+                                <li>Get your user access token for profile posting</li>
+                                <li>For pages: Get page access token and page ID</li>
+                            </ol>
+                        </details>
                     </div>
 
                     <div class="platform-card discord">
@@ -209,6 +249,14 @@
                             <label for="discordWebhook" data-key="webhookUrl">Webhook URL</label>
                             <input type="url" id="discordWebhook" placeholder="">
                         </div>
+                        <details class="guidelines">
+                            <summary>How to get Discord webhook</summary>
+                            <ol>
+                                <li>Go to your Discord server settings</li>
+                                <li>Navigate to Integrations → Webhooks</li>
+                                <li>Create a new webhook and copy the URL</li>
+                            </ol>
+                        </details>
                     </div>
 
                     <div class="platform-card reddit">
@@ -247,6 +295,18 @@
                                     placeholder="Enter your Reddit Access Token">
                             </div>
                         </div>
+                        <details class="guidelines">
+                            <summary>How to get Reddit credentials</summary>
+                            <ol>
+                                <li>Go to <a href="https://www.reddit.com/prefs/apps" target="_blank">Reddit Apps</a>
+                                </li>
+                                <li>Create a "script" type app with redirect URI <code>http://localhost:8080</code></li>
+                                <li>Copy Client ID and Client Secret</li>
+                                <li>Enter your login details and generate tokens from the extension UI</li>
+                            </ol>
+                            <p><strong>💡 Tip:</strong> The system handles token refresh automatically — setup only
+                                once!</p>
+                        </details>
                     </div>
 
                     <div class="platform-card bluesky">
@@ -268,9 +328,70 @@
                             <label for="blueskyPassword" data-key="appPassword">App Password</label>
                             <input type="password" id="blueskyPassword" placeholder="">
                         </div>
+                        <details class="guidelines">
+                            <summary>How to get BlueSky credentials</summary>
+                            <ol>
+                                <li>Go to <a href="https://bsky.app/settings/app-passwords" target="_blank">BlueSky app
+                                        passwords</a></li>
+                                <li>Create an app password (not your main password)</li>
+                                <li>Use your handle as username (e.g. yourname.bsky.social)</li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <div class="platform-card devto">
+                        <div class="card-header">
+                            <h3>Dev.to</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="devto" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="devto" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
+                        </div>
+                        <p>Publish long-form articles to the Dev.to community</p>
+                        <div class="input-group">
+                            <label for="devtoApiKey">API Key</label>
+                            <input type="password" id="devtoApiKey" placeholder="From dev.to/settings/extensions">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get Dev.to API Key</summary>
+                            <ol>
+                                <li>Go to your Dev.to <a href="https://dev.to/settings/extensions"
+                                        target="_blank">Extensions Settings</a></li>
+                                <li>Generate a new API Key</li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <div class="platform-card medium">
+                        <div class="card-header">
+                            <h3>Medium</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="medium" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="medium" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
+                        </div>
+                        <p>Publish stories with your Medium</p>
+                        <div class="input-group">
+                            <label for="mediumAccessToken">Integration token</label>
+                            <input type="password" id="mediumAccessToken" placeholder="Medium integration token">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get Medium Integration Token</summary>
+                            <ol>
+                                <li>Go to your Medium <a href="https://medium.com/me/settings/security"
+                                        target="_blank">Security Settings</a></li>
+                                <li>Click on Integration tokens to generate a new one</li>
+                            </ol>
+                        </details>
                     </div>
                 </div>
             </section>
+
+
         </div>
     </div>
 

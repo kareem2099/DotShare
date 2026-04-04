@@ -52,6 +52,14 @@ export class ConfigHandler {
                     await this.handleSaveBlueSkyCredentials(message);
                     break;
 
+                case 'saveDevToCredentials':
+                    await this.handleSaveDevToCredentials(message);
+                    break;
+
+                case 'saveMediumCredentials':
+                    await this.handleSaveMediumCredentials(message);
+                    break;
+
                 case 'loadConfiguration':
                     await this.handleLoadConfiguration();
                     break;
@@ -156,6 +164,18 @@ export class ConfigHandler {
         this.sendSuccess('BlueSky credentials saved!');
     }
 
+    private async handleSaveDevToCredentials(message: Message): Promise<void> {
+        const apiKey = message.devtoApiKey as string | undefined;
+        await this.context.secrets.store('devtoApiKey', apiKey || '');
+        this.sendSuccess('Dev.to API key saved!');
+    }
+
+    private async handleSaveMediumCredentials(message: Message): Promise<void> {
+        const accessToken = message.mediumAccessToken as string | undefined;
+        await this.context.secrets.store('mediumAccessToken', accessToken || '');
+        this.sendSuccess('Medium integration token saved!');
+    }
+
     private async handleLoadConfiguration(): Promise<void> {
         const savedModel = this.context.globalState.get('selectedModel');
         let apiKey = '';
@@ -182,6 +202,8 @@ export class ConfigHandler {
         const savedRedditApiName = this.context.globalState.get('redditApiName', 'Reddit Account');
         const savedBlueSkyIdentifier = await this.context.secrets.get('blueskyIdentifier') || '';
         const savedBlueSkyPassword = await this.context.secrets.get('blueskyPassword') || '';
+        const savedDevToApiKey = await this.context.secrets.get('devtoApiKey') || '';
+        const savedMediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
         const currentTheme = this.context.globalState.get('dotshareTheme') || 'light';
         const currentLanguage = this.context.globalState.get('dotshareLanguage') || 'en';
 
@@ -216,6 +238,8 @@ export class ConfigHandler {
             redditApiName: savedRedditApiName,
             blueskyIdentifier: savedBlueSkyIdentifier,
             blueskyPassword: savedBlueSkyPassword,
+            devtoApiKey: savedDevToApiKey,
+            mediumAccessToken: savedMediumAccessToken,
             theme: currentTheme,
             language: currentLanguage,
             translations: translations

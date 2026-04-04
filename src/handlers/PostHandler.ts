@@ -1,9 +1,13 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { PostData } from '../types';
 import { ScheduledPostsStorage, generateScheduledPostId } from '../core/scheduled-posts';
 import { Logger } from '../utils/Logger';
+
 
 // Imports for posting functions
 import { generatePost as generateGeminiPost } from '../ai/gemini';
@@ -15,6 +19,10 @@ import { shareToReddit } from '../platforms/reddit';
 import { shareToX } from '../platforms/x';
 import { shareToFacebook } from '../platforms/facebook';
 import { shareToBlueSky } from '../platforms/bluesky';
+import { shareToDevTo } from '../platforms/devto';
+import { shareToMedium } from '../platforms/medium';
+import { parseFrontMatter } from '../utils/frontmatter-parser';
+import { generatePost as generateClaudePost } from '../ai/claude';
 
 interface Message {
     command: string;
@@ -64,6 +72,30 @@ export class PostHandler {
 
                 case 'shareToBlueSky':
                     await this.handleShareToBlueSky();
+                    break;
+
+                case 'shareToDevTo':
+                    await this.handleShareToDevTo(message);
+                    break;
+
+                case 'shareToMedium':
+                    await this.handleShareToMedium(message);
+                    break;
+
+                case 'shareBlog':
+                    await this.handleShareBlog(message);
+                    break;
+
+                case 'shareThread':
+                    await this.handleShareThread(message);
+                    break;
+
+                case 'readMarkdownFile':
+                    await this.handleReadMarkdownFile();
+                    break;
+
+                case 'loadScheduledPosts':
+                    await this.handleLoadScheduledPosts();
                     break;
 
                 case 'share':
@@ -117,6 +149,7 @@ export class PostHandler {
                 if (provider === 'gemini') post = await generateGeminiPost(apiKey, model);
                 else if (provider === 'openai') post = await generateOpenAIPost(apiKey, model);
                 else if (provider === 'xai') post = await generateXAIPost(apiKey, model);
+                else if (provider === 'claude') post = await generateClaudePost(apiKey, model);
                 else {
                     this.sendError('Unsupported AI provider.');
                     return;
@@ -480,10 +513,10 @@ export class PostHandler {
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Error sharing to Facebook: ${errorMessage}`);
             if (postId) {
                 this.historyService.recordShare(postId, 'facebook', false, errorMessage);
             }
+            throw new Error(`Error sharing to Facebook: ${errorMessage}`);
         }
     }
 
@@ -504,10 +537,10 @@ export class PostHandler {
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Error sharing to X: ${errorMessage}`);
             if (postId) {
                 this.historyService.recordShare(postId, 'x', false, errorMessage);
             }
+            throw new Error(`Error sharing to X: ${errorMessage}`);
         } finally {
             // Re-enable share button
             this.view.webview.postMessage({ command: 'shareComplete' });
@@ -562,18 +595,18 @@ export class PostHandler {
                     }
                 },
                 onError: (message: string) => {
-                    this.sendError(message);
                     if (postId) {
                         this.historyService.recordShare(postId, 'linkedin', false, message);
                     }
+                    throw new Error(message);
                 }
             });
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Error sharing to LinkedIn: ${errorMessage}`);
             if (postId) {
                 this.historyService.recordShare(postId, 'linkedin', false, errorMessage);
             }
+            throw new Error(`Error sharing to LinkedIn: ${errorMessage}`);
         }
     }
 
@@ -592,18 +625,266 @@ export class PostHandler {
                     }
                 },
                 onError: (message: string) => {
-                    this.sendError(message);
                     if (postId) {
                         this.historyService.recordShare(postId, 'telegram', false, message);
                     }
+                    throw new Error(message);
                 }
             }, scheduleDate); // Pass the schedule date
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Error sharing to Telegram: ${errorMessage}`);
             if (postId) {
                 this.historyService.recordShare(postId, 'telegram', false, errorMessage);
             }
+            throw new Error(`Error sharing to Telegram: ${errorMessage}`);
+        }
+    }
+
+    private async handleLoadScheduledPosts(): Promise<void> {
+        const storagePath = this.context.globalStorageUri ? this.context.globalStorageUri.fsPath : this.context.extensionPath;
+        const scheduledStorage = new ScheduledPostsStorage(storagePath);
+        const allScheduledPosts = scheduledStorage.loadScheduledPosts();
+        this.view.webview.postMessage({
+            command: 'updateScheduledPosts',
+            scheduledPosts: allScheduledPosts
+        });
+    }
+
+    private async handleReadMarkdownFile(): Promise<void> {
+        let markdownEditor: vscode.TextEditor | undefined;
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            const doc = activeEditor.document;
+            if (doc.languageId === 'markdown' || doc.fileName.endsWith('.md')) {
+                markdownEditor = activeEditor;
+            }
+        }
+        if (!markdownEditor) {
+            for (const editor of vscode.window.visibleTextEditors) {
+                const doc = editor.document;
+                if (doc.languageId === 'markdown' || doc.fileName.endsWith('.md')) {
+                    markdownEditor = editor;
+                    break;
+                }
+            }
+        }
+        if (!markdownEditor) {
+            this.sendError('No Markdown file found. Please open a .md file in the editor.');
+            return;
+        }
+
+        const text = markdownEditor.document.getText();
+        const parsed = parseFrontMatter(text);
+
+        this.view.webview.postMessage({
+            command: 'updatePost',
+            post: parsed.body
+        });
+
+        if (parsed.hasFrontmatter && parsed.frontmatter) {
+            this.view.webview.postMessage({
+                command: 'updateBlogFrontmatter',
+                frontmatter: parsed.frontmatter
+            });
+            this.sendSuccess('Markdown file loaded with frontmatter!');
+        } else {
+            this.sendSuccess('Markdown file loaded successfully!');
+        }
+
+        this.view.webview.postMessage({ command: 'revealBlogPublisher' });
+    }
+
+    private async handleShareBlog(message: Message): Promise<void> {
+        const msg = message as unknown as {
+            platforms: string[];
+            post?: string;
+            title?: string;
+            tags?: string[];
+            description?: string;
+            coverImage?: string;
+            canonicalUrl?: string;
+            series?: string;
+            publishStatus?: 'draft' | 'published' | 'unlisted';
+            published?: boolean;
+        };
+
+        const platforms = msg.platforms || [];
+        if (platforms.length === 0) {
+            this.sendError('No blog platforms selected');
+            return;
+        }
+
+        const history = this.historyService.getHistory();
+        const lastPost = history[0]?.postData;
+        const postText = msg.post || lastPost?.text || '';
+
+        if (!postText.trim()) {
+            this.sendError('No content to publish. Write or generate a post first.');
+            return;
+        }
+
+        this.view.webview.postMessage({
+            command: 'status',
+            status: `Publishing to ${platforms.length} blog platform(s)...`,
+            type: 'info'
+        });
+
+        const postData: PostData = {
+            text: postText,
+            media: lastPost?.media || []
+        };
+        const mappedPublishStatus = msg.publishStatus === 'published' ? 'public' : (msg.publishStatus || 'draft');
+
+        const blogMessage = {
+            ...message,
+            post: postText,
+            title: msg.title,
+            tags: msg.tags,
+            description: msg.description,
+            coverImage: msg.coverImage,
+            canonicalUrl: msg.canonicalUrl,
+            series: msg.series,
+            publishStatus: mappedPublishStatus,
+            published: msg.publishStatus === 'published'
+        };
+
+        let successCount = 0;
+        const errors: string[] = [];
+
+        for (const platform of platforms) {
+            try {
+                if (platform === 'devto') {
+                    await this.shareToDevToWithUpdate(postData, blogMessage, undefined);
+                    successCount++;
+                } else if (platform === 'medium') {
+                    await this.shareToMediumWithUpdate(postData, blogMessage, undefined);
+                    successCount++;
+                } else {
+                    Logger.info(`Unknown blog platform: ${platform}`);
+                }
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                errors.push(`${platform}: ${errorMessage}`);
+                Logger.error(`Error publishing to ${platform}:`, error);
+            }
+        }
+
+        if (successCount === platforms.length) {
+            this.sendSuccess(`Successfully published to all ${successCount} blog platform(s)!`);
+        } else if (successCount > 0) {
+            this.view.webview.postMessage({
+                command: 'status',
+                status: `Published to ${successCount}/${platforms.length} platforms. Errors: ${errors.join(', ')}`,
+                type: 'warning'
+            });
+        } else {
+            this.sendError(`Failed to publish to any platform. ${errors.join(', ')}`);
+        }
+    }
+
+    private async handleShareToDevTo(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; published?: boolean };
+        const postText = msg.post || '';
+        const mediaPaths = msg.mediaFilePaths || [];
+        const postData: PostData = { text: postText, media: mediaPaths };
+        const history = this.historyService.getHistory();
+        const postId = history[0]?.id;
+        await this.shareToDevToWithUpdate(postData, message, postId);
+    }
+
+    private async handleShareToMedium(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; publishStatus?: string };
+        const postText = msg.post || '';
+        const mediaPaths = msg.mediaFilePaths || [];
+        const postData: PostData = { text: postText, media: mediaPaths };
+        const history = this.historyService.getHistory();
+        const postId = history[0]?.id;
+        await this.shareToMediumWithUpdate(postData, message, postId);
+    }
+
+    private async shareToDevToWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<void> {
+        try {
+            const msg = message as {
+                post?: string;
+                mediaFilePaths?: string[];
+                title?: string;
+                tags?: string[];
+                published?: boolean;
+                description?: string;
+                coverImage?: string;
+                canonicalUrl?: string;
+                series?: string;
+            };
+            const devtoApiKey = await this.context.secrets.get('devtoApiKey') || '';
+
+            if (!devtoApiKey) {
+                throw new Error('Dev.to API Key not configured. Go to the DotShare Activity Bar to add it.');
+            }
+
+            await shareToDevTo(devtoApiKey, {
+                text: msg.post || post.text,
+                media: msg.mediaFilePaths || post.media,
+                title: msg.title,
+                tags: msg.tags,
+                description: msg.description,
+                coverImage: msg.coverImage,
+                published: msg.published,
+                canonicalUrl: msg.canonicalUrl,
+                series: msg.series
+            });
+
+            this.sendSuccess('Successfully posted to Dev.to!');
+            if (postId) {
+                this.historyService.recordShare(postId, 'devto', true);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) {
+                this.historyService.recordShare(postId, 'devto', false, errorMessage);
+            }
+            throw new Error(`Error sharing to Dev.to: ${errorMessage}`);
+        } finally {
+            this.view.webview.postMessage({ command: 'shareComplete' });
+        }
+    }
+
+    private async shareToMediumWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<void> {
+        try {
+            const msg = message as {
+                post?: string;
+                mediaFilePaths?: string[];
+                title?: string;
+                tags?: string[];
+                publishStatus?: string;
+                canonicalUrl?: string;
+            };
+            const mediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
+
+            if (!mediumAccessToken) {
+                throw new Error('Medium Access Token not configured. Go to the DotShare Activity Bar to add it.');
+            }
+
+            await shareToMedium(mediumAccessToken, {
+                text: msg.post || post.text,
+                media: msg.mediaFilePaths || post.media,
+                title: msg.title,
+                tags: msg.tags,
+                publishStatus: msg.publishStatus as 'public' | 'draft' | 'unlisted' | 'published' | undefined,
+                canonicalUrl: msg.canonicalUrl
+            });
+
+            this.sendSuccess('Successfully posted to Medium!');
+            if (postId) {
+                this.historyService.recordShare(postId, 'medium', true);
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) {
+                this.historyService.recordShare(postId, 'medium', false, errorMessage);
+            }
+            throw new Error(`Error sharing to Medium: ${errorMessage}`);
+        } finally {
+            this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
 
@@ -613,8 +894,7 @@ export class PostHandler {
             const password = await this.context.secrets.get('blueskyPassword') || '';
 
             if (!identifier || !password) {
-                this.sendError('BlueSky credentials not configured. Go to Settings to add them.');
-                return;
+                throw new Error('BlueSky credentials not configured. Go to the DotShare Activity Bar to add them.');
             }
 
             await shareToBlueSky(identifier, password, post);
@@ -625,10 +905,10 @@ export class PostHandler {
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Error sharing to Bluesky: ${errorMessage}`);
             if (postId) {
                 this.historyService.recordShare(postId, 'bluesky', false, errorMessage);
             }
+            throw new Error(`Error sharing to Bluesky: ${errorMessage}`);
         } finally {
             // Re-enable share button
             this.view.webview.postMessage({ command: 'shareComplete' });
@@ -643,7 +923,9 @@ export class PostHandler {
             facebook: false,
             discord: false,
             reddit: false,
-            bluesky: false
+            bluesky: false,
+            devto: false,
+            medium: false
         };
 
         let firstError: string | null = null;
@@ -689,6 +971,27 @@ export class PostHandler {
                         await this.shareToBlueSkyWithUpdate(post, postId);
                         results.bluesky = true;
                         break;
+                    case 'devto': {
+                        const devtoMsg: Message = {
+                            command: 'shareToDevTo',
+                            post: post.text,
+                            mediaFilePaths
+                        };
+                        await this.shareToDevToWithUpdate(post, devtoMsg, postId);
+                        results.devto = true;
+                        break;
+                    }
+                    case 'medium': {
+                        const mediumMsg: Message = {
+                            command: 'shareToMedium',
+                            post: post.text,
+                            mediaFilePaths,
+                            publishStatus: 'public'
+                        };
+                        await this.shareToMediumWithUpdate(post, mediumMsg, postId);
+                        results.medium = true;
+                        break;
+                    }
                     default:
                         Logger.info(`Unknown platform: ${platform}`);
                 }
@@ -703,7 +1006,7 @@ export class PostHandler {
                 if (postId) {
                     const platformKey = platform as keyof typeof results;
                     if (platformKey in results) {
-                        this.historyService.recordShare(postId, platform as 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky', false, errorMessage);
+                        this.historyService.recordShare(postId, platform as 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky' | 'devto' | 'medium', false, errorMessage);
                     }
                 }
             }
@@ -732,5 +1035,84 @@ export class PostHandler {
 
     private sendError(message: string): void {
         this.view.webview.postMessage({ command: 'status', status: message, type: 'error' });
+    }
+
+    private async handleShareThread(message: Message): Promise<void> {
+        const platform = message.platform as string;
+        const posts = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string }>;
+
+        if (!platform || (platform !== 'x' && platform !== 'bluesky')) {
+            this.sendError('Thread posting only supports X and Bluesky');
+            this.view.webview.postMessage({ command: 'shareComplete' });
+            return;
+        }
+
+        if (!posts || posts.length === 0) {
+            this.sendError('No posts provided for thread');
+            this.view.webview.postMessage({ command: 'shareComplete' });
+            return;
+        }
+
+        this.view.webview.postMessage({
+            command: 'status',
+            status: `Sharing thread (${posts.length} posts) to ${platform}...`,
+            type: 'info'
+        });
+
+        let tempMediaPath: string | undefined;
+
+        try {
+            // 1. Process media (convert Base64 to temp file)
+            let firstPostMedia: string[] | undefined;
+            if (posts[0]?.mediaBase64 && posts[0]?.mediaType) {
+                
+                
+                const ext = posts[0].mediaType.split('/')[1] || 'png';
+                const tempFileName = `thread_media_${Date.now()}.${ext}`;
+                tempMediaPath = path.join(os.tmpdir(), tempFileName);
+
+                const buffer = Buffer.from(posts[0].mediaBase64, 'base64');
+                fs.writeFileSync(tempMediaPath, buffer);
+
+                firstPostMedia = [tempMediaPath];
+            }
+
+            // 2. Combine posts using manual separator (===)
+            const combinedText = posts.map(p => p.text).filter(t => t).join('\n\n===\n\n');
+
+            // 3. Share to the selected platform
+            if (platform === 'x') {
+                const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
+                const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
+                await shareToX(xAccessToken, xAccessSecret, { text: combinedText, media: firstPostMedia });
+            } else if (platform === 'bluesky') {
+                const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
+                const password = (await this.context.secrets.get('blueskyPassword') || '').trim();
+
+                if (!identifier || !password) {
+                    this.sendError('BlueSky credentials not configured.');
+                    this.view.webview.postMessage({ command: 'shareComplete' });
+                    return;
+                }
+                await shareToBlueSky(identifier, password, { text: combinedText, media: firstPostMedia });
+            }
+
+            this.sendSuccess(`Thread shared to ${platform}!`);
+            this.view.webview.postMessage({ command: 'shareComplete' });
+
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(`Thread sharing failed: ${errorMessage}`);
+            this.view.webview.postMessage({ command: 'shareComplete' });
+        } finally {
+            // 4. Cleanup temp file
+            if (tempMediaPath) {
+                try {
+                    if (fs.existsSync(tempMediaPath)) fs.unlinkSync(tempMediaPath);
+                } catch (e) {
+                    Logger.info('Failed to clean up temp media file:', e);
+                }
+            }
+        }
     }
 }

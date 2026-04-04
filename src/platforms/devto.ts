@@ -12,6 +12,7 @@ export interface DevToArticleData {
     canonical_url?: string;
     published?: boolean;
     main_image?: string;
+    description?: string;
 }
 
 interface DevToArticlePayload {
@@ -23,6 +24,7 @@ interface DevToArticlePayload {
         canonical_url?: string;
         published: boolean;
         main_image?: string;
+        description?: string;
     };
 }
 

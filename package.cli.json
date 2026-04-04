@@ -38,7 +38,7 @@
     "reddit"
   ],
   "author": "FreeRave",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/kareem2099/DotShare.git"

@@ -23,7 +23,14 @@ export async function activate(context: vscode.ExtensionContext) {
     // ── 2. Command that opens the main WebView based on the button ──
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.openFullWebview', (page = 'post', options?: any) => {
-            DotShareWebView.createOrShow(context, page, options);
+            // If a specific platform is requested, open the dedicated platform post panel
+            // (which correctly selects threads / social / blogs workspace via platform-config).
+            const platform = options?.platform as string | undefined;
+            if (page === 'post' && platform) {
+                DotShareWebView.createPlatformPost(context, platform);
+            } else {
+                DotShareWebView.createOrShow(context, page, options);
+            }
         })
     );
 
@@ -37,6 +44,12 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('dotshare.shareToTelegram', () => {
             vscode.commands.executeCommand('dotshare.openFullWebview', 'post', { platform: 'telegram' });
+        }),
+        vscode.commands.registerCommand('dotshare.shareToDevTo', () => {
+            DotShareWebView.createPlatformPost(context, 'devto');
+        }),
+        vscode.commands.registerCommand('dotshare.shareToMedium', () => {
+            DotShareWebView.createPlatformPost(context, 'medium');
         })
     );
 

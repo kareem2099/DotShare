@@ -878,3 +878,7 @@ details[open] > summary::before { content: '▼ '; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground); }
+
+/* ── Workspace Visibility ─────────────────────────────────── */
+.workspace { display: none; }
+.workspace.active { display: block; }

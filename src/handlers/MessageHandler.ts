@@ -41,7 +41,7 @@ export class MessageHandler {
         const cmd = message.command;
 
         // Smart routing based on command patterns - check specific commands first
-        if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' || cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost') {
+        if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' || cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost' || cmd === 'readMarkdownFile' || cmd === 'loadScheduledPosts') {
             // Posting and content operations
             await this.postHandler.handleMessage(message);
         }

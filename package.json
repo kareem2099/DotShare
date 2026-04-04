@@ -67,6 +67,14 @@
         "title": "DotShare: Share to Telegram"
       },
       {
+        "command": "dotshare.shareToDevTo",
+        "title": "DotShare: Publish article to Dev.to"
+      },
+      {
+        "command": "dotshare.shareToMedium",
+        "title": "DotShare: Publish article to Medium"
+      },
+      {
         "command": "dotshare.showAnalytics",
         "title": "DotShare: Show Analytics Dashboard",
         "icon": "$(graph-line)"
@@ -172,7 +180,7 @@
     "xai"
   ],
   "author": "FreeRave",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/kareem2099/DotShare.git"

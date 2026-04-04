@@ -80,7 +80,156 @@ document.querySelectorAll<HTMLElement>('.nav-btn[data-page]').forEach(btn => {
 
 const MAX_CHARS: Record<string, number> = {
     x: 280, bluesky: 300, linkedin: 3000, telegram: 4096, facebook: 63206, discord: 2000, reddit: 40000,
+    devto: 100000, medium: 100000,
 };
+
+function revealBlogPublisherUi(): void {
+    const preview = get('blog-preview');
+    if (preview) preview.style.display = 'block';
+
+    const devtoCard = get('blog-publish-devto-card');
+    const mediumCard = get('blog-publish-medium-card');
+    const blogPlatformsCard = get('blog-platforms-card');
+    const blogActions = get('blog-actions');
+
+    if (devtoCard && mediumCard) {
+        // Multi-platform panel (index.html)
+        devtoCard.style.display = 'block';
+        mediumCard.style.display = 'block';
+    } else {
+        // Single-platform panel (platform-post.html)
+        if (blogPlatformsCard) blogPlatformsCard.style.display = 'block';
+        if (blogActions) blogActions.style.display = 'flex';
+    }
+    updateBlogPublishButtonsState();
+}
+
+function getBlogBodyText(): string {
+    const blogBody = get<HTMLTextAreaElement>('blog-body')?.value.trim() || '';
+    const postText = get<HTMLTextAreaElement>('post-text')?.value.trim() || '';
+    return blogBody || postText;
+}
+
+function getSingleBlogPlatform(): 'devto' | 'medium' | null {
+    const v = get<HTMLInputElement>('blog-single-platform')?.value?.trim();
+    if (v === 'devto' || v === 'medium') return v;
+    return null;
+}
+
+const BLOG_BTN_LABEL_DEVTO = '🚀 Publish to Dev.to';
+const BLOG_BTN_LABEL_MEDIUM = '🚀 Publish to Medium';
+const singleBlogPublishDefaultLabel =
+    get<HTMLButtonElement>('btn-publish-blog')?.textContent?.trim() ?? '';
+
+function updateBlogPublishButtonsState(): void {
+    const hasContent = getBlogBodyText().length > 0;
+
+    const bDev = get<HTMLButtonElement>('btn-publish-blog-devto');
+    const bMed = get<HTMLButtonElement>('btn-publish-blog-medium');
+    const bSingle = get<HTMLButtonElement>('btn-publish-blog');
+
+    if (bDev) bDev.disabled = !hasContent;
+    if (bMed) bMed.disabled = !hasContent;
+    if (bSingle) bSingle.disabled = !hasContent;
+}
+
+function resetBlogPublishUi(): void {
+    const hasContent = getBlogBodyText().length > 0;
+    const bDev = get<HTMLButtonElement>('btn-publish-blog-devto');
+    if (bDev) {
+        bDev.disabled = !hasContent;
+        bDev.textContent = BLOG_BTN_LABEL_DEVTO;
+    }
+    const bMed = get<HTMLButtonElement>('btn-publish-blog-medium');
+    if (bMed) {
+        bMed.disabled = !hasContent;
+        bMed.textContent = BLOG_BTN_LABEL_MEDIUM;
+    }
+    const bSingle = get<HTMLButtonElement>('btn-publish-blog');
+    if (bSingle) {
+        bSingle.disabled = !hasContent;
+        const singlePlat = getSingleBlogPlatform();
+        if (singlePlat === 'devto') bSingle.textContent = BLOG_BTN_LABEL_DEVTO;
+        else if (singlePlat === 'medium') bSingle.textContent = BLOG_BTN_LABEL_MEDIUM;
+        else bSingle.textContent = singleBlogPublishDefaultLabel || '🚀 Publish Article';
+    }
+}
+
+function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): void {
+    const postText = getBlogBodyText();
+    if (!postText) {
+        toast('No article body to publish. Read a Markdown file or paste content in Article (Markdown body).', 'warning');
+        return;
+    }
+    const title = get<HTMLInputElement>('blog-title')?.value.trim();
+    const tagsInput = get<HTMLInputElement>('blog-tags')?.value.trim();
+    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : undefined;
+    const description = get<HTMLTextAreaElement>('blog-description')?.value.trim();
+    const coverImage = get<HTMLInputElement>('blog-cover-image')?.value.trim();
+    const canonicalUrl = get<HTMLInputElement>('blog-canonical-url')?.value.trim();
+    const series = get<HTMLInputElement>('blog-series')?.value.trim();
+    send('shareBlog', {
+        platforms: [platform],
+        post: postText,
+        title,
+        tags,
+        description,
+        coverImage,
+        canonicalUrl: canonicalUrl || undefined,
+        series: series || undefined,
+        publishStatus,
+        published: publishStatus === 'published',
+    });
+    toast('Publishing article...', 'info');
+}
+
+function wireBlogPublishButton(
+    btn: HTMLButtonElement | null,
+    platform: 'devto' | 'medium',
+    getStatus: () => string
+): void {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        try {
+            const publishStatus = getStatus() || 'draft';
+            btn.disabled = true;
+            btn.textContent = '⏳ Publishing...';
+            sendBlogShare(platform, publishStatus);
+        } catch (error) {
+            console.error('Publish error:', error);
+            toast('Failed to publish article', 'error');
+            resetBlogPublishUi();
+        }
+    });
+}
+
+get('btn-read-md-file')?.addEventListener('click', () => {
+    send('readMarkdownFile');
+    toast('Reading current file…', 'info');
+});
+
+wireBlogPublishButton(
+    get<HTMLButtonElement>('btn-publish-blog-devto'),
+    'devto',
+    () => get<HTMLSelectElement>('blog-publish-status-devto')?.value || 'draft'
+);
+wireBlogPublishButton(
+    get<HTMLButtonElement>('btn-publish-blog-medium'),
+    'medium',
+    () => get<HTMLSelectElement>('blog-publish-status-medium')?.value || 'draft'
+);
+
+const btnPublishBlogSingle = get<HTMLButtonElement>('btn-publish-blog');
+const singleBlogPlat = getSingleBlogPlatform();
+if (btnPublishBlogSingle && singleBlogPlat) {
+    wireBlogPublishButton(
+        btnPublishBlogSingle,
+        singleBlogPlat,
+        () => get<HTMLSelectElement>('blog-publish-status')?.value || 'draft'
+    );
+}
+
+get<HTMLTextAreaElement>('blog-body')?.addEventListener('input', () => updateBlogPublishButtonsState());
 
 const textarea = get<HTMLTextAreaElement>('post-text');
 const counter = get('char-counter');
@@ -121,7 +270,7 @@ btnShare?.addEventListener('click', () => {
         if (!text) { toast('Write something first', 'warning'); return; }
         btnShare.disabled = true;
         btnShare.textContent = '⏳ Sharing…';
-        
+
         const platforms = activeCommandPlatform ? [activeCommandPlatform] : [];
         send('share', { post: text, platforms });
     } catch (error) {
@@ -226,7 +375,7 @@ function renderScheduledPosts(posts: Array<{ id: string; scheduledTime: string; 
         list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🕐</div><div class="empty-state-title">No scheduled posts</div></div>';
         return;
     }
-    const icons: Record<string, string> = { linkedin: '💼', telegram: '📱', x: '𝕏', facebook: '📘', discord: '💬', reddit: '🟠', bluesky: '🦋' };
+    const icons: Record<string, string> = { linkedin: '💼', telegram: '📱', x: '𝕏', facebook: '📘', discord: '💬', reddit: '🟠', bluesky: '🦋', devto: '👨‍💻', medium: 'Ⓜ️' };
     list.innerHTML = posts.map(function (p) {
         const dt = new Date(p.scheduledTime);
         const pi = p.platforms.map(function (pl) { return icons[pl] || '🔗'; }).join(' ');
@@ -243,8 +392,13 @@ function updateAnalytics(data: Record<string, unknown>): void {
     set('stat-success', (data.successRate || 0) + '%');
     set('stat-linkedin', String(data.linkedinShares || 0));
     set('stat-telegram', String(data.telegramShares || 0));
-    set('stat-bluesky', String(data.blueskyShares || 0));
+    set('stat-facebook', String(data.facebookShares || 0));
     set('stat-discord', String(data.discordShares || 0));
+    set('stat-bluesky', String(data.blueskyShares || 0));
+    set('stat-x', String(data.xShares || 0));
+    set('stat-reddit', String(data.redditShares || 0));
+    set('stat-devto', String(data.devtoShares || 0));
+    set('stat-medium', String(data.mediumShares || 0));
 }
 
 function renderHistory(posts: Array<Record<string, unknown>>): void {
@@ -254,7 +408,7 @@ function renderHistory(posts: Array<Record<string, unknown>>): void {
         list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-title">No history yet</div></div>';
         return;
     }
-    const icons: Record<string, string> = { linkedin: '💼', telegram: '📱', x: '𝕏', facebook: '📘', discord: '💬', reddit: '🟠', bluesky: '🦋' };
+    const icons: Record<string, string> = { linkedin: '💼', telegram: '📱', x: '𝕏', facebook: '📘', discord: '💬', reddit: '🟠', bluesky: '🦋', devto: '👨‍💻', medium: 'Ⓜ️' };
     list.innerHTML = posts.slice(0, 20).map(function (p) {
         const shares = (p.shares as Array<{ platform: string; success: boolean }>) || [];
         const si = shares.map(function (s) { return (s.success ? '✅' : '❌') + (icons[s.platform] || '🔗'); }).join(' ');
@@ -324,6 +478,12 @@ document.querySelectorAll<HTMLElement>('[data-save]').forEach(btn => {
                     break;
                 case 'bluesky':
                     send('saveBlueSkyCredentials', { blueskyIdentifier: val('blueskyIdentifier'), blueskyPassword: val('blueskyPassword') });
+                    break;
+                case 'devto':
+                    send('saveDevToCredentials', { devtoApiKey: val('devtoApiKey') });
+                    break;
+                case 'medium':
+                    send('saveMediumCredentials', { mediumAccessToken: val('mediumAccessToken') });
                     break;
                 case 'ai':
                     send('saveAIConfig', { provider: val('cfg-ai-provider'), model: val('cfg-ai-model'), apiKey: val('cfg-ai-key') });
@@ -701,6 +861,12 @@ document.querySelectorAll<HTMLElement>('[data-save]').forEach(btn => {
                 case 'bluesky':
                     send('saveBlueSkyCredentials', { blueskyIdentifier: val('blueskyIdentifier'), blueskyPassword: val('blueskyPassword') });
                     break;
+                case 'devto':
+                    send('saveDevToCredentials', { devtoApiKey: val('devtoApiKey') });
+                    break;
+                case 'medium':
+                    send('saveMediumCredentials', { mediumAccessToken: val('mediumAccessToken') });
+                    break;
                 case 'ai':
                     send('saveAIConfig', { provider: val('cfg-ai-provider'), model: val('cfg-ai-model'), apiKey: val('cfg-ai-key') });
                     break;
@@ -854,16 +1020,78 @@ window.addEventListener('message', function (event) {
             }
             case 'updatePost':
                 if (msg.post && textarea) { textarea.value = String(msg.post); updateCharCounter(); updateShareBtn(); toast('Post updated!', 'success'); }
+                if (msg.post) {
+                    const blogBodyEl = get<HTMLTextAreaElement>('blog-body');
+                    if (blogBodyEl) blogBodyEl.value = String(msg.post);
+                }
+                updateBlogPublishButtonsState();
                 if (btnGenerate) { btnGenerate.disabled = false; btnGenerate.textContent = '🧠 Generate with AI'; }
-                if (btnShare) { 
-                    btnShare.disabled = false; 
-                    btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now'; 
+                if (btnShare) {
+                    btnShare.disabled = false;
+                    btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now';
                 }
                 break;
-            case 'status': toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info'); break;
+            case 'revealBlogPublisher':
+                revealBlogPublisherUi();
+                break;
+            case 'updateBlogFrontmatter': {
+                const fm = msg.frontmatter as {
+                    title?: string;
+                    tags?: string[];
+                    description?: string;
+                    cover_image?: string;
+                    canonical_url?: string;
+                    series?: string;
+                    published?: boolean;
+                };
+                if (fm.title) {
+                    const el = get<HTMLInputElement>('blog-title');
+                    if (el) el.value = fm.title;
+                }
+                if (fm.tags && fm.tags.length > 0) {
+                    const el = get<HTMLInputElement>('blog-tags');
+                    if (el) el.value = fm.tags.join(', ');
+                }
+                if (fm.description) {
+                    const el = get<HTMLTextAreaElement>('blog-description');
+                    if (el) el.value = fm.description;
+                }
+                if (fm.cover_image) {
+                    const el = get<HTMLInputElement>('blog-cover-image');
+                    if (el) el.value = fm.cover_image;
+                }
+                if (fm.canonical_url) {
+                    const el = get<HTMLInputElement>('blog-canonical-url');
+                    if (el) el.value = fm.canonical_url;
+                }
+                if (fm.series) {
+                    const el = get<HTMLInputElement>('blog-series');
+                    if (el) el.value = fm.series;
+                }
+                if (fm.published !== undefined) {
+                    const v = fm.published ? 'published' : 'draft';
+                    const sd = get<HTMLSelectElement>('blog-publish-status-devto');
+                    const sm = get<HTMLSelectElement>('blog-publish-status-medium');
+                    const legacy = get<HTMLSelectElement>('blog-publish-status');
+                    if (sd) sd.value = v;
+                    if (sm) sm.value = v;
+                    if (legacy) legacy.value = v;
+                }
+                toast('Frontmatter loaded!', 'success');
+                break;
+            }
+            case 'status':
+                toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info');
+                if (msg.type === 'error') {
+                    resetBlogPublishUi();
+                }
+                break;
             case 'updateAnalytics': if (msg.analytics) updateAnalytics(msg.analytics as Record<string, unknown>); break;
             case 'updatePostHistory': if (msg.postHistory) renderHistory(msg.postHistory as Array<Record<string, unknown>>); break;
             case 'updateScheduledPosts': if (msg.scheduledPosts) renderScheduledPosts(msg.scheduledPosts as Array<{ id: string; scheduledTime: string; platforms: string[]; postData: { text: string } }>); break;
+            case 'shareComplete':
+                resetBlogPublishUi();
+                break;
             case 'mediaSelected':
                 if (msg.mediaPath) {
                     const preview = get('media-preview');
@@ -907,6 +1135,8 @@ window.addEventListener('message', function (event) {
                 if (msg.redditAccessToken !== undefined) { const e = get<HTMLInputElement>('redditAccessToken'); if (e) e.value = String(msg.redditAccessToken); }
                 if (msg.blueskyIdentifier !== undefined) { const e = get<HTMLInputElement>('blueskyIdentifier'); if (e) e.value = String(msg.blueskyIdentifier); }
                 if (msg.blueskyPassword !== undefined) { const e = get<HTMLInputElement>('blueskyPassword'); if (e) e.value = String(msg.blueskyPassword); }
+                if (msg.devtoApiKey !== undefined) { const e = get<HTMLInputElement>('devtoApiKey'); if (e) e.value = String(msg.devtoApiKey); }
+                if (msg.mediumAccessToken !== undefined) { const e = get<HTMLInputElement>('mediumAccessToken'); if (e) e.value = String(msg.mediumAccessToken); }
                 if (msg.theme !== undefined) {
                     if (msg.theme === 'dark') document.body.classList.add('dark');
                     else document.body.classList.remove('dark');

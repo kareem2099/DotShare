@@ -38,7 +38,8 @@
         <div class="page-header">
           <div>
             <div class="page-title" id="create-post-title">Create Post</div>
-            <div class="page-subtitle" id="create-post-subtitle">Compose and share to your favorite platform seamlessly</div>
+            <div class="page-subtitle" id="create-post-subtitle">Compose and share to your favorite platform seamlessly
+            </div>
           </div>
           <button class="btn btn-ghost btn-sm" id="btn-ai-model">🧠 <span id="ai-model-label">Choose AI</span></button>
         </div>
@@ -52,8 +53,9 @@
               rows="6"></textarea>
             <span class="compose-counter" id="char-counter">0</span>
           </div>
-          <div id="thread-warning" style="display:none; color: var(--vscode-statusBarItem-warningBackground, #ff9800); font-size: 11px; margin-top: 6px;">
-             ⚠️ Limit exceeded. Post will be split into a thread.
+          <div id="thread-warning"
+            style="display:none; color: var(--vscode-statusBarItem-warningBackground, #ff9800); font-size: 11px; margin-top: 6px;">
+            ⚠️ Limit exceeded. Post will be split into a thread.
           </div>
           <div class="action-bar" style="margin-top:10px;">
             <button class="btn btn-secondary btn-sm" id="btn-generate-ai">🧠 Generate with AI</button>
@@ -63,7 +65,8 @@
               style="display:none;" />
             <div class="spacer"></div>
             <!-- Pro Feature: Temporarily disabled -->
-            <button class="btn btn-ghost btn-sm" id="btn-schedule" disabled title="Coming Soon" style="opacity: 0.5; cursor: not-allowed;">⏰ Schedule (Coming Soon)</button>
+            <button class="btn btn-ghost btn-sm" id="btn-schedule" disabled title="Coming Soon"
+              style="opacity: 0.5; cursor: not-allowed;">⏰ Schedule (Coming Soon)</button>
             <button class="btn btn-primary" id="btn-share" disabled>🚀 Share Now</button>
           </div>
           <!-- Media preview -->
@@ -103,6 +106,73 @@
               <span class="pro-badge">PRO — Coming Soon</span>
             </button>
             <p class="pro-teaser-hint">Let AI tailor your post for every platform automatically.</p>
+          </div>
+        </div>
+
+        <!-- Article publisher (Dev.to / Medium) -->
+        <div class="card">
+          <div class="card-title">📰 Article Publisher</div>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">Read your
+            Markdown file, then publish with the button for each platform.</p>
+          <button class="btn btn-secondary" id="btn-read-md-file" type="button">📖 Read Current Markdown File</button>
+          <div id="blog-preview" style="display:none;margin-top:16px;">
+            <div class="input-group">
+              <label for="blog-body">Article (Markdown body)</label>
+              <textarea id="blog-body" rows="10" placeholder="Loaded here when you read the current file…"></textarea>
+            </div>
+            <div class="input-group">
+              <label for="blog-title">Title</label>
+              <input type="text" id="blog-title" placeholder="Article title" />
+            </div>
+            <div class="input-group">
+              <label for="blog-tags">Tags (comma separated)</label>
+              <input type="text" id="blog-tags" placeholder="javascript, webdev" />
+            </div>
+            <div class="input-group">
+              <label for="blog-description">Description</label>
+              <textarea id="blog-description" rows="2" placeholder="Short description…"></textarea>
+            </div>
+            <div class="input-group">
+              <label for="blog-cover-image">Cover image URL (optional)</label>
+              <input type="url" id="blog-cover-image" placeholder="https://…" />
+            </div>
+            <div class="input-group">
+              <label for="blog-canonical-url">Canonical URL (optional)</label>
+              <input type="url" id="blog-canonical-url" placeholder="https://yoursite.com/post" />
+            </div>
+            <div class="input-group">
+              <label for="blog-series">Dev.to series name (optional)</label>
+              <input type="text" id="blog-series" placeholder="Series slug on Dev.to" />
+            </div>
+          </div>
+        </div>
+        <div class="card" id="blog-publish-devto-card" style="display:none;">
+          <div class="card-title">👨‍💻 Publish to Dev.to</div>
+          <div class="input-group" style="margin-top:12px;">
+            <label for="blog-publish-status-devto">Visibility</label>
+            <select id="blog-publish-status-devto">
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+          </div>
+          <div class="action-bar" style="margin-top:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-primary" id="btn-publish-blog-devto" disabled>🚀 Publish to
+              Dev.to</button>
+          </div>
+        </div>
+        <div class="card" id="blog-publish-medium-card" style="display:none;">
+          <div class="card-title">Ⓜ️ Publish to Medium</div>
+          <div class="input-group" style="margin-top:12px;">
+            <label for="blog-publish-status-medium">Visibility</label>
+            <select id="blog-publish-status-medium">
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="unlisted">Unlisted</option>
+            </select>
+          </div>
+          <div class="action-bar" style="margin-top:12px;justify-content:flex-end;">
+            <button type="button" class="btn btn-primary" id="btn-publish-blog-medium" disabled>🚀 Publish to
+              Medium</button>
           </div>
         </div>
 
@@ -166,6 +236,14 @@
           <div class="stat-card">
             <div class="stat-label">Reddit</div>
             <div class="stat-value" id="stat-reddit">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Dev.to</div>
+            <div class="stat-value" id="stat-devto">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Medium</div>
+            <div class="stat-value" id="stat-medium">0</div>
           </div>
         </div>
 
@@ -550,6 +628,43 @@
               <li>Use your handle as username (e.g. yourname.bsky.social)</li>
             </ol>
           </details>
+        </div>
+
+        <!-- Dev.to -->
+        <div class="card platform-card devto">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>👨‍💻 Dev.to</span>
+            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="devto" data-key="savedApisBtn">📚 Saved
+              APIs</button>
+          </div>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:8px;">Publish long-form
+            articles with your API key from <a href="https://dev.to/settings/extensions" target="_blank">Dev.to
+              settings</a>.</p>
+          <div class="input-group">
+            <label for="devtoApiKey">API Key</label>
+            <input type="password" id="devtoApiKey" placeholder="Enter your Dev.to API key" />
+          </div>
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" data-save="devto">💾 Save Dev.to Settings</button>
+          </div>
+        </div>
+
+        <!-- Medium -->
+        <div class="card platform-card medium">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Ⓜ️ Medium</span>
+            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="medium" data-key="savedApisBtn">📚 Saved
+              APIs</button>
+          </div>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:8px;">Integration token
+            from <a href="https://medium.com/me/settings/security" target="_blank">Medium → Security</a>.</p>
+          <div class="input-group">
+            <label for="mediumAccessToken">Integration token</label>
+            <input type="password" id="mediumAccessToken" placeholder="Enter your Medium integration token" />
+          </div>
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" data-save="medium">💾 Save Medium Settings</button>
+          </div>
         </div>
 
       </section><!-- /page-settings -->
