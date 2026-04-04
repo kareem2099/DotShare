@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { SavedApiConfiguration } from '../types';
 import { Logger } from '../utils/Logger';
 
@@ -11,7 +13,7 @@ export class ConfigHandler {
     constructor(
         private view: vscode.WebviewView,
         private context: vscode.ExtensionContext
-    ) {}
+    ) { }
 
     public async handleMessage(message: Message): Promise<void> {
         const cmd = message.command;
@@ -50,12 +52,24 @@ export class ConfigHandler {
                     await this.handleSaveBlueSkyCredentials(message);
                     break;
 
+                case 'saveDevToCredentials':
+                    await this.handleSaveDevToCredentials(message);
+                    break;
+
+                case 'saveMediumCredentials':
+                    await this.handleSaveMediumCredentials(message);
+                    break;
+
                 case 'loadConfiguration':
                     await this.handleLoadConfiguration();
                     break;
 
                 case 'loadSavedApis':
                     await this.handleLoadSavedApis(message);
+                    break;
+
+                case 'clearAllCredentials':
+                    await this.handleClearAllCredentials();
                     break;
 
                 case 'saveApiConfiguration':
@@ -150,6 +164,18 @@ export class ConfigHandler {
         this.sendSuccess('BlueSky credentials saved!');
     }
 
+    private async handleSaveDevToCredentials(message: Message): Promise<void> {
+        const apiKey = message.devtoApiKey as string | undefined;
+        await this.context.secrets.store('devtoApiKey', apiKey || '');
+        this.sendSuccess('Dev.to API key saved!');
+    }
+
+    private async handleSaveMediumCredentials(message: Message): Promise<void> {
+        const accessToken = message.mediumAccessToken as string | undefined;
+        await this.context.secrets.store('mediumAccessToken', accessToken || '');
+        this.sendSuccess('Medium integration token saved!');
+    }
+
     private async handleLoadConfiguration(): Promise<void> {
         const savedModel = this.context.globalState.get('selectedModel');
         let apiKey = '';
@@ -176,6 +202,20 @@ export class ConfigHandler {
         const savedRedditApiName = this.context.globalState.get('redditApiName', 'Reddit Account');
         const savedBlueSkyIdentifier = await this.context.secrets.get('blueskyIdentifier') || '';
         const savedBlueSkyPassword = await this.context.secrets.get('blueskyPassword') || '';
+        const savedDevToApiKey = await this.context.secrets.get('devtoApiKey') || '';
+        const savedMediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
+        const currentTheme = this.context.globalState.get('dotshareTheme') || 'light';
+        const currentLanguage = this.context.globalState.get('dotshareLanguage') || 'en';
+
+        let translations = {};
+        try {
+            const filePath = path.join(this.context.extensionPath, 'media', 'locales', `${currentLanguage}.json`);
+            if (fs.existsSync(filePath)) {
+                translations = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            }
+        } catch (e) {
+            Logger.warn(`Failed to load translations for ${currentLanguage}`, e);
+        }
 
         this.view.webview.postMessage({
             command: 'updateConfiguration',
@@ -197,7 +237,12 @@ export class ConfigHandler {
             redditPassword: savedRedditPassword,
             redditApiName: savedRedditApiName,
             blueskyIdentifier: savedBlueSkyIdentifier,
-            blueskyPassword: savedBlueSkyPassword
+            blueskyPassword: savedBlueSkyPassword,
+            devtoApiKey: savedDevToApiKey,
+            mediumAccessToken: savedMediumAccessToken,
+            theme: currentTheme,
+            language: currentLanguage,
+            translations: translations
         });
     }
 
@@ -208,6 +253,7 @@ export class ConfigHandler {
         const savedApis = await storageManager.loadSavedApis(platform);
         this.view.webview.postMessage({
             command: 'savedApisLoaded',
+            platform: platform,
             savedApis: savedApis
         });
     }
@@ -251,6 +297,15 @@ export class ConfigHandler {
         } else {
             this.sendError('API configuration not found');
         }
+    }
+
+    private async handleClearAllCredentials(): Promise<void> {
+        const { StorageManager } = await import('../storage/storage-manager');
+        const storageManager = new StorageManager(this.context);
+        await storageManager.clearAllCredentials();
+        this.sendSuccess('All credentials and saved APIs cleared successfully!');
+        // Reload configuration so the UI updates
+        await this.handleLoadConfiguration();
     }
 
     private sendSuccess(message: string) {

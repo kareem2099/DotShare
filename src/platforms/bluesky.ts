@@ -6,6 +6,40 @@ export interface BlueSkyPostData {
     media?: string[];
 }
 
+function createThreadChunks(text: string, maxLength = 290): string[] {
+    if (text.length <= 300) return [text];
+
+    // Split by any whitespace including newlines
+    const words = text.split(/\s+/);
+    const chunks: string[] = [];
+    let currentChunk = '';
+
+    for (const word of words) {
+        if (!word) continue;
+        const space = currentChunk ? ' ' : '';
+        
+        if ((currentChunk + space + word).length > maxLength) {
+            if (!currentChunk) {
+                // The word itself is longer than maxLength! Force split it.
+                let remainingWord = word;
+                while (remainingWord.length > maxLength) {
+                    chunks.push(remainingWord.slice(0, maxLength));
+                    remainingWord = remainingWord.slice(maxLength);
+                }
+                currentChunk = remainingWord;
+            } else {
+                chunks.push(currentChunk);
+                currentChunk = word;
+            }
+        } else {
+            currentChunk += space + word;
+        }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+
+    return chunks.map((chunk, index) => `${chunk} (${index + 1}/${chunks.length})`);
+}
+
 export async function shareToBlueSky(identifier: string, password: string, postData: BlueSkyPostData): Promise<string> {
     try {
         // First, authenticate and get session
@@ -16,38 +50,64 @@ export async function shareToBlueSky(identifier: string, password: string, postD
             'Content-Type': 'application/json'
         };
 
-        const postPayload = {
-            collection: 'app.bsky.feed.post',
-            repo: session.did,
-            record: {
-                text: postData.text,
-                createdAt: new Date().toISOString(),
-                $type: 'app.bsky.feed.post'
-            }
-        };
+        const tweets = createThreadChunks(postData.text, 290);
+        let firstPostUri = '';
+        
+        let rootPost: { uri: string; cid: string } | null = null;
+        let parentPost: { uri: string; cid: string } | null = null;
 
-        // Handle media attachments (BlueSky supports images)
-        if (postData.media && postData.media.length > 0) {
-            for (const mediaFile of postData.media) {
-                // Note: This is simplified - actual implementation requires uploading blobs
-                // BlueSky requires media to be uploaded as blobs first
-                Logger.info(`Media upload for BlueSky not fully implemented yet: ${mediaFile}`);
+        for (let i = 0; i < tweets.length; i++) {
+            let chunkText = tweets[i];
 
-                // For now, just add as external links if they're URLs
-                if (mediaFile.startsWith('http')) {
-                    // Could add as link card, but that requires separate API call
-                    postPayload.record.text += `\n\n${mediaFile}`;
+            // For now, handle media URLs as text (since BlueSky media blobs are not fully implemented)
+            if (i === 0 && postData.media && postData.media.length > 0) {
+                for (const mediaFile of postData.media) {
+                    Logger.info(`Media upload for BlueSky not fully implemented yet: ${mediaFile}`);
+                    if (mediaFile.startsWith('http')) {
+                        chunkText += `\n\n${mediaFile}`;
+                    }
                 }
             }
+
+            const record: any = {
+                text: chunkText,
+                createdAt: new Date().toISOString(),
+                $type: 'app.bsky.feed.post'
+            };
+
+            // Link to previous post in thread
+            if (parentPost && rootPost) {
+                record.reply = {
+                    root: rootPost,
+                    parent: parentPost
+                };
+            }
+
+            const postPayload = {
+                collection: 'app.bsky.feed.post',
+                repo: session.did,
+                record: record
+            };
+
+            const response = await axios.post(
+                `https://bsky.social/xrpc/com.atproto.repo.createRecord`,
+                postPayload,
+                { headers }
+            );
+
+            const uri = response.data.uri;
+            const cid = response.data.cid;
+
+            if (i === 0) {
+                firstPostUri = uri;
+                rootPost = { uri, cid };
+            }
+            parentPost = { uri, cid };
+            
+            Logger.info(`BlueSky: post ${i + 1}/${tweets.length} posted successfully (uri: ${uri})`);
         }
 
-        const response = await axios.post(
-            `https://bsky.social/xrpc/com.atproto.repo.createRecord`,
-            postPayload,
-            { headers }
-        );
-
-        return response.data.uri; // AT URI of the created post
+        return firstPostUri; // AT URI of the created root post
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const axiosError = error as { response?: { data?: { message?: string } } };

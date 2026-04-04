@@ -1,8 +1,8 @@
 {
   "name": "dotshare",
   "displayName": "DotShare",
-  "description": "Share your code/ideas across multiple platforms with AI-powered posts directly from VS Code.",
-  "version": "2.4.0",
+  "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
+  "version": "3.0.0",
   "publisher": "freerave",
   "funding": [
     {
@@ -50,25 +50,38 @@
     },
     "commands": [
       {
+        "command": "dotshare.open",
+        "title": "DotShare: Open Platform Hub",
+        "icon": "$(home)"
+      },
+      {
         "command": "dotshare.generatePost",
-        "title": "Generate Social Media Post with Gemini"
+        "title": "DotShare: Generate Social Media Post with AI"
       },
       {
         "command": "dotshare.shareToLinkedIn",
-        "title": "Share to LinkedIn"
+        "title": "DotShare: Share to LinkedIn"
       },
       {
         "command": "dotshare.shareToTelegram",
-        "title": "Share to Telegram"
+        "title": "DotShare: Share to Telegram"
+      },
+      {
+        "command": "dotshare.shareToDevTo",
+        "title": "DotShare: Publish article to Dev.to"
+      },
+      {
+        "command": "dotshare.shareToMedium",
+        "title": "DotShare: Publish article to Medium"
       },
       {
         "command": "dotshare.showAnalytics",
-        "title": "Show Analytics Dashboard",
+        "title": "DotShare: Show Analytics Dashboard",
         "icon": "$(graph-line)"
       },
       {
         "command": "dotshare.whatsNew",
-        "title": "What's New in DotShare",
+        "title": "DotShare: What's New",
         "icon": "$(light-bulb)"
       }
     ],
@@ -83,13 +96,25 @@
       "properties": {
         "dotshare.customHashtags": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Custom hashtags to always include in generated posts (e.g. [\"#OpenSource\", \"#VSCode\"]). The # prefix is optional."
         },
         "dotshare.defaultPlatform": {
           "type": "string",
-          "enum": ["twitter", "linkedin", "facebook", "telegram", "discord", "reddit", "bluesky"],
+          "enum": [
+            "twitter",
+            "linkedin",
+            "facebook",
+            "telegram",
+            "discord",
+            "reddit",
+            "bluesky",
+            "devto",
+            "medium"
+          ],
           "default": "twitter",
           "description": "Default platform used to tailor hashtag suggestions when generating a post."
         }
@@ -97,12 +122,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run build:webview",
-    "compile": "tsc -p ./",
-    "build:webview": "esbuild media/main.ts --bundle --outfile=media/app.js --format=iife --global-name=DotShare --platform=browser --minify",
+    "vscode:prepublish": "node esbuild.js --production",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
     "scheduler": "node bin/dotshare-scheduler.js",
     "cli": "node bin/dotshare-cli.js",
-    "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src media bin --ext ts,js",
     "test": "node ./out/test/runTest.js",
@@ -133,13 +157,15 @@
     "axios": "^1.6.0",
     "commander": "^11.1.0",
     "form-data": "^4.0.0",
-    "keytar": "^7.9.0",
     "open": "^8.4.2",
     "openai": "^6.0.1"
   },
   "keywords": [
     "share",
     "social",
+    "blog",
+    "devto",
+    "medium",
     "linkedin",
     "telegram",
     "twitter",
@@ -154,7 +180,7 @@
     "xai"
   ],
   "author": "FreeRave",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/kareem2099/DotShare.git"

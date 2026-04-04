@@ -43,6 +43,12 @@ export class WhatsNewProvider {
 
         const htmlContent = WhatsNewProvider.markdownToHtml(markdownContent);
         const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'assets', 'style.css'));
+        
+        let nonce = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 32; i++) {
+            nonce += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
 
         return `
             <!DOCTYPE html>
@@ -50,6 +56,7 @@ export class WhatsNewProvider {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https: data:;">
                 <title>What's New in DotShare</title>
                 <link href="${cssUri.toString()}" rel="stylesheet">
                 <style>
@@ -99,7 +106,7 @@ export class WhatsNewProvider {
                     <button class="close-button" id="closeBtn">✕ Close</button>
                     ${htmlContent}
                 </div>
-                <script>
+                <script nonce="${nonce}">
                     const vscode = acquireVsCodeApi();
                     document.getElementById('closeBtn').addEventListener('click', () => {
                         vscode.postMessage({ command: 'close' });

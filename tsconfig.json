@@ -4,13 +4,14 @@
     "target": "ES2020",
     "outDir": "out",
     "lib": [
-      "ES2020",
-      "DOM"
+      "ES2020"
+      // ← Removed DOM — the extension is Node, not a browser
     ],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*"

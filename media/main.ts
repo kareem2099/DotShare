@@ -1,390 +1,548 @@
-interface VSCodeAPI {
-    postMessage(message: unknown): void;
+/**
+ * DotShare Sidebar — Activity Bar WebView (Platforms/Settings only)
+ * Entry point for media/index.html → compiled to media/app.js
+ *
+ * Architecture note:
+ *   - This sidebar only manages platform credentials & OAuth.
+ *   - "Create Post" and "Analytics" are separate full webviews (activity bar panels).
+ *   - Clicking "✨ Create Post" on any card sends `openFullWebview { action:'createPost' }`.
+ */
+
+// ── VS Code API ──────────────────────────────────────────────
+interface VsCodeApiSidebar {
+    postMessage(msg: unknown): void;
 }
 
-declare global {
-    interface Window {
-        vscode: VSCodeAPI;
-    }
+const vscodeSidebar = ((): VsCodeApiSidebar => {
+    const w = typeof window !== 'undefined' ? (window as any) : undefined;
+    const g = typeof globalThis !== 'undefined' ? (globalThis as any) : undefined;
+    if (w?.vscodeSidebar) return w.vscodeSidebar;
+    if (g?.vscodeSidebar) return g.vscodeSidebar;
+    // Fallback: should not happen in prod
+    return { postMessage: (msg: unknown) => console.warn('[DotShare] vscodeSidebar not ready', msg) };
+})();
+
+// ── DOM Element Cache ────────────────────────────────────────
+const _elCache: Record<string, HTMLElement | null> = {};
+function getEl<T extends HTMLElement>(id: string): T | null {
+    if (_elCache[id] === undefined) _elCache[id] = document.getElementById(id);
+    return _elCache[id] as T | null;
 }
 
-declare const acquireVsCodeApi: () => VSCodeAPI;
-
-// SINGLE VS Code API instance - shared globally
-const vscode = acquireVsCodeApi();
-window.vscode = vscode;
-
-// Lazy vscode accessor to avoid undefined issues
-const getVscode = () => vscode;
-
-import { Message, ApiConfiguration } from '../src/types';
-import {
-    applyTheme,
-    showStatus,
-    postText,
-    setGeneratingState,
-    checkPlatformAvailability,
-    updateButtonStates,
-    linkedinToken,
-    telegramBot,
-    telegramChat,
-    facebookToken,
-    facebookPageToken,
-    facebookPageId,
-    discordWebhook,
-    blueskyIdentifier,
-    blueskyPassword,
-    setOriginalPost,
-    updateSelectedModel,
-    updateSelectedModelDisplay,
-    currentLang
-} from './src/core/utils';
-import { updateTexts } from './src/core/translations';
-import { initializeDOMElements, updateRedditSubredditSectionVisibility } from './src/ui/ui-initialization';
-import { initializeCriticalEventListeners, setupPlatformEventListeners, setupRedditEventListeners, setupOAuthButtons, showOAuthStatus } from './src/handlers/event-handlers';
-import {
-    loadHistoryAndAnalytics,
-    updatePostHistory,
-    updateAnalytics,
-    showPostHistory
-} from './src/management/post-history';
-import { attachMultipleMedia, attachMedia, showMediaAttachment, initializeMediaUpload, addDragOverStyles } from './src/management/media-attachments';
-import {
-    loadSavedApisForAllPlatforms,
-    loadSavedApis,
-    currentSavedApisPlatform
-} from './src/management/saved-apis';
-import { displaySavedApis, handleModelUpdate } from './src/handlers/modal-handlers';
-import { updateScheduledPosts } from './src/management/scheduled-posts';
-import { displayRedditPosts } from './src/management/platform-handlers';
-import { updateDynamicPlatformSelector } from './src/core/utils';
-import { Logger } from './src/utils/Logger';
-
-// Function to update account selector in the main card
-function updateAccountSelector(platform: string, savedApis: ApiConfiguration[]) {
-    const selectorContainer = document.getElementById(`accountSelector_${platform}`);
-    const selectElement = document.getElementById(`accountSelect_${platform}`) as HTMLSelectElement;
-
-    if (!selectorContainer || !selectElement) return;
-
-    // Clear the list and add the default option
-    selectElement.innerHTML = '<option value="">Select a saved profile...</option>';
-
-    if (savedApis && savedApis.length > 0) {
-        savedApis.forEach(api => {
-            const option = document.createElement('option');
-            option.value = api.id;
-            option.textContent = api.name + (api.isDefault ? ' (Default)' : '');
-            selectElement.appendChild(option);
-        });
-
-        // Show the selector because there are saved accounts
-        selectorContainer.style.display = 'block';
-
-        // Add change listener to load configuration
-        selectElement.onchange = (e) => {
-            const apiId = (e.target as HTMLSelectElement).value;
-            if (apiId) {
-                vscode.postMessage({ command: 'loadApiConfiguration', apiId: apiId });
-            }
-        };
-    } else {
-        // Hide the selector if no accounts
-        selectorContainer.style.display = 'none';
-    }
+// ── Status Toast ─────────────────────────────────────────────
+function showStatus(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    const el = getEl('statusMessage');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `status-message ${type}`;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
-// Apply initial settings
-document.documentElement.lang = currentLang;
-if (currentLang === 'ar') document.body.classList.add('rtl');
-applyTheme();
+// ── Value Helpers ────────────────────────────────────────────
+function getValue(id: string): string {
+    return (getEl<HTMLInputElement>(id)?.value ?? '').trim();
+}
 
-// Show media attachment immediately (always visible)
-showMediaAttachment();
+function setInputValue(id: string, value: string): void {
+    const el = getEl<HTMLInputElement>(id);
+    if (el && value !== undefined) el.value = value;
+}
 
-// Initialize all critical event listeners immediately
-initializeCriticalEventListeners();
-
-window.addEventListener('load', () => {
+// ── send ─────────────────────────────────────────────────────
+function send(msg: Record<string, unknown>): void {
     try {
-        Logger.info('DOM loaded, initializing application...');
+        vscodeSidebar.postMessage(msg);
+    } catch (e) {
+        console.error('[DotShare] postMessage failed', e);
+    }
+}
 
-        // Initialize DOM elements after page load
-        initializeDOMElements();
+// ── Platform Credential Savers ───────────────────────────────
+const platformSavers: Record<string, () => void> = {
+    linkedin: () => send({ command: 'saveLinkedinToken', linkedinToken: getValue('linkedinToken') }),
+    telegram: () => send({ command: 'saveTelegramCredentials', telegramBot: getValue('telegramBot'), telegramChat: getValue('telegramChat') }),
+    x: () => send({ command: 'saveXCredentials', xAccessToken: getValue('xAccessToken'), xAccessSecret: getValue('xAccessSecret') }),
+    facebook: () => send({ command: 'saveFacebookToken', facebookToken: getValue('facebookToken'), facebookPageToken: getValue('facebookPageToken'), facebookPageId: getValue('facebookPageId') }),
+    discord: () => send({ command: 'saveDiscordWebhook', discordWebhookUrl: getValue('discordWebhook') }),
+    reddit: () => send({ command: 'saveRedditCredentials', redditAccessToken: getValue('redditAccessToken'), redditRefreshToken: '' }),
+    bluesky: () => send({ command: 'saveBlueSkyCredentials', blueskyIdentifier: getValue('blueskyIdentifier'), blueskyPassword: getValue('blueskyPassword') }),
+    devto: () => send({ command: 'saveDevToCredentials', devtoApiKey: getValue('devtoApiKey') }),
+    medium: () => send({ command: 'saveMediumCredentials', mediumAccessToken: getValue('mediumAccessToken') }),
+};
 
-        // Setup platform input event listeners
-        setupPlatformEventListeners();
+// ── Article publisher (Dev.to / Medium) — mirrors media/webview ─────────
+const BLOG_BTN_LABEL_DEVTO = '🚀 Publish to Dev.to';
+const BLOG_BTN_LABEL_MEDIUM = '🚀 Publish to Medium';
 
-        // Setup Reddit-specific event listeners
-        setupRedditEventListeners();
+function getBlogBodyText(): string {
+    return getEl<HTMLTextAreaElement>('blog-body')?.value.trim() || '';
+}
 
-        // Setup OAuth connect buttons (LinkedIn, X, Facebook, Reddit)
-        setupOAuthButtons();
+function revealBlogPublisherUi(): void {
+    const preview = getEl('blog-preview');
+    if (preview) preview.style.display = 'block';
+    const devtoCard = getEl('blog-publish-devto-card');
+    const mediumCard = getEl('blog-publish-medium-card');
+    if (devtoCard) devtoCard.style.display = 'block';
+    if (mediumCard) mediumCard.style.display = 'block';
+    updateBlogPublishButtonsState();
+}
 
-        Logger.info('Translations loaded statically');
-        updateTexts();
+function updateBlogPublishButtonsState(): void {
+    const has = getBlogBodyText().length > 0;
+    const bDev = getEl<HTMLButtonElement>('btn-publish-blog-devto');
+    const bMed = getEl<HTMLButtonElement>('btn-publish-blog-medium');
+    if (bDev) bDev.disabled = !has;
+    if (bMed) bMed.disabled = !has;
+}
 
-        // Load history and analytics
-        loadHistoryAndAnalytics();
+function resetBlogPublishUi(): void {
+    const has = getBlogBodyText().length > 0;
+    const bDev = getEl<HTMLButtonElement>('btn-publish-blog-devto');
+    if (bDev) {
+        bDev.disabled = !has;
+        bDev.textContent = BLOG_BTN_LABEL_DEVTO;
+    }
+    const bMed = getEl<HTMLButtonElement>('btn-publish-blog-medium');
+    if (bMed) {
+        bMed.disabled = !has;
+        bMed.textContent = BLOG_BTN_LABEL_MEDIUM;
+    }
+}
 
-        // Load saved APIs for all platforms
-        loadSavedApisForAllPlatforms();
+function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): void {
+    const postText = getBlogBodyText();
+    if (!postText) {
+        showStatus('No article body to publish. Read a Markdown file or paste content first.', 'error');
+        return;
+    }
+    const title = getValue('blog-title');
+    const tagsInput = getValue('blog-tags');
+    const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : undefined;
+    const description = getEl<HTMLTextAreaElement>('blog-description')?.value.trim();
+    const coverImage = getValue('blog-cover-image');
+    const canonicalUrl = getValue('blog-canonical-url');
+    const series = getValue('blog-series');
+    send({
+        command: 'shareBlog',
+        platforms: [platform],
+        post: postText,
+        title: title || undefined,
+        tags,
+        description: description || undefined,
+        coverImage: coverImage || undefined,
+        canonicalUrl: canonicalUrl || undefined,
+        series: series || undefined,
+        publishStatus,
+        published: publishStatus === 'published',
+    });
+    showStatus('Publishing article…', 'info');
+}
 
-        // Initialize media upload functionality
-        initializeMediaUpload();
-        addDragOverStyles();
+function wireBlogPublishButton(btn: HTMLButtonElement | null, platform: 'devto' | 'medium', getStatus: () => string): void {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        try {
+            const publishStatus = getStatus() || 'draft';
+            btn.disabled = true;
+            btn.textContent = '⏳ Publishing...';
+            sendBlogShare(platform, publishStatus);
+        } catch (e) {
+            console.error('[DotShare Sidebar] Publish error', e);
+            showStatus('Failed to publish article', 'error');
+            resetBlogPublishUi();
+        }
+    });
+}
 
-        // Add event listeners for platform checkboxes to enable/disable buttons
-        const platformCheckboxes = document.querySelectorAll('.platform-checkbox');
-        platformCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateButtonStates);
+// ── OAuth ────────────────────────────────────────────────────
+function openOAuth(platform: string): void {
+    send({ command: 'openOAuth', platform });
+    showStatus(`Opening ${platform} OAuth…`, 'info');
+}
+
+function disconnectOAuth(platform: string): void {
+    send({ command: 'disconnectOAuth', platform });
+    showStatus(`Disconnected from ${platform}`, 'success');
+}
+
+// ── OAuth Button UI Sync ─────────────────────────────────────
+// Platforms that use OAuth (connect/disconnect flow)
+const OAUTH_PLATFORMS = ['linkedin', 'x', 'facebook', 'reddit'] as const;
+type OAuthPlatform = typeof OAUTH_PLATFORMS[number];
+
+function updateOAuthButtons(tokenMap: Record<string, string | undefined>): void {
+    OAUTH_PLATFORMS.forEach(platform => {
+        const hasToken = !!(tokenMap[platform]);
+        const connectBtn = getEl(`oauthConnect_${platform}`);
+        const disconnectBtn = getEl(`oauthDisconnect_${platform}`);
+        if (connectBtn) connectBtn.style.display = hasToken ? 'none' : 'inline-flex';
+        if (disconnectBtn) disconnectBtn.style.display = hasToken ? 'inline-block' : 'none';
+    });
+}
+
+// ── Theme Button Sync ────────────────────────────────────────
+function updateThemeButton(): void {
+    const btn = getEl('themeToggle');
+    if (!btn) return;
+    const isDark = document.body.classList.contains('dark');
+    const icon = btn.querySelector<HTMLElement>('.icon');
+    const text = btn.querySelector<HTMLElement>('.text');
+    if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+    if (text) text.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+}
+
+// ── Apply Translations ───────────────────────────────────────
+function applyTranslations(dict: Record<string, string>): void {
+    document.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.getAttribute('data-key');
+        if (!key || !dict[key]) return;
+        if (el.tagName === 'INPUT') {
+            (el as HTMLInputElement).placeholder = dict[key];
+        } else {
+            el.textContent = dict[key];
+        }
+    });
+}
+
+// ── Saved APIs Modal ─────────────────────────────────────────
+let _currentSavedApisPlatform = '';
+
+function openSavedApisModal(platform: string): void {
+    _currentSavedApisPlatform = platform;
+    const platformNameEl = getEl('currentPlatformName');
+    if (platformNameEl) platformNameEl.textContent = `— ${platform.charAt(0).toUpperCase() + platform.slice(1)}`;
+    send({ command: 'loadSavedApis', platform });
+}
+
+function renderSavedApis(savedApis: Array<{ id: string; name: string; isDefault?: boolean }>): void {
+    const listEl = getEl('savedApisList');
+    if (!listEl) return;
+    if (!savedApis.length) {
+        listEl.innerHTML = '<div class="no-saved-apis"><p>No saved API configurations yet.</p></div>';
+    } else {
+        listEl.innerHTML = savedApis.map(api => `
+            <div class="saved-api-item">
+                <div class="saved-api-info">
+                    <span class="saved-api-name">${escapeHtml(api.name)}</span>
+                    ${api.isDefault ? '<span style="color:var(--success);font-size:10px;">Default</span>' : ''}
+                </div>
+                <div class="saved-api-actions">
+                    <button class="btn btn-sm btn-secondary" data-action="loadApi" data-id="${api.id}">Load</button>
+                    <button class="btn btn-sm btn-ghost" data-action="deleteApi" data-id="${api.id}">Delete</button>
+                </div>
+            </div>
+        `).join('');
+
+        // Wire delegated clicks
+        listEl.querySelectorAll('[data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                const id = btn.getAttribute('data-id') ?? '';
+                if (action === 'loadApi') {
+                    send({ command: 'loadApiConfig', apiId: id });
+                    showStatus('Loading configuration…', 'info');
+                    const modal = getEl('savedApisModal');
+                    if (modal) modal.style.display = 'none';
+                } else if (action === 'deleteApi') {
+                    send({ command: 'deleteApiConfig', apiId: id });
+                    showStatus('Configuration deleted!', 'success');
+                }
+            });
         });
+    }
+    const modal = getEl('savedApisModal');
+    if (modal) modal.style.display = 'flex';
+}
 
-        // ✅ FIX: Force button update when clicking ANY platform element
-        // This ensures buttons update immediately when platforms are selected
-        const platformContainer = document.querySelector('.platforms-grid') || document.body;
+function escapeHtml(str: string): string {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
-        platformContainer.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            // If the click happened on any platform element (checkbox, label, container)
-            if (target.closest('input[type="checkbox"]') ||
-                target.closest('.platform-card') ||
-                target.closest('.platforms-grid')) {
+// ── Event Listeners ──────────────────────────────────────────
+function initEventListeners(): void {
 
-                // Wait a tiny bit (50ms) for the selection to register, then update buttons
-                setTimeout(() => {
-                    updateButtonStates();
-                }, 50);
+    // ① Auto-Save on Blur (replacing old data-save buttons)
+    const blurAutoSaves: Record<string, string> = {
+        linkedinToken: 'linkedin',
+        telegramBot: 'telegram',
+        telegramChat: 'telegram',
+        xAccessToken: 'x',
+        xAccessSecret: 'x',
+        facebookToken: 'facebook',
+        facebookPageToken: 'facebook',
+        facebookPageId: 'facebook',
+        discordWebhook: 'discord',
+        redditAccessToken: 'reddit',
+        blueskyIdentifier: 'bluesky',
+        blueskyPassword: 'bluesky',
+        devtoApiKey: 'devto',
+        mediumAccessToken: 'medium'
+    };
+
+    Object.entries(blurAutoSaves).forEach(([inputId, platform]) => {
+        const input = getEl<HTMLInputElement>(inputId);
+        if (input) {
+            input.addEventListener('blur', () => {
+                const saver = platformSavers[platform];
+                if (saver) {
+                    saver();
+                    showStatus('Credentials auto-saved!', 'success');
+                }
+            });
+        }
+    });
+
+    // ② OAuth connect (id pattern: oauthConnect_<platform>)
+    document.querySelectorAll<HTMLElement>('[id^="oauthConnect_"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const platform = btn.getAttribute('data-platform');
+            if (platform) openOAuth(platform);
+        });
+    });
+
+    // ③ OAuth disconnect
+    document.querySelectorAll<HTMLElement>('[id^="oauthDisconnect_"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const platform = btn.getAttribute('data-platform');
+            if (platform) disconnectOAuth(platform);
+        });
+    });
+
+    // ④ OAuth advanced toggle (show/hide manual token input)
+    document.querySelectorAll<HTMLElement>('[id^="oauthAdvancedToggle_"]').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const platform = toggle.id.replace('oauthAdvancedToggle_', '');
+            const content = getEl(`oauthAdvancedContent_${platform}`);
+            const icon = toggle.querySelector<HTMLElement>('.toggle-icon');
+            if (!content) return;
+            const opening = content.style.display === 'none' || content.style.display === '';
+            content.style.display = opening ? 'block' : 'none';
+            if (icon) icon.textContent = opening ? '⌃' : '⌄';
+        });
+    });
+
+    // ⑤ "✨ Create Post" button on each card → open full webview
+    document.querySelectorAll<HTMLElement>('.create-post-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const platform = btn.getAttribute('data-platform') ?? '';
+            send({ command: 'openFullWebview', action: 'createPost', platform });
+            showStatus(`Opening post editor…`, 'info');
+        });
+    });
+
+    // ⑥ "📚 Saved APIs" per platform
+    document.querySelectorAll<HTMLElement>('.saved-apis-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const platform = btn.getAttribute('data-platform') ?? '';
+            if (platform) openSavedApisModal(platform);
+        });
+    });
+
+    // ⑦ Saved APIs modal — close
+    getEl('closeSavedApisModal')?.addEventListener('click', () => {
+        const modal = getEl('savedApisModal');
+        if (modal) modal.style.display = 'none';
+    });
+
+    // ⑧ Add New API config button (renders inline form in modal body)
+    getEl('addNewApiSetBtn')?.addEventListener('click', () => {
+        const body = document.querySelector<HTMLElement>('#savedApisModal .modal-body');
+        if (!body) return;
+        if (body.querySelector('#inlineApiForm')) return;
+        const form = document.createElement('div');
+        form.id = 'inlineApiForm';
+        form.style.cssText = 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);';
+        form.innerHTML = `
+            <div class="input-group">
+                <label>Configuration Name</label>
+                <input type="text" id="apiSetName" placeholder="e.g., Personal, Work…">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="primary-btn" id="saveApiSetBtn" style="font-size:12px;padding:7px 14px;">💾 Save</button>
+                <button class="secondary-btn" id="cancelApiEditBtn" style="font-size:12px;padding:7px 12px;">Cancel</button>
+            </div>
+        `;
+        body.appendChild(form);
+        form.querySelector('#saveApiSetBtn')?.addEventListener('click', () => {
+            const name = (document.getElementById('apiSetName') as HTMLInputElement)?.value?.trim();
+            if (!name) { showStatus('Please enter a name', 'error'); return; }
+            send({ command: 'saveApiSet', name, platform: _currentSavedApisPlatform });
+            showStatus('Configuration saved!', 'success');
+            form.remove();
+        });
+        form.querySelector('#cancelApiEditBtn')?.addEventListener('click', () => form.remove());
+    });
+
+    // ⑨ Close any modal on backdrop click
+    document.querySelectorAll<HTMLElement>('.modal').forEach(modal => {
+        modal.addEventListener('click', e => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+    });
+
+    // ⑫ Language select
+    getEl('languageSelect')?.addEventListener('change', e => {
+        const lang = (e.target as HTMLSelectElement).value;
+        send({ command: 'changeLanguage', language: lang });
+    });
+
+    // ⑬ Theme toggle
+    getEl('themeToggle')?.addEventListener('click', () => {
+        send({ command: 'toggleTheme' });
+    });
+
+    // ⑭ Quick action buttons (if present in sidebar)
+    getEl('openPostBtn')?.addEventListener('click', () => {
+        send({ command: 'openFullWebview', action: 'createPost' });
+    });
+    getEl('openAnalyticsBtn')?.addEventListener('click', () => {
+        send({ command: 'openFullWebview', action: 'analytics' });
+    });
+}
+
+// ── Message Handler ──────────────────────────────────────────
+window.addEventListener('message', (event: MessageEvent) => {
+    const msg = event.data as Record<string, any>;
+    if (!msg?.command) return;
+
+    switch (msg.command) {
+
+        case 'updateConfiguration': {
+            // Platform credentials
+            setInputValue('linkedinToken', msg.linkedinToken ?? '');
+            setInputValue('telegramBot', msg.telegramBot ?? '');
+            setInputValue('telegramChat', msg.telegramChat ?? '');
+            setInputValue('xAccessToken', msg.xAccessToken ?? '');
+            setInputValue('xAccessSecret', msg.xAccessSecret ?? '');
+            setInputValue('facebookToken', msg.facebookToken ?? '');
+            setInputValue('facebookPageToken', msg.facebookPageToken ?? '');
+            setInputValue('facebookPageId', msg.facebookPageId ?? '');
+            setInputValue('discordWebhook', msg.discordWebhookUrl ?? '');
+            setInputValue('redditAccessToken', msg.redditAccessToken ?? '');
+            setInputValue('blueskyIdentifier', msg.blueskyIdentifier ?? '');
+            setInputValue('blueskyPassword', msg.blueskyPassword ?? '');
+            setInputValue('devtoApiKey', msg.devtoApiKey ?? '');
+            setInputValue('mediumAccessToken', msg.mediumAccessToken ?? '');
+
+            // OAuth buttons
+            updateOAuthButtons({
+                linkedin: msg.linkedinToken,
+                x: msg.xAccessToken,
+                facebook: msg.facebookToken,
+                reddit: msg.redditAccessToken,
+            });
+
+            // Theme
+            if (msg.theme !== undefined) {
+                if (msg.theme === 'dark') document.body.classList.add('dark');
+                else document.body.classList.remove('dark');
+                updateThemeButton();
             }
-        });
 
-        // Add event listener for post text changes to update buttons
-        if (postText) {
-            postText.addEventListener('input', updateButtonStates);
+            // Language select sync
+            if (msg.language) {
+                const sel = getEl<HTMLSelectElement>('languageSelect');
+                if (sel) sel.value = msg.language;
+            }
+
+            // Translations
+            if (msg.translations) applyTranslations(msg.translations);
+            break;
         }
 
-        // Initialize Reddit subreddit section visibility
-        updateRedditSubredditSectionVisibility();
+        case 'themeChanged':
+            if (msg.theme === 'dark') document.body.classList.add('dark');
+            else document.body.classList.remove('dark');
+            updateThemeButton();
+            break;
 
-        Logger.info('Application initialization complete!');
-    } catch (error) {
-        Logger.error('Error during initialization:', error);
+        case 'languageChanged':
+            if (msg.translations) applyTranslations(msg.translations);
+            if (msg.language) {
+                const sel = getEl<HTMLSelectElement>('languageSelect');
+                if (sel) sel.value = msg.language;
+            }
+            break;
+
+        case 'status':
+            if (msg.status && msg.type) showStatus(msg.status, msg.type);
+            if (msg.type === 'error') {
+                // error handling
+            }
+            break;
+
+        case 'updatePost':
+            if (msg.post) {
+                const blogBodyEl = getEl<HTMLTextAreaElement>('blog-body');
+                if (blogBodyEl) blogBodyEl.value = String(msg.post);
+                updateBlogPublishButtonsState();
+                showStatus('Article body updated', 'success');
+            }
+            break;
+
+        case 'revealBlogPublisher':
+            revealBlogPublisherUi();
+            break;
+
+        case 'updateBlogFrontmatter': {
+            const fm = msg.frontmatter as {
+                title?: string;
+                tags?: string[];
+                description?: string;
+                cover_image?: string;
+                canonical_url?: string;
+                series?: string;
+                published?: boolean;
+            };
+            if (!fm) break;
+            if (fm.title) setInputValue('blog-title', fm.title);
+            if (fm.tags?.length) setInputValue('blog-tags', fm.tags.join(', '));
+            if (fm.description) {
+                const el = getEl<HTMLTextAreaElement>('blog-description');
+                if (el) el.value = fm.description;
+            }
+            if (fm.cover_image) setInputValue('blog-cover-image', fm.cover_image);
+            if (fm.canonical_url) setInputValue('blog-canonical-url', fm.canonical_url);
+            if (fm.series) setInputValue('blog-series', fm.series);
+            if (fm.published !== undefined) {
+                const v = fm.published ? 'published' : 'draft';
+                const sd = getEl<HTMLSelectElement>('blog-publish-status-devto');
+                const sm = getEl<HTMLSelectElement>('blog-publish-status-medium');
+                if (sd) sd.value = v;
+                if (sm) sm.value = v;
+            }
+            showStatus('Frontmatter loaded', 'success');
+            break;
+        }
+
+        case 'shareComplete':
+            // reset UI handled elsewhere
+            break;
+
+        case 'savedApisLoaded':
+            if (Array.isArray(msg.savedApis)) renderSavedApis(msg.savedApis);
+            break;
+
+        case 'oauthTokenReceived':
+            // Called after OAuth callback completes — update UI immediately
+            if (msg.platform && msg.token) {
+                updateOAuthButtons({ [msg.platform]: msg.token });
+                showStatus(`${msg.platform} connected successfully!`, 'success');
+            }
+            break;
     }
 });
 
-// Message listener for updates from extension
-window.addEventListener('message', (event: MessageEvent<Message>) => {
-    const message = event.data;
-    switch (message.command) {
-        case 'updatePost':
-            if (message.post && postText) {
-                postText.value = message.post;
-                setOriginalPost(message.post);
-                setGeneratingState(false);
-                showMediaAttachment();
-            }
-            break;
-        case 'status':
-            if (message.status && message.type) {
-                showStatus(message.status, message.type);
-
-                // Show support action button if requested (for scheduling nudge)
-                if (message.showSupportAction) {
-                    setTimeout(() => {
-                        const statusElement = document.getElementById('statusMessage');
-                        if (statusElement && !statusElement.querySelector('.support-action-btn')) {
-                            const supportBtn = document.createElement('button');
-                            supportBtn.className = 'support-action-btn';
-                            supportBtn.innerHTML = '☕ Support Cloud Scheduling';
-                            supportBtn.onclick = () => {
-                                vscode.postMessage({ command: 'openSupportLink' });
-                            };
-                            statusElement.appendChild(supportBtn);
-                        }
-                    }, 100);
-                }
-
-                // Reset Reddit token generation button if we get an error status (likely for token generation)
-                if (message.type === 'error' && message.status.includes('Reddit access token')) {
-                    const generateBtn = document.getElementById('generateRedditTokensBtn') as HTMLButtonElement;
-                    if (generateBtn) {
-                        generateBtn.disabled = false;
-                        generateBtn.textContent = '🔑 Generate Tokens';
-                    }
-                }
-            }
-            break;
-        case 'updateConfiguration':
-            // Handle model selection
-            if (message.selectedModel) {
-                updateSelectedModel(message.selectedModel);
-                updateSelectedModelDisplay();
-            }
-            // Handle auto-fill of platform inputs
-            if (message.linkedinToken !== undefined) {
-                const liToken = linkedinToken;
-                if (liToken) liToken.value = message.linkedinToken;
-            }
-            if (message.telegramBot !== undefined) {
-                const tgBot = telegramBot;
-                if (tgBot) tgBot.value = message.telegramBot;
-            }
-            if (message.telegramChat !== undefined) {
-                const tgChat = telegramChat;
-                if (tgChat) tgChat.value = message.telegramChat;
-            }
-            if (message.facebookToken !== undefined) {
-                const fbToken = facebookToken;
-                if (fbToken) fbToken.value = message.facebookToken;
-            }
-            if (message.facebookPageToken !== undefined) {
-                const fbPageToken = facebookPageToken;
-                if (fbPageToken) fbPageToken.value = message.facebookPageToken;
-            }
-            if (message.facebookPageId !== undefined) {
-                const fbPageId = facebookPageId;
-                if (fbPageId) fbPageId.value = message.facebookPageId;
-            }
-            if (message.discordWebhookUrl !== undefined) {
-                const dWebhook = discordWebhook;
-                if (dWebhook) dWebhook.value = message.discordWebhookUrl;
-            }
-            if (message.redditAccessToken !== undefined) {
-                const redditToken = document.getElementById('redditAccessToken') as HTMLInputElement;
-                if (redditToken) redditToken.value = message.redditAccessToken;
-            }
-            if (message.redditRefreshToken !== undefined) {
-                const redditRefresh = document.getElementById('redditRefreshToken') as HTMLInputElement;
-                if (redditRefresh) redditRefresh.value = message.redditRefreshToken;
-            }
-            // Auto-fill Reddit app credentials
-            if (message.redditClientId !== undefined) {
-                const clientIdInput = document.getElementById('redditClientId') as HTMLInputElement;
-                if (clientIdInput) clientIdInput.value = message.redditClientId;
-            }
-            if (message.redditClientSecret !== undefined) {
-                const clientSecretInput = document.getElementById('redditClientSecret') as HTMLInputElement;
-                if (clientSecretInput) clientSecretInput.value = message.redditClientSecret;
-            }
-            if (message.redditUsername !== undefined) {
-                const usernameInput = document.getElementById('redditUsername') as HTMLInputElement;
-                if (usernameInput) usernameInput.value = message.redditUsername;
-            }
-            if (message.redditPassword !== undefined) {
-                const passwordInput = document.getElementById('redditPassword') as HTMLInputElement;
-                if (passwordInput) passwordInput.value = message.redditPassword;
-            }
-            if (message.redditApiName !== undefined) {
-                const apiNameInput = document.getElementById('redditApiName') as HTMLInputElement;
-                if (apiNameInput) apiNameInput.value = message.redditApiName;
-            }
-            if (message.blueskyIdentifier !== undefined) {
-                const bsIdentifier = blueskyIdentifier;
-                if (bsIdentifier) bsIdentifier.value = message.blueskyIdentifier;
-            }
-            if (message.blueskyPassword !== undefined) {
-                const bsPassword = blueskyPassword;
-                if (bsPassword) bsPassword.value = message.blueskyPassword;
-            }
-
-            checkPlatformAvailability();
-            updateButtonStates();
-            updateDynamicPlatformSelector();
-            updateRedditSubredditSectionVisibility();
-            // Reflect OAuth connection status on platform cards
-            showOAuthStatus({
-                linkedinToken: message.linkedinToken,
-                xAccessToken: message.xAccessToken,
-                facebookToken: message.facebookToken,
-                redditAccessToken: message.redditAccessToken
-            });
-            break;
-        case 'updateModels':
-            handleModelUpdate(message);
-            break;
-        case 'mediaSelected':
-            if (message.mediaFiles && message.mediaFiles.length > 0) {
-                attachMultipleMedia(message.mediaFiles);
-            } else if (message.mediaPath && message.mediaFilePath && message.fileName && message.fileSize !== undefined) {
-                attachMedia(message.mediaPath, message.mediaFilePath, message.fileName, message.fileSize);
-            }
-            break;
-        case 'updatePostHistory':
-            if (message.postHistory) {
-                updatePostHistory(message.postHistory);
-                showPostHistory();
-            }
-            break;
-        case 'updateAnalytics':
-            if (message.analytics) {
-                updateAnalytics(message.analytics);
-            }
-            break;
-        case 'updateScheduledPosts':
-            if (message.scheduledPosts) {
-                updateScheduledPosts(message.scheduledPosts);
-            }
-            break;
-        case 'savedApisLoaded':
-            if (message.platform && message.savedApis) {
-                // 1. Update the dropdown in the main card
-                updateAccountSelector(message.platform, message.savedApis);
-
-                // 2. Update modal list if it's open for the same platform
-                if (currentSavedApisPlatform === message.platform) {
-                    displaySavedApis(message.savedApis);
-                }
-            }
-            break;
-        case 'apiConfigurationLoaded':
-            if (message.apiConfig) {
-                // Reload configuration to update all input fields in the main UI
-                getVscode()?.postMessage({ command: 'loadConfiguration' });
-            }
-            break;
-        case 'apiConfigurationSaved':
-            // Reload the list after saving
-            loadSavedApis(currentSavedApisPlatform);
-            break;
-        case 'defaultConfigurationSet':
-            // Reload the list to show the updated default status
-            loadSavedApis(currentSavedApisPlatform);
-            break;
-        case 'redditTokensGenerated':
-            if (message.tokens) {
-                // Auto-fill the token input fields with generated tokens
-                const accessTokenInput = document.getElementById('redditAccessToken') as HTMLInputElement;
-                const refreshTokenInput = document.getElementById('redditRefreshToken') as HTMLInputElement;
-
-                if (accessTokenInput) accessTokenInput.value = message.tokens.accessToken;
-                if (refreshTokenInput) refreshTokenInput.value = message.tokens.refreshToken;
-
-                // Auto-save the generated tokens to VS Code settings
-                getVscode()?.postMessage({
-                    command: 'saveRedditCredentials',
-                    redditAccessToken: message.tokens.accessToken,
-                    redditRefreshToken: message.tokens.refreshToken
-                });
-
-                // Reset the button state and update UI
-                const generateBtn = document.getElementById('generateRedditTokensBtn') as HTMLButtonElement;
-                if (generateBtn) {
-                    generateBtn.disabled = false;
-                    generateBtn.textContent = '🔑 Generate Tokens';
-                }
-
-                showStatus('Reddit tokens generated, auto-filled, and saved successfully!', 'success');
-
-                // Update platform availability after auto-saving tokens
-                setTimeout(() => checkPlatformAvailability(), 100);
-                setTimeout(() => updateButtonStates(), 200);
-                setTimeout(() => updateRedditSubredditSectionVisibility(), 300);
-            }
-            break;
-        case 'redditUserPostsRetrieved':
-            if (message.posts) {
-                displayRedditPosts(message.posts);
-            }
-            break;
+// ── Bootstrap ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        initEventListeners();
+        send({ command: 'loadConfiguration' });
+        console.log('[DotShare Sidebar] Initialized');
+    } catch (e) {
+        console.error('[DotShare Sidebar] Init error:', e);
+        showStatus('Failed to initialize sidebar', 'error');
     }
 });

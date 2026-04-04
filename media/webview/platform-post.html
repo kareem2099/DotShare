@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" data-page="platform-post">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="{{CSP}}" />
+  <title>DotShare — {{PLATFORM_NAME}}</title>
+  <link rel="stylesheet" href="{{STYLE_URI}}" nonce="{{NONCE}}" />
+</head>
+
+<body>
+
+  <div id="app" class="platform-post-app">
+
+    <!-- ═══════════════════════════════════════════
+       HEADER
+    ════════════════════════════════════════════ -->
+    <header class="platform-header">
+      <div class="platform-header-left">
+        <span class="platform-icon">{{PLATFORM_ICON}}</span>
+        <div class="platform-header-text">
+          <h1 class="platform-title">Post to {{PLATFORM_NAME}}</h1>
+          <p class="platform-subtitle">Compose and share your content</p>
+        </div>
+      </div>
+      <div class="platform-header-right">
+        <button class="btn btn-ghost btn-sm" id="btn-ai-model">🧠 <span id="ai-model-label">Choose AI</span></button>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════
+       WORKSPACE CONTENT (Dynamic based on platform)
+    ════════════════════════════════════════════ -->
+    <main class="platform-content">
+
+      <!-- ═══ THREADS WORKSPACE (X / Bluesky) ═══ -->
+      <div class="workspace{{THREADS_ACTIVE}}" id="workspace-threads" data-workspace="threads">
+        <div class="card">
+          <div class="card-title">🧵 Thread Composer</div>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">Build your thread manually. Each post can have its own media.</p>
+
+          <div id="thread-posts">
+            <!-- Thread Post 1 -->
+            <div class="thread-post" data-thread-index="0">
+              <div class="thread-post-header">
+                <span class="thread-post-label">Post 1</span>
+                <span class="thread-char-counter" data-thread-counter="0">0 / {{MAX_CHARS}}</span>
+              </div>
+              <textarea class="thread-textarea" data-thread-textarea="0"
+                placeholder="What's on your mind?" rows="3"></textarea>
+              <div class="thread-post-actions">
+                <button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="0">📎 Media</button>
+                <input type="file" class="thread-file-input" data-thread-file="0"
+                  accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" />
+                <div class="thread-media-preview" data-thread-preview="0" style="display:none;">
+                  <span class="thread-media-name"></span>
+                  <button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="0">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-ghost btn-sm" id="btn-add-thread-post" style="margin-top:8px;">➕ Add another post</button>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-secondary btn-sm" id="btn-generate-ai-threads">🧠 Generate with AI</button>
+          <div class="spacer"></div>
+          <button class="btn btn-primary" id="btn-share-thread" disabled>🚀 Share Thread</button>
+        </div>
+      </div>
+
+      <!-- ═══ SOCIAL WORKSPACE (LinkedIn, Telegram, Facebook, Discord, Reddit) ═══ -->
+      <div class="workspace{{SOCIAL_ACTIVE}}" id="workspace-social" data-workspace="social">
+        <!-- Compose card -->
+        <div class="card">
+          <div class="card-title">✍️ Compose</div>
+          <div class="compose-area">
+            <textarea id="post-text"
+              placeholder="What's on your mind? Write your post here, or use AI to generate content…"
+              rows="6"></textarea>
+            <span class="compose-counter" id="char-counter">0 / {{MAX_CHARS}}</span>
+          </div>
+          <div class="action-bar" style="margin-top:10px;">
+            <button class="btn btn-secondary btn-sm" id="btn-generate-ai">🧠 Generate with AI</button>
+            <button class="btn btn-ghost btn-sm" id="btn-attach-media">📎 Attach Media</button>
+            <input type="file" id="media-file-input" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" />
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-share" disabled>🚀 Share Now</button>
+          </div>
+          <div id="media-preview" style="display:none; margin-top:12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span>📄</span>
+              <span id="media-name" style="font-size:12px;flex:1;"></span>
+              <span id="media-size" style="font-size:11px;color:var(--vscode-descriptionForeground);"></span>
+              <button class="btn btn-ghost btn-sm" id="btn-remove-media">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ BLOGS WORKSPACE (Dev.to, Medium) ═══ -->
+      <div class="workspace{{BLOGS_ACTIVE}}" id="workspace-blogs" data-workspace="blogs">
+        <input type="hidden" id="blog-single-platform" value="{{PLATFORM_KEY}}" />
+        <div class="card">
+          <div class="card-title">📰 Article Publisher</div>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">{{BLOG_INTRO_TEXT}}</p>
+
+          <button class="btn btn-secondary" id="btn-read-md-file">📖 Read Current Markdown File</button>
+
+          <div id="blog-preview" style="display:none; margin-top:16px;">
+            <div class="input-group">
+              <label>Article (Markdown body)</label>
+              <textarea id="blog-body" rows="12" placeholder="Loaded here when you read the current file…"></textarea>
+            </div>
+            <div class="input-group">
+              <label>Title</label>
+              <input type="text" id="blog-title" placeholder="Article title" />
+            </div>
+            <div class="input-group">
+              <label>Tags (comma separated)</label>
+              <input type="text" id="blog-tags" placeholder="javascript, webdev, tutorial" />
+            </div>
+            <div class="input-group">
+              <label>Description</label>
+              <textarea id="blog-description" rows="2" placeholder="Short description..."></textarea>
+            </div>
+            <div class="input-group">
+              <label>Cover Image URL (optional)</label>
+              <input type="url" id="blog-cover-image" placeholder="https://..." />
+            </div>
+            <div class="input-group">
+              <label>Canonical URL (optional)</label>
+              <input type="url" id="blog-canonical-url" placeholder="https://yoursite.com/post" />
+            </div>
+{{BLOG_SERIES_FIELD_HTML}}
+          </div>
+        </div>
+
+        <div class="card" id="blog-platforms-card" style="display:none;">
+{{BLOG_PUBLISH_CARD_HTML}}
+        </div>
+
+        <div class="action-bar" id="blog-actions" style="display:none;">
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-primary" id="btn-publish-blog" disabled>{{BLOG_PUBLISH_BUTTON_TEXT}}</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- AI Model Modal -->
+  <div id="modelModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header"><h3>Select AI Model</h3><span id="closeModal" class="close-modal">&times;</span></div>
+      <div class="modal-body">
+        <div class="provider-tabs">
+          <button class="tab-btn active" data-provider="gemini">Gemini</button>
+          <button class="tab-btn" data-provider="openai">ChatGPT</button>
+          <button class="tab-btn" data-provider="claude">Claude</button>
+          <button class="tab-btn" data-provider="xai">X-AI</button>
+        </div>
+        <div id="geminiPanel" class="provider-panel active">
+          <h4>Google Gemini</h4>
+          <div class="input-group"><label for="geminiKeyModal">API Key</label><input type="password" id="geminiKeyModal" /></div>
+          <div class="input-group"><label for="geminiModel">Model</label>
+            <select id="geminiModel">
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+            </select>
+          </div>
+        </div>
+        <div id="openaiPanel" class="provider-panel">
+          <h4>OpenAI ChatGPT</h4>
+          <div class="input-group"><label for="openaiKey">API Key</label><input type="password" id="openaiKey" /></div>
+          <div class="input-group"><label for="openaiModel">Model</label>
+            <select id="openaiModel">
+              <option value="gpt-5-2025-08-07">GPT-5</option>
+              <option value="gpt-5-mini-2025-08-07">GPT-5 Mini</option>
+            </select>
+          </div>
+        </div>
+        <div id="claudePanel" class="provider-panel">
+          <h4>Anthropic Claude</h4>
+          <div class="input-group"><label for="claudeKey">API Key</label><input type="password" id="claudeKey" /></div>
+          <div class="input-group"><label for="claudeModel">Model</label>
+            <select id="claudeModel">
+              <option value="claude-opus-4-6">Claude Opus 4.6</option>
+              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+              <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+            </select>
+          </div>
+        </div>
+        <div id="xaiPanel" class="provider-panel">
+          <h4>xAI Grok</h4>
+          <div class="input-group"><label for="xaiKey">API Key</label><input type="password" id="xaiKey" /></div>
+          <div class="input-group"><label for="xaiModel">Model</label>
+            <select id="xaiModel"><option value="grok-beta">Grok Beta</option><option value="grok-1">Grok-1</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button id="applyModelBtn" class="btn btn-primary">Apply Selection</button></div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <div id="statusMessage" class="status-message" style="display:none;"></div>
+
+  <!-- Platform data passed from extension -->
+  <script nonce="{{NONCE}}">
+    window.__PLATFORM_DATA__ = {
+      platform: '{{PLATFORM_KEY}}',
+      name: '{{PLATFORM_NAME}}',
+      icon: '{{PLATFORM_ICON}}',
+      maxChars: parseInt('{{MAX_CHARS}}') || 280,
+      workspaceType: '{{WORKSPACE_TYPE}}',
+      supportsThreads: '{{SUPPORTS_THREADS}}' === 'true',
+      supportsMedia: '{{SUPPORTS_MEDIA}}' === 'true',
+      charCountMethod: '{{CHAR_COUNT_METHOD}}'
+    };
+    
+    // Auto-set threadPlatform for thread composer based on platform data
+    if (window.__PLATFORM_DATA__ && window.__PLATFORM_DATA__.workspaceType === 'threads') {
+      window.__AUTO_THREAD_PLATFORM__ = window.__PLATFORM_DATA__.platform;
+    }
+  </script>
+
+  <script nonce="{{NONCE}}">
+    const vscode = acquireVsCodeApi();
+    window.__vscode = vscode;
+    globalThis.vscode = vscode;
+  </script>
+  <script src="{{SCRIPT_URI}}" nonce="{{NONCE}}"></script>
+</body>
+</html>

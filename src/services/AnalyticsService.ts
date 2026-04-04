@@ -9,7 +9,7 @@ export class AnalyticsService {
         // Initialize counters dynamically or statically as you prefer
         const platformCounts: Record<SocialPlatform, number> = {
             linkedin: 0, telegram: 0, x: 0, facebook: 0,
-            discord: 0, reddit: 0, bluesky: 0
+            discord: 0, reddit: 0, bluesky: 0, devto: 0, medium: 0
         };
 
         for (const post of history) {
@@ -35,6 +35,8 @@ export class AnalyticsService {
             discordShares: platformCounts['discord'],
             redditShares: platformCounts['reddit'],
             blueskyShares: platformCounts['bluesky'],
+            devtoShares: platformCounts['devto'],
+            mediumShares: platformCounts['medium'],
             successRate
         };
     }

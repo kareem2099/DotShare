@@ -78,7 +78,7 @@ export class StorageManager {
         this._context.globalState.update('lastPost', postData);
     }
 
-    public recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
+    public recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky' | 'devto' | 'medium', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
         const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
         const postIndex = history.findIndex(post => post.id === postId);
 
@@ -253,6 +253,8 @@ export class StorageManager {
         let discordShares = 0;
         let redditShares = 0;
         let blueskyShares = 0;
+        let devtoShares = 0;
+        let mediumShares = 0;
 
         for (const post of history) {
             for (const share of post.shares) {
@@ -264,6 +266,8 @@ export class StorageManager {
                     case 'discord': discordShares++; break;
                     case 'reddit': redditShares++; break;
                     case 'bluesky': blueskyShares++; break;
+                    case 'devto': devtoShares++; break;
+                    case 'medium': mediumShares++; break;
                 }
 
                 if (share.success) {
@@ -288,6 +292,8 @@ export class StorageManager {
             discordShares,
             redditShares,
             blueskyShares,
+            devtoShares,
+            mediumShares,
             successRate
         };
     }
@@ -400,6 +406,46 @@ export class StorageManager {
             await this._context.secrets.store(savedApisKey, JSON.stringify(updatedApis));
         } catch (error) {
             Logger.error('Error deleting API configuration:', error);
+            throw error;
+        }
+    }
+
+    public async clearAllCredentials(): Promise<void> {
+        try {
+            Logger.info('🗑️ Clearing all credentials and saved APIs from secure storage...');
+            
+            // 1. Clear individual platform secrets and model API keys
+            const secretKeys = [
+                'linkedinToken',
+                'telegramBot', 'telegramChat',
+                'facebookToken', 'facebookPageToken', 'facebookPageId',
+                'discordWebhookUrl',
+                'redditAccessToken', 'redditRefreshToken',
+                'blueskyIdentifier', 'blueskyPassword',
+                'xAccessToken', 'xAccessSecret',
+                'redditClientId', 'redditClientSecret', 'redditUsername', 'redditPassword',
+                'geminiApiKey', 'openaiApiKey', 'xaiApiKey',
+                'devtoApiKey', 'mediumAccessToken'
+            ];
+
+            for (const key of secretKeys) {
+                await this._context.secrets.delete(key);
+            }
+
+            // 2. Clear all saved API configurations lists (both from secrets and globalState)
+            const platforms = ['linkedin', 'telegram', 'x', 'facebook', 'discord', 'reddit', 'bluesky', 'devto', 'medium'];
+            for (const platform of platforms) {
+                const key = `savedApis_${platform}`;
+                await this._context.secrets.delete(key);
+                this._context.globalState.update(key, undefined);
+            }
+            
+            // Optional: Unset the selected model so they are completely "logged out"
+            this._context.globalState.update('selectedModel', undefined);
+            
+            Logger.info('✅ All credentials cleared successfully.');
+        } catch (error) {
+            Logger.error('Failed to clear all credentials:', error);
             throw error;
         }
     }

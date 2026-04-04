@@ -27,19 +27,33 @@ function getMimeType(filePath: string): string {
 function createThreadChunks(text: string, maxLength = 270): string[] {
     if (text.length <= 280) return [text];
 
-    const words = text.split(' ');
+    // Split by any whitespace including newlines
+    const words = text.split(/\s+/);
     const chunks: string[] = [];
     let currentChunk = '';
 
     for (const word of words) {
-        if ((currentChunk + ' ' + word).length > maxLength) {
-            chunks.push(currentChunk.trim());
-            currentChunk = word;
+        if (!word) continue;
+        const space = currentChunk ? ' ' : '';
+        
+        if ((currentChunk + space + word).length > maxLength) {
+            if (!currentChunk) {
+                // The word itself is longer than maxLength! Force split it.
+                let remainingWord = word;
+                while (remainingWord.length > maxLength) {
+                    chunks.push(remainingWord.slice(0, maxLength));
+                    remainingWord = remainingWord.slice(maxLength);
+                }
+                currentChunk = remainingWord;
+            } else {
+                chunks.push(currentChunk);
+                currentChunk = word;
+            }
         } else {
-            currentChunk += (currentChunk ? ' ' : '') + word;
+            currentChunk += space + word;
         }
     }
-    if (currentChunk) chunks.push(currentChunk.trim());
+    if (currentChunk) chunks.push(currentChunk);
 
     return chunks.map((chunk, index) => `${chunk} (${index + 1}/${chunks.length})`);
 }

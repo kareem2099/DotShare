@@ -1,62 +1,80 @@
 import * as vscode from 'vscode';
 import { DotShareProvider } from './ui/DotShareProvider';
+import { DotShareWebView } from './ui/DotShareWebView';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
-import { AnalyticsPanel } from './ui/AnalyticsPanel';
-import { HistoryService } from './services/HistoryService';
-import { AnalyticsService } from './services/AnalyticsService';
 import { Scheduler } from './core/scheduler';
 import { Logger } from './utils/Logger';
 
 export async function activate(context: vscode.ExtensionContext) {
-    Logger.info('DotShare extension is now active!');
+    Logger.init(context);
+    Logger.section('DotShare v3.0 Activating (Hybrid Mode)');
 
-    // Run migration for legacy data to secure storage
+    // ── Data / Storage ────────────────────────────────────────
     const storageManager = new StorageManager(context);
-    storageManager.migrateLegacyData().catch(Logger.error);
+    storageManager.migrateLegacyData().catch((e) => Logger.error('Migration failed', e));
 
-    const historyService = new HistoryService(context.globalState);
-    const analyticsService = new AnalyticsService();
-
+    // ── 1. Sidebar Provider ───────────────────────────────────
     const provider = new DotShareProvider(context.extensionUri, context);
-
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(DotShareProvider.viewType, provider)
     );
 
-    // Simple commands that just focus the view or show info
-    const commands = ['generatePost', 'shareToLinkedIn', 'shareToTelegram'];
-    commands.forEach(cmd => {
-        context.subscriptions.push(vscode.commands.registerCommand(`dotshare.${cmd}`, () => {
-            // You can focus the view here
-            vscode.commands.executeCommand('workbench.view.extension.dotshare-activity-bar');
-        }));
-    });
+    // ── 2. Command that opens the main WebView based on the button ──
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.openFullWebview', (page = 'post', options?: any) => {
+            // If a specific platform is requested, open the dedicated platform post panel
+            // (which correctly selects threads / social / blogs workspace via platform-config).
+            const platform = options?.platform as string | undefined;
+            if (page === 'post' && platform) {
+                DotShareWebView.createPlatformPost(context, platform);
+            } else {
+                DotShareWebView.createOrShow(context, page, options);
+            }
+        })
+    );
 
-    // What's New command
+    // ── 3. Redirect old commands to open the Post page ──────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.generatePost', () => {
+            vscode.commands.executeCommand('dotshare.openFullWebview', 'post');
+        }),
+        vscode.commands.registerCommand('dotshare.shareToLinkedIn', () => {
+            vscode.commands.executeCommand('dotshare.openFullWebview', 'post', { platform: 'linkedin' });
+        }),
+        vscode.commands.registerCommand('dotshare.shareToTelegram', () => {
+            vscode.commands.executeCommand('dotshare.openFullWebview', 'post', { platform: 'telegram' });
+        }),
+        vscode.commands.registerCommand('dotshare.shareToDevTo', () => {
+            DotShareWebView.createPlatformPost(context, 'devto');
+        }),
+        vscode.commands.registerCommand('dotshare.shareToMedium', () => {
+            DotShareWebView.createPlatformPost(context, 'medium');
+        })
+    );
+
+    // ── 4. Redirect stats to open the Analytics page ──────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.showAnalytics', () => {
+            DotShareWebView.createOrShow(context, 'analytics');
+        })
+    );
+
+    // ── What's New ────────────────────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.whatsNew', () => {
             WhatsNewProvider.show(context);
         })
     );
-
-    // Magic addition: auto-run on update
     await checkVersionAndShowWhatsNew(context);
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('dotshare.showAnalytics', () => {
-            AnalyticsPanel.createOrShow(context.extensionUri, historyService, analyticsService);
-        })
-    );
-
-    // ── URI Handler ────────────────────────────────────────────────────────────
-    // Handles: vscode://freerave.dotshare/auth?platform=linkedin&access_token=...
+    // ── URI Handler (OAuth callback) ──────────────────────────
     const uriHandler = vscode.window.registerUriHandler({
         async handleUri(uri: vscode.Uri) {
             if (uri.path !== '/auth') return;
 
             const params = new URLSearchParams(uri.query);
-            const platform    = params.get('platform');
+            const platform = params.get('platform');
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');
 
@@ -66,119 +84,86 @@ export async function activate(context: vscode.ExtensionContext) {
             }
 
             try {
-                // Save tokens to VS Code secure storage
                 switch (platform) {
-                    case 'linkedin':
-                        await context.secrets.store('linkedinToken', accessToken);
-                        break;
-
+                    case 'linkedin': await context.secrets.store('linkedinToken', accessToken); break;
                     case 'x':
                         await context.secrets.store('xAccessToken', accessToken);
-                        if (refreshToken) {
-                            await context.secrets.store('xRefreshToken', refreshToken);
-                        }
+                        if (refreshToken) await context.secrets.store('xRefreshToken', refreshToken);
                         break;
-
-                    case 'facebook':
-                        await context.secrets.store('facebookToken', accessToken);
-                        break;
-
+                    case 'facebook': await context.secrets.store('facebookToken', accessToken); break;
                     case 'reddit':
                         await context.secrets.store('redditAccessToken', accessToken);
-                        if (refreshToken) {
-                            await context.secrets.store('redditRefreshToken', refreshToken);
-                        }
+                        if (refreshToken) await context.secrets.store('redditRefreshToken', refreshToken);
                         break;
-
                     default:
                         vscode.window.showErrorMessage(`DotShare: Unknown platform "${platform}"`);
                         return;
                 }
 
-                // Notify the webview to refresh its configuration
-                provider.postMessage({ command: 'loadConfiguration' });
+                // Reload config through the MessageHandler so the full updateConfiguration
+                // payload (token values, theme, language, translations) is re-sent to the webview.
+                provider.reloadConfiguration();
+                DotShareWebView.reloadConfiguration();
 
-                // Show success notification
                 const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
                 vscode.window.showInformationMessage(
                     `✓ ${platformName} connected successfully!`,
-                    'Open DotShare'
-                ).then(selection => {
-                    if (selection === 'Open DotShare') {
-                        vscode.commands.executeCommand('workbench.view.extension.dotshare-activity-bar');
+                    'Open Hub'
+                ).then(sel => {
+                    if (sel === 'Open Hub') {
+                        vscode.commands.executeCommand('workbench.view.extension.dotshare-container');
                     }
                 });
 
-                Logger.info(`DotShare: ${platform} token saved via OAuth callback`);
+                Logger.info(`OAuth callback: ${platform} token saved`);
 
             } catch (error) {
-                Logger.error('DotShare URI Handler error:', error);
+                Logger.error('URI Handler error', error);
                 vscode.window.showErrorMessage('DotShare: Failed to save token. Please try again.');
             }
         }
     });
-
     context.subscriptions.push(uriHandler);
-    // ──────────────────────────────────────────────────────────────────────────
 
-    // Start the scheduler for scheduled posts
-    const storagePath = context.globalStorageUri ? context.globalStorageUri.fsPath : context.extensionPath;
+    // ── Scheduler ─────────────────────────────────────────────
+    const storagePath = context.globalStorageUri
+        ? context.globalStorageUri.fsPath
+        : context.extensionPath;
 
-    // Create credentials getter for scheduler
-    const credentialsGetter = async () => {
-        const linkedinToken = await context.secrets.get('linkedinToken') || '';
-        const telegramBot = await context.secrets.get('telegramBot') || '';
-        const telegramChat = await context.secrets.get('telegramChat') || '';
-        const xAccessToken = await context.secrets.get('xAccessToken') || '';
-        const xAccessSecret = await context.secrets.get('xAccessSecret') || '';
-        const facebookToken = await context.secrets.get('facebookToken') || '';
-        const discordWebhook = await context.secrets.get('discordWebhook') || '';
-        const redditAccessToken = await context.secrets.get('redditAccessToken') || '';
-        const redditRefreshToken = await context.secrets.get('redditRefreshToken') || '';
-        const blueskyIdentifier = await context.secrets.get('blueskyIdentifier') || '';
-        const blueskyPassword = await context.secrets.get('blueskyPassword') || '';
-
-        return {
-            linkedinToken,
-            telegramBot,
-            telegramChat,
-            xAccessToken,
-            xAccessSecret,
-            facebookToken,
-            discordWebhook,
-            redditAccessToken,
-            redditRefreshToken,
-            blueskyIdentifier,
-            blueskyPassword
-        };
-    };
+    const credentialsGetter = async () => ({
+        linkedinToken: await context.secrets.get('linkedinToken') || '',
+        telegramBot: await context.secrets.get('telegramBot') || '',
+        telegramChat: await context.secrets.get('telegramChat') || '',
+        xAccessToken: await context.secrets.get('xAccessToken') || '',
+        xAccessSecret: await context.secrets.get('xAccessSecret') || '',
+        facebookToken: await context.secrets.get('facebookToken') || '',
+        discordWebhook: await context.secrets.get('discordWebhook') || '',
+        redditAccessToken: await context.secrets.get('redditAccessToken') || '',
+        redditRefreshToken: await context.secrets.get('redditRefreshToken') || '',
+        blueskyIdentifier: await context.secrets.get('blueskyIdentifier') || '',
+        blueskyPassword: await context.secrets.get('blueskyPassword') || '',
+    });
 
     const scheduler = new Scheduler(storagePath, undefined, credentialsGetter);
     scheduler.start();
+    context.subscriptions.push({ dispose: () => scheduler.stop() });
 
-    // Clean up scheduler on deactivation
-    context.subscriptions.push({
-        dispose: () => scheduler.stop()
-    });
+    Logger.info('DotShare v3.0 activated ✅');
 }
 
-// Helper function to keep activate clean
-async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext) {
+async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext): Promise<void> {
     try {
         const currentVersion = context.extension.packageJSON.version;
         const previousVersion = context.globalState.get<string>('dotshareVersion');
-
         if (currentVersion !== previousVersion) {
-            // If version changed, open what's new page
             WhatsNewProvider.show(context);
-            // And save new version so it doesn't open again next time
             await context.globalState.update('dotshareVersion', currentVersion);
         }
     } catch (error) {
-        Logger.error('Failed to check for updates:', error);
+        Logger.error('checkVersionAndShowWhatsNew failed', error);
     }
 }
 
 export function deactivate(): void {
-    // Cleanup if needed
+    Logger.info('DotShare deactivated');
 }
