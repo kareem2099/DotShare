@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-04 — "The Publishing Suite"
+
+### Added
+- **Dev.to Integration**: Publish markdown articles to Dev.to via API. Supports title, tags (max 4), canonical URL, description, cover image URL, series, and draft/publish toggle. Auth via `api-key` header stored in VS Code SecretStorage.
+- **Medium Integration**: Publish articles to Medium via API. Supports markdown/HTML content format, tags (max 5), canonical URL, and publish status (`public` | `draft` | `unlisted`). Auth via Bearer token. Normalizes `published` → `public` automatically.
+- **Blog Publish Page**: Dedicated long-form publishing UI separated from social post logic. Features: Title, Tags (chip input), Description, Cover Image URL, Canonical URL, Series, and Draft vs. Publish toggle per platform.
+- **Active File Reader**: "Load Current File" button reads the active `.md` file from VS Code editor and populates the publish form automatically.
+- **YAML Frontmatter Parser**: Auto-extracts `title`, `tags`, `canonical_url`, `description`, `cover_image`, `series` from markdown frontmatter to pre-fill the publishing form.
+- **Platform-First Navigation**: Sidebar redesigned with platform icons as primary navigation. Selecting a platform auto-switches the workspace (Threads / Social / Blogs) based on `PLATFORM_CONFIGS`.
+- **Platform Config System**: New `platform-config.ts` as single source of truth for all platform metadata — `maxChars`, `supportsThreads`, `workspaceType`, `charCountMethod`, `authType`, and more. Shared between extension and WebView.
+- **X Premium Toggle**: Premium toggle in the platform header for X — switches character limit from 280 to 25,000.
+- **Thread Composer**: Dedicated thread-building UI for X and Bluesky with per-post character counters and media attachments.
+- **`PostExecutor` class**: Centralized platform execution engine decoupled from VS Code UI concerns. Used by the scheduler for clean background posting.
+- **`CredentialProvider` refactor**: Added `getRedditSubreddit()` method and `redditSubreddit` field. Extracted shared `resolve()` helper to eliminate credential-fetching duplication.
+- **Dev.to image policy**: Clarified that Dev.to API does not support direct image uploads — only public URLs are accepted. Local files are skipped with a descriptive logger warning.
+- **Medium image policy**: Local files skipped with warning; HTTP/HTTPS URLs embedded directly in markdown body.
+- **`countChars()` fix**: Twitter URL counting now always replaces URLs with exactly 23 chars (was incorrectly using `Math.min(url.length, 23)`).
+- **`types.ts` v3 overhaul**: Added `BlogPost`, `FrontMatter`, `PublishTarget`, `PublishResult`, `DraftStatus`, `WebViewPage`, `DevToArticle`, `MediumPost`, `WebViewState`, and related response types. Added `devto` and `medium` to `SocialPlatform` union and `AnalyticsSummary`.
+
+### Fixed
+- **`PostHandler` handlers**: `handleShareToFacebook`, `handleShareToDiscord`, `handleShareToX`, `handleShareToBlueSky` now correctly read post content from the incoming `message` object instead of relying on `historyService.getLastPost()`.
+- **Reddit subreddit hardcode**: Removed hardcoded `subreddit: 'test'` from both `PostHandler` and `PostExecutor`. Subreddit is now read from `CredentialProvider.getRedditSubreddit()` with a clear error if not configured.
+- **Discord not-implemented**: `shareToDiscordWithUpdate` now returns a user-facing `'Discord sharing coming soon!'` error instead of silently logging.
+- **`handleShareThread` platform validation**: Now uses `PLATFORM_CONFIGS[platform].supportsThreads` instead of a hardcoded `platform !== 'x' && platform !== 'bluesky'` check.
+- **`unifiedSharePost` success counter**: Fixed — now correctly increments `successCount` per platform and reports accurate partial-success messages.
+- **`devto.ts` ESLint**: Removed unused `FormData` and `fs` imports after image upload feature was removed.
+- **`PostExecutor` ESLint**: Removed empty `onSuccess: () => {}` callbacks that triggered `@typescript-eslint/no-empty-function`.
+
+### Changed
+- **WebView workspace tabs removed**: Replaced "Threads / Social / Blogs" tab bar with a dynamic `platform-header` element. Workspace switching is now driven by `switchPlatform()` in `app.ts` using `PLATFORM_CONFIGS[platform].workspaceType`.
+- **`shareToDevTo` signature**: Extended with `title`, `tags`, `description`, `coverImage`, `published`, `canonicalUrl`, `series` overrides — all respected in the API payload.
+- **`shareToMedium` signature**: Extended with `title`, `tags`, `publishStatus`, `canonicalUrl`, `contentFormat` overrides. Added `normalizeMediumPublishStatus()` to handle `published` → `public` mapping.
+- **`CredentialProvider`**: Refactored to use private `resolve()` helper — eliminates the `if (credentialsGetter) ... else ...` pattern repeated in every method.
+- **`PostHandler` Reddit fallback title**: Now uses `post.text.substring(0, 300)` instead of hardcoded `'Post from DotShare'`.
+- **`handleShareBlog` publish status mapping**: `published` → `public` is now applied consistently before passing to Medium.
+
+### Removed
+- **`uploadImageToDevTo()`**: Removed — Dev.to has no public image upload API. Replaced with URL-only handling + logger warning for local files.
+- **`Share To` card in social workspace**: The multi-platform checkbox grid inside the social composer was removed. Platform is now selected from the sidebar.
+- **Old workspace tabs HTML**: `<div class="workspace-tabs">` and `workspace-tab` buttons removed from `index.html`.
+
+---
+
 ## [2.4.0] - 2026-03-11
 
 ### Added
@@ -51,15 +94,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AI Providers (Gemini, OpenAI, xAI)**: All refactored to use shared `buildProjectContext()` from `contextBuilder.ts` instead of each building their own context
 - **Post Generation Flow**: `postContent` is set on `hashtagContext` after AI text is generated, enabling content-based hashtag detection
 
-### Technical Details
-- Hashtag suggestions sorted by relevance score descending; top 5 selected
-- Git log scanned for last 3–5 commits to infer hashtags (`#Fix`, `#Feature`, `#Refactor`, `#Docs`, `#Testing`)
-- `workspace.getConfiguration('dotshare').get('customHashtags', [])` reads user-defined tags with highest priority (relevance 1.0)
-
 ---
 
 ## [2.2.0] - 2026-01-22
-
 
 ### Added
 - **Clean Architecture Refactoring**: Complete transformation from single Monolithic Class (2000+ lines) to 9 focused files with clear separation of concerns
@@ -97,20 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **File Organization**: Improved maintainability with 160-250 lines per file vs previous 2000+ line Monolithic Class
 - **Error Handling**: Comprehensive error handling and user notifications throughout the application
 - **Code Quality**: 100% TypeScript coverage with zero errors and warnings
-- **Developer Experience**: Fast compilation, clear navigation, and self-documenting code structure
-- **Security**: Enterprise-grade credential encryption using OS keychain integration
-- **User Interface**: Professional design with modern visual effects and responsive interactions
-- **Scheduling Performance**: Optimized check intervals and intelligent post execution management
 
-### Technical Details
-- **Architecture Quality**: Professional clean architecture with 9 focused files and clear separation of concerns
-- **Code Quality**: 100% type safety, zero ESLint warnings, comprehensive error handling
-- **Security**: API credentials encrypted using VSCode SecretStorage with automatic migration
-- **UI Design**: Premium design system with glassmorphism, gradients, and micro-interactions
-- **Scheduler System**: Bulletproof scheduling with atomic operations, retry logic, and hybrid execution
-- **Performance**: Fast compilation, optimized intervals, and efficient resource usage
-- **Maintainability**: Modular architecture enabling easy feature additions and bug fixes
-- **Scalability**: Clean dependency injection supporting platform and functionality expansion
+---
 
 ## [2.1.0] - 2025-12-24
 
@@ -120,13 +145,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Production Default**: Configured default server URL to point to live Railway instance for seamless out-of-the-box experience
 
 ### Fixed
-- **Linter Cleanup**: Resolved all ESLint warnings in `src/reddit.ts` and `src/telegram.ts` regarding unused imports (`PostData`, `FormData`)
-- **Type Safety**: Fixed `no-explicit-any` warnings in `src/cli/commands.ts` by implementing strict typing (`Record<string, any>`) and proper error casting
-- **CLI Authentication**: Fixed `open` library compatibility issues (CommonJS/ESM) to ensure browser opens correctly during OAuth login
+- **Linter Cleanup**: Resolved all ESLint warnings in `src/reddit.ts` and `src/telegram.ts` regarding unused imports
+- **Type Safety**: Fixed `no-explicit-any` warnings in `src/cli/commands.ts`
+- **CLI Authentication**: Fixed `open` library compatibility issues (CommonJS/ESM)
 - **Connection Fallback**: Fixed default connection logic to ensure CLI connects to production server when no local config exists
 
-### Changed
-- Refactored `linkedin.ts`, `telegram.ts`, `reddit.ts`, and `commands.ts` to consume `DEFAULT_SERVER_URL` from the shared constant file
+---
 
 ## [2.0.0] - 2025-10-28
 
@@ -141,90 +165,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed duplicate currentLang variables causing language translations to not update
 - Fixed VS Code API multiple acquisition error preventing webview from loading
-- Fixed vscode undefined error in modal handlers causing "Choose AI Model" button to fail
+- Fixed vscode undefined error in modal handlers
 - Fixed Saved APIs modal close button event listener missing
 - Fixed analytics dashboard showing zeros with tab click refresh logic
 - Fixed automatic configuration loading when extension opens
-- Removed "Required"/"Optional" badges from platform cards for cleaner UI
-- Fixed platform selector not showing configured platforms
-- Fixed remaining vscode undefined errors during initialization
-- Fixed post-history.ts vscode undefined error
 - Fixed Schedule Post and Share Now buttons not activating when platforms selected
-- Fixed button enable/disable logic for manual posts
-- Fixed 'postMessage undefined' error during initialization
-- Fixed media attachment section visibility for manual posts
 - Fixed media attachment click handler to work on entire area
-- Added null checks for drag and drop handlers
-- Fixed vscode.postMessage calls to use safe accessor across multiple files
-- Added LinkedIn & Telegram share message handlers
-- Fixed individual share buttons to send manual post content
-- Implemented multi-platform sharing with manual posts
-- Included attached media in all sharing operations
 - Fixed Reddit sharing errors by removing hardcoded subreddit
 
-### Changed
-- Updated UI to support manual post creation workflow with reorganized layout
-- Updated version number to 2.0.0
-
-### Technical Details
-- Enhanced webview initialization and event handling
-- Improved error recovery and user feedback
-- Added comprehensive TypeScript type safety improvements
+---
 
 ## [1.0.0] - 2025-10-18
 
 ### Added
-- **Expanded Platform Support**:
-  - 🐦 **X/Twitter Integration**: Complete posting to X (formerly Twitter) with full API support
-  - 📘 **Facebook Integration**: Post to Facebook profiles and pages with page management
-  - 💬 **Discord Integration**: Webhook-based posting to Discord channels and servers
-  - 🟠 **Reddit Integration**: Full Reddit post management including flair, spoilers, link vs self posts
-  - 🦋 **BlueSky Integration**: Early adopter support for decentralized social media platform
-- **Enhanced AI Capabilities**:
-  - 🧠 **Multiple AI Providers**: Support for Gemini, OpenAI, and xAI providers
-  - 🎯 **Model Selection**: Choose specific models from each AI provider
-  - ✨ **Improved Content Generation**: Enhanced AI-powered post suggestions
-- **Advanced Analytics & Tracking**:
-  - 📊 **Analytics Dashboard**: Comprehensive tracking of posting performance across all platforms
-  - 📈 **Platform-specific Metrics**: Individual success rates and share counts per platform
-  - 📋 **Post History**: Complete history with timestamps, AI models used, and success tracking
-- **Enhanced Scheduling System**:
-  - ⏰ **Multi-platform Scheduling**: Schedule single posts to multiple platforms simultaneously
-  - 🎯 **Advanced Status Tracking**: Detailed status updates for each platform in scheduled posts
-  - ❌ **Error Handling**: Comprehensive error reporting and retry mechanisms for failed posts
-- **API Configuration Management**:
-  - 💾 **Saved Configurations**: Save and manage multiple API keys per platform
-  - 🔄 **Quick Switching**: Easy switching between different account configurations
-  - 🏷️ **Named Configurations**: Label and organize your API settings
-- **Media Support**:
-  - 📎 **Multi-file Attachments**: Support for uploading images and videos
-  - 🎨 **Cross-platform Media**: Media optimization per platform requirements
-- **Reddit-specific Features**:
-  - 🔗 **Post Types**: Support for both link posts and self posts
-  - 🏷️ **Flair Selection**: Choose appropriate flairs for Reddit communities
-  - 🚨 **Spoiler Support**: Mark posts as spoilers when needed
-  - ✏️ **Post Management**: Edit and delete Reddit posts from within VSCode
-- **User Interface Enhancements**:
-  - 🖥️ **Activity Bar Integration**: Rich webview interface in VSCode sidebar
-  - 🌐 **Multi-language Support**: Arabic and Russian translations
-  - 📱 **Responsive Design**: Improved mobile and tablet compatibility
-  - 🎨 **Dark/Light Themes**: Multiple theme options including Nebula Dark and Cyber Dark
-- **Technical Improvements**:
-  - 🔒 **Type Safety**: Comprehensive TypeScript interfaces throughout codebase
-  - ⚡ **Performance**: Optimized webview loading and API interactions
-  - 🐛 **Error Recovery**: Better error handling and user feedback
-  - 📁 **Code Organization**: Modular architecture supporting platform expansion
+- **Expanded Platform Support**: X/Twitter, Facebook, Discord, Reddit, BlueSky
+- **Enhanced AI Capabilities**: Multiple AI providers (Gemini, OpenAI, xAI), model selection
+- **Advanced Analytics & Tracking**: Dashboard, per-platform metrics, post history
+- **Enhanced Scheduling System**: Multi-platform scheduling, advanced status tracking
+- **API Configuration Management**: Saved configurations, quick switching, named configs
+- **Media Support**: Multi-file attachments, cross-platform media optimization
+- **Reddit-specific Features**: Post types, flair selection, spoiler support, post management
+- **User Interface Enhancements**: Activity Bar integration, multi-language support, responsive design
 
-### Changed
-- Updated version number to 1.0.0
-- Enhanced VSCode extension manifest with new commands and configurations
-- Improved error messages and user guidance
-
-### Technical Details
-- Added support for 7 social media platforms (up from 2)
-- Comprehensive API integrations with rate limiting and error handling
-- Advanced scheduling with platform-specific result tracking
-- Full internationalization support for multiple languages
+---
 
 ## [0.0.1] - 2025-10-03
 
@@ -235,9 +198,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scheduled posting feature for CLI
 - Multi-language support (English, Arabic, Russian)
 - Integrated webview UI for managing posts
-
-### Technical Details
-- Extension built with TypeScript
-- Webview for user interface
-- Command-line scheduler tool
-- Support for multiple AI providers

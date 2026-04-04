@@ -7,7 +7,7 @@ import { AnalyticsService } from '../services/AnalyticsService';
 import { PostData } from '../types';
 import { ScheduledPostsStorage, generateScheduledPostId } from '../core/scheduled-posts';
 import { Logger } from '../utils/Logger';
-
+import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 
 // Imports for posting functions
 import { generatePost as generateGeminiPost } from '../ai/gemini';
@@ -55,15 +55,15 @@ export class PostHandler {
                     break;
 
                 case 'shareToFacebook':
-                    await this.handleShareToFacebook();
+                    await this.handleShareToFacebook(message);
                     break;
 
                 case 'shareToDiscord':
-                    await this.handleShareToDiscord();
+                    await this.handleShareToDiscord(message);
                     break;
 
                 case 'shareToX':
-                    await this.handleShareToX();
+                    await this.handleShareToX(message);
                     break;
 
                 case 'shareToReddit':
@@ -71,7 +71,7 @@ export class PostHandler {
                     break;
 
                 case 'shareToBlueSky':
-                    await this.handleShareToBlueSky();
+                    await this.handleShareToBlueSky(message);
                     break;
 
                 case 'shareToDevTo':
@@ -119,7 +119,6 @@ export class PostHandler {
                     break;
 
                 case 'openSupportLink':
-                    // Open Buy Me a Coffee link in external browser
                     vscode.env.openExternal(vscode.Uri.parse('https://www.buymeacoffee.com/freerave'));
                     break;
 
@@ -131,6 +130,10 @@ export class PostHandler {
             this.sendError(`Post error: ${errorMessage}`);
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Generate Post
+    // ─────────────────────────────────────────────────────────────────────────
 
     private async handleGeneratePost(message: Message): Promise<void> {
         const selectedModel = message.selectedModel as { provider: string; apiKey: string; model: string } | undefined;
@@ -146,9 +149,9 @@ export class PostHandler {
         const maxRetries = 1;
         while (retryCount <= maxRetries) {
             try {
-                if (provider === 'gemini') post = await generateGeminiPost(apiKey, model);
+                if (provider === 'gemini')      post = await generateGeminiPost(apiKey, model);
                 else if (provider === 'openai') post = await generateOpenAIPost(apiKey, model);
-                else if (provider === 'xai') post = await generateXAIPost(apiKey, model);
+                else if (provider === 'xai')    post = await generateXAIPost(apiKey, model);
                 else if (provider === 'claude') post = await generateClaudePost(apiKey, model);
                 else {
                     this.sendError('Unsupported AI provider.');
@@ -178,100 +181,73 @@ export class PostHandler {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Individual Platform Handlers — all receive post data from message
+    // ─────────────────────────────────────────────────────────────────────────
+
     private async handleShareToLinkedIn(message: Message): Promise<void> {
         const msg = message as { linkedinToken?: string; post?: string; mediaFilePaths?: string[] };
-        const postText = msg.post || '';
-        const mediaPaths = msg.mediaFilePaths || [];
-
-        const linkedinPost: PostData = {
-            text: postText,
-            media: mediaPaths
-        };
-
-        await this.shareToLinkedInWithUpdate(linkedinPost, msg.linkedinToken, undefined);
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
+        await this.shareToLinkedInWithUpdate(postData, msg.linkedinToken, undefined);
     }
 
     private async handleShareToTelegram(message: Message): Promise<void> {
         const msg = message as { telegramBot?: string; telegramChat?: string; post?: string; mediaFilePaths?: string[] };
-        const postText = msg.post || '';
-        const mediaPaths = msg.mediaFilePaths || [];
-
-        const telegramPost: PostData = {
-            text: postText,
-            media: mediaPaths
-        };
-
-        await this.shareToTelegramWithUpdate(telegramPost, msg.telegramBot, msg.telegramChat, undefined);
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
+        await this.shareToTelegramWithUpdate(postData, msg.telegramBot, msg.telegramChat, undefined);
     }
 
-    private async handleShareToFacebook(): Promise<void> {
-        const facebookPost = this.historyService.getLastPost();
-        if (!facebookPost) {
-            this.sendError('No post generated. Generate first.');
-            return;
-        }
-
+    private async handleShareToFacebook(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[] };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
         const history = this.historyService.getHistory();
-        const mostRecentPost = history[0];
-        const postId = mostRecentPost?.id;
-
-        await this.shareToFacebookWithUpdate(facebookPost, postId);
+        await this.shareToFacebookWithUpdate(postData, history[0]?.id);
     }
 
-    private async handleShareToDiscord(): Promise<void> {
-        const discordPost = this.historyService.getLastPost();
-        if (!discordPost) {
-            this.sendError('No post generated. Generate first.');
-            return;
-        }
-
+    private async handleShareToDiscord(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[] };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
         const history = this.historyService.getHistory();
-        const mostRecentPost = history[0];
-        const postId = mostRecentPost?.id;
-
-        await this.shareToDiscordWithUpdate(discordPost, postId);
+        await this.shareToDiscordWithUpdate(postData, history[0]?.id);
     }
 
-    private async handleShareToX(): Promise<void> {
-        const xPost = this.historyService.getLastPost();
-        if (!xPost) {
-            this.sendError('No post generated. Generate first.');
-            return;
-        }
-
+    private async handleShareToX(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[] };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
         const history = this.historyService.getHistory();
-        const mostRecentPost = history[0];
-        const postId = mostRecentPost?.id;
-
-        await this.shareToXWithUpdate(xPost, postId);
+        await this.shareToXWithUpdate(postData, history[0]?.id);
     }
 
     private async handleShareToReddit(message: Message): Promise<void> {
-        const msg = message as { redditAccessToken?: string; redditRefreshToken?: string; post?: string; mediaFilePaths?: string[] };
-        const postText = msg.post || '';
-        const mediaPaths = msg.mediaFilePaths || [];
-
-        const redditPost: PostData = {
-            text: postText,
-            media: mediaPaths
-        };
-
-        await this.shareToRedditWithUpdate(redditPost, message, undefined);
+        const msg = message as { post?: string; mediaFilePaths?: string[] };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
+        await this.shareToRedditWithUpdate(postData, message, undefined);
     }
 
-    private async handleShareToBlueSky(): Promise<void> {
-        const blueskyPost = this.historyService.getLastPost();
-        if (!blueskyPost) {
-            this.sendError('No post generated. Generate first.');
-            return;
-        }
-
+    private async handleShareToBlueSky(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[] };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
         const history = this.historyService.getHistory();
-        const mostRecentPost = history[0];
-        const postId = mostRecentPost?.id;
-
-        await this.shareToBlueSkyWithUpdate(blueskyPost, postId);
+        await this.shareToBlueSkyWithUpdate(postData, history[0]?.id);
     }
+
+    private async handleShareToDevTo(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; published?: boolean };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
+        const history = this.historyService.getHistory();
+        await this.shareToDevToWithUpdate(postData, message, history[0]?.id);
+    }
+
+    private async handleShareToMedium(message: Message): Promise<void> {
+        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; publishStatus?: string };
+        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
+        const history = this.historyService.getHistory();
+        await this.shareToMediumWithUpdate(postData, message, history[0]?.id);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Unified Share
+    // ─────────────────────────────────────────────────────────────────────────
 
     private async handleUnifiedShare(message: Message): Promise<void> {
         const platforms = message.platforms as string[];
@@ -288,14 +264,8 @@ export class PostHandler {
             return;
         }
 
-        const postData: PostData = {
-            text: post.trim(),
-            media: mediaFilePaths || []
-        };
-
+        const postData: PostData = { text: post.trim(), media: mediaFilePaths || [] };
         const history = this.historyService.getHistory();
-        const mostRecentPost = history[0];
-        const postId = mostRecentPost?.id;
 
         this.view.webview.postMessage({
             command: 'status',
@@ -303,30 +273,35 @@ export class PostHandler {
             type: 'info'
         });
 
-        await this.unifiedSharePost(platforms, postData, mediaFilePaths, postId);
+        await this.unifiedSharePost(platforms, postData, mediaFilePaths, history[0]?.id);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Analytics & History
+    // ─────────────────────────────────────────────────────────────────────────
 
     private async handleLoadHistory(): Promise<void> {
         const postHistory = this.historyService.getHistory();
         const analytics = this.analyticsService.calculate(postHistory);
 
-        this.view.webview.postMessage({
-            command: 'updatePostHistory',
-            postHistory: postHistory
-        });
-
-        this.view.webview.postMessage({
-            command: 'updateAnalytics',
-            analytics: analytics
-        });
+        this.view.webview.postMessage({ command: 'updatePostHistory', postHistory });
+        this.view.webview.postMessage({ command: 'updateAnalytics', analytics });
     }
 
     private async handleLoadAnalytics(): Promise<void> {
         const analytics = this.analyticsService.calculate(this.historyService.getHistory());
-        this.view.webview.postMessage({
-            command: 'updateAnalytics',
-            analytics: analytics
-        });
+        this.view.webview.postMessage({ command: 'updateAnalytics', analytics });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Scheduled Posts
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private async handleLoadScheduledPosts(): Promise<void> {
+        const storagePath = this.context.globalStorageUri?.fsPath ?? this.context.extensionPath;
+        const scheduledStorage = new ScheduledPostsStorage(storagePath);
+        const allScheduledPosts = scheduledStorage.loadScheduledPosts();
+        this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: allScheduledPosts });
     }
 
     private async handleEditScheduledPost(message: Message): Promise<void> {
@@ -337,45 +312,34 @@ export class PostHandler {
             postText?: string;
         };
 
-        if (!msg.scheduledPostId || !msg.scheduledTime || !msg.selectedPlatforms || msg.selectedPlatforms.length === 0) {
+        if (!msg.scheduledPostId || !msg.scheduledTime || !msg.selectedPlatforms?.length) {
             this.sendError('Invalid edit data: missing post ID, time or platforms');
             return;
         }
 
-        const storagePath = this.context.globalStorageUri ? this.context.globalStorageUri.fsPath : this.context.extensionPath;
-        const scheduledStorage = new ScheduledPostsStorage(storagePath);
-
-        // Ensure scheduledTime has seconds for consistency
         const scheduledTimeLocal = msg.scheduledTime.length === 16 ? msg.scheduledTime + ':00' : msg.scheduledTime;
-
-        // Check if scheduled time is in the future
         const scheduleDate = new Date(scheduledTimeLocal);
-        const now = new Date();
 
-        if (scheduleDate <= now) {
+        if (scheduleDate <= new Date()) {
             this.sendError('Scheduled time must be in the future.');
             return;
         }
 
+        const storagePath = this.context.globalStorageUri?.fsPath ?? this.context.extensionPath;
+        const scheduledStorage = new ScheduledPostsStorage(storagePath);
+
         try {
-            // Update the scheduled post
             scheduledStorage.updateScheduledPost(msg.scheduledPostId, {
                 scheduledTime: scheduledTimeLocal,
                 platforms: msg.selectedPlatforms as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
-                postData: msg.postText ? { text: msg.postText, media: [] } : undefined // Preserve existing media if not updating text
+                postData: msg.postText ? { text: msg.postText, media: [] } : undefined
             });
 
-            // Update UI
             const allScheduledPosts = scheduledStorage.loadScheduledPosts();
-            this.view.webview.postMessage({
-                command: 'updateScheduledPosts',
-                scheduledPosts: allScheduledPosts
-            });
-
+            this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: allScheduledPosts });
             this.sendSuccess('Scheduled post updated successfully!');
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.info('Error editing scheduled post:', errorMessage);
             this.sendError(`Failed to update scheduled post: ${errorMessage}`);
         }
     }
@@ -388,26 +352,20 @@ export class PostHandler {
             mediaFilePaths?: string[];
         };
 
-        if (!msg.scheduledTime || !msg.selectedPlatforms || msg.selectedPlatforms.length === 0) {
+        if (!msg.scheduledTime || !msg.selectedPlatforms?.length) {
             this.sendError('Invalid schedule data: missing time or platforms');
             return;
         }
 
-        if (!msg.postText || !msg.postText.trim()) {
+        if (!msg.postText?.trim()) {
             this.sendError('Cannot schedule empty post');
             return;
         }
 
-        const scheduledDate = new Date(msg.scheduledTime);
-        const postData = {
-            text: msg.postText.trim(),
-            media: msg.mediaFilePaths || []
-        };
-
-        // Ensure scheduledTime has seconds for consistency
         const scheduledTimeLocal = msg.scheduledTime.length === 16 ? msg.scheduledTime + ':00' : msg.scheduledTime;
+        const scheduledDate = new Date(scheduledTimeLocal);
+        const postData = { text: msg.postText.trim(), media: msg.mediaFilePaths || [] };
 
-        // Logging for debugging
         Logger.debug('Schedule post input', {
             userInput: msg.scheduledTime,
             localTimeString: scheduledTimeLocal,
@@ -415,71 +373,46 @@ export class PostHandler {
             unixTimestamp: Math.floor(scheduledDate.getTime() / 1000)
         });
 
-        // Setup storage
-        const storagePath = this.context.globalStorageUri ? this.context.globalStorageUri.fsPath : this.context.extensionPath;
+        const storagePath = this.context.globalStorageUri?.fsPath ?? this.context.extensionPath;
         const scheduledStorage = new ScheduledPostsStorage(storagePath);
 
-        // Separate platforms by scheduling capability
+        // Telegram supports server-side scheduling, others are client-side
         const nativePlatforms = msg.selectedPlatforms.filter(p => p === 'telegram');
-        const localPlatforms = msg.selectedPlatforms.filter(p => p !== 'telegram');
+        const localPlatforms  = msg.selectedPlatforms.filter(p => p !== 'telegram');
 
         try {
-            // Handle Telegram (Server-side scheduling)
             if (nativePlatforms.length > 0) {
-                Logger.info('[DotShare] Processing server-side scheduling for Telegram...');
-
-                // Send to Telegram API immediately with schedule date
-                await this.shareToTelegramWithUpdate(
-                    postData,
-                    undefined, // Use stored bot token
-                    undefined, // Use stored chat id
-                    undefined, // No postId yet
-                    scheduledDate // Server scheduling
-                );
-
-                // Store record for UI display only
-                const telegramPost = {
+                await this.shareToTelegramWithUpdate(postData, undefined, undefined, undefined, scheduledDate);
+                scheduledStorage.addScheduledPost({
                     id: generateScheduledPostId(),
                     scheduledTime: scheduledTimeLocal,
-                    postData: postData,
+                    postData,
                     aiProvider: 'gemini' as const,
                     aiModel: 'gemini-2.5-flash',
                     platforms: ['telegram'] as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
                     status: 'server-scheduled' as const,
                     schedulingType: 'server' as const,
                     created: new Date().toISOString()
-                };
-
-                scheduledStorage.addScheduledPost(telegramPost);
+                });
             }
 
-            // Handle other platforms (Client-side scheduling)
             if (localPlatforms.length > 0) {
-                Logger.info('[DotShare] Processing client-side scheduling for:', localPlatforms.join(', '));
-
-                const localPost = {
+                scheduledStorage.addScheduledPost({
                     id: generateScheduledPostId(),
                     scheduledTime: scheduledTimeLocal,
-                    postData: postData,
+                    postData,
                     aiProvider: 'gemini' as const,
                     aiModel: 'gemini-2.5-flash',
                     platforms: localPlatforms as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
                     status: 'queued' as const,
                     schedulingType: 'client' as const,
                     created: new Date().toISOString()
-                };
-
-                scheduledStorage.addScheduledPost(localPost);
+                });
             }
 
-            // Update UI
             const allScheduledPosts = scheduledStorage.loadScheduledPosts();
-            this.view.webview.postMessage({
-                command: 'updateScheduledPosts',
-                scheduledPosts: allScheduledPosts
-            });
+            this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: allScheduledPosts });
 
-            // Smart nudge: If user scheduled local posts, show support hint
             if (localPlatforms.length > 0) {
                 this.view.webview.postMessage({
                     command: 'status',
@@ -490,168 +423,19 @@ export class PostHandler {
             } else {
                 this.sendSuccess(`Post scheduled successfully for ${scheduledDate.toLocaleString()}`);
             }
-
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.info('Error scheduling post:', errorMessage);
             this.sendError(`Failed to schedule post: ${errorMessage}`);
         }
     }
 
-    // Helper methods for sharing to individual platforms
-    private async shareToFacebookWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
-        try {
-            const facebookToken = await this.context.secrets.get('facebookToken') || '';
-            const facebookPageToken = await this.context.secrets.get('facebookPageToken') || null;
-            const facebookPageId = await this.context.secrets.get('facebookPageId') || undefined;
-            
-            await shareToFacebook(facebookToken, facebookPageToken, { ...post, pageId: facebookPageId });
-            
-            this.sendSuccess('Successfully posted to Facebook!');
-            if (postId) {
-                this.historyService.recordShare(postId, 'facebook', true);
-            }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'facebook', false, errorMessage);
-            }
-            throw new Error(`Error sharing to Facebook: ${errorMessage}`);
-        }
-    }
-
-    private async shareToDiscordWithUpdate(post: PostData, _postId: string | undefined): Promise<void> {
-        Logger.info('Discord sharing not yet implemented', { post, postId: _postId });
-    }
-
-    private async shareToXWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
-        try {
-            const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
-            const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
-            
-            await shareToX(xAccessToken, xAccessSecret, post);
-            
-            this.sendSuccess('Successfully posted to X!');
-            if (postId) {
-                this.historyService.recordShare(postId, 'x', true);
-            }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'x', false, errorMessage);
-            }
-            throw new Error(`Error sharing to X: ${errorMessage}`);
-        } finally {
-            // Re-enable share button
-            this.view.webview.postMessage({ command: 'shareComplete' });
-        }
-    }
-
-    private async shareToRedditWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<string | undefined> {
-        try {
-            const msg = message as { redditAccessToken?: string; redditRefreshToken?: string; post?: string; redditSubreddit?: string; redditTitle?: string; redditFlairId?: string; redditPostType?: string; redditSpoiler?: boolean };
-            const credentials = {
-                accessToken: msg.redditAccessToken || '',
-                refreshToken: msg.redditRefreshToken || undefined
-            };
-
-            const redditPostData = {
-                text: msg.post || '',
-                media: post.media,
-                subreddit: msg.redditSubreddit?.startsWith('r/') ? msg.redditSubreddit.substring(2) : msg.redditSubreddit || '',
-                title: msg.redditTitle || '',
-                flairId: msg.redditFlairId,
-                isSelfPost: msg.redditPostType !== 'link',
-                spoiler: msg.redditSpoiler
-            };
-
-            const postIdOnPlatform = await shareToReddit(credentials.accessToken, credentials.refreshToken, redditPostData);
-
-            if (postId) {
-                this.historyService.recordShare(postId, 'reddit', true, undefined, postIdOnPlatform);
-            }
-
-            this.sendSuccess('Successfully posted to Reddit!');
-            return postIdOnPlatform;
-        } catch (error: unknown) {
-            Logger.info('Error sharing to Reddit:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-
-            if (postId) {
-                this.historyService.recordShare(postId, 'reddit', false, errorMessage);
-            }
-
-            throw new Error(`Reddit sharing failed: ${errorMessage}`);
-        }
-    }
-
-    private async shareToLinkedInWithUpdate(post: PostData, linkedinToken: string | undefined, postId: string | undefined): Promise<void> {
-        try {
-            await shareToLinkedIn(post, linkedinToken || await this.context.secrets.get('linkedinToken') || '', {
-                onSuccess: (message: string) => {
-                    this.sendSuccess(message);
-                    if (postId) {
-                        this.historyService.recordShare(postId, 'linkedin', true);
-                    }
-                },
-                onError: (message: string) => {
-                    if (postId) {
-                        this.historyService.recordShare(postId, 'linkedin', false, message);
-                    }
-                    throw new Error(message);
-                }
-            });
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'linkedin', false, errorMessage);
-            }
-            throw new Error(`Error sharing to LinkedIn: ${errorMessage}`);
-        }
-    }
-
-    private async shareToTelegramWithUpdate(post: PostData, telegramBot: string | undefined, telegramChat: string | undefined, postId: string | undefined, scheduleDate?: Date): Promise<void> {
-        try {
-            const bot = telegramBot || await this.context.secrets.get('telegramBot') || '';
-            const chat = telegramChat || await this.context.secrets.get('telegramChat') || '';
-
-            Logger.info(`DEBUG: Telegram sharing with bot: ${!!bot}, chat: ${!!chat}, post: ${post.text}, scheduled: ${!!scheduleDate}`);
-
-            await shareToTelegram(post, bot, chat, {
-                onSuccess: (message: string) => {
-                    this.sendSuccess(message);
-                    if (postId) {
-                        this.historyService.recordShare(postId, 'telegram', true);
-                    }
-                },
-                onError: (message: string) => {
-                    if (postId) {
-                        this.historyService.recordShare(postId, 'telegram', false, message);
-                    }
-                    throw new Error(message);
-                }
-            }, scheduleDate); // Pass the schedule date
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'telegram', false, errorMessage);
-            }
-            throw new Error(`Error sharing to Telegram: ${errorMessage}`);
-        }
-    }
-
-    private async handleLoadScheduledPosts(): Promise<void> {
-        const storagePath = this.context.globalStorageUri ? this.context.globalStorageUri.fsPath : this.context.extensionPath;
-        const scheduledStorage = new ScheduledPostsStorage(storagePath);
-        const allScheduledPosts = scheduledStorage.loadScheduledPosts();
-        this.view.webview.postMessage({
-            command: 'updateScheduledPosts',
-            scheduledPosts: allScheduledPosts
-        });
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // Markdown / Blog
+    // ─────────────────────────────────────────────────────────────────────────
 
     private async handleReadMarkdownFile(): Promise<void> {
         let markdownEditor: vscode.TextEditor | undefined;
+
         const activeEditor = vscode.window.activeTextEditor;
         if (activeEditor) {
             const doc = activeEditor.document;
@@ -659,6 +443,7 @@ export class PostHandler {
                 markdownEditor = activeEditor;
             }
         }
+
         if (!markdownEditor) {
             for (const editor of vscode.window.visibleTextEditors) {
                 const doc = editor.document;
@@ -668,6 +453,7 @@ export class PostHandler {
                 }
             }
         }
+
         if (!markdownEditor) {
             this.sendError('No Markdown file found. Please open a .md file in the editor.');
             return;
@@ -676,16 +462,10 @@ export class PostHandler {
         const text = markdownEditor.document.getText();
         const parsed = parseFrontMatter(text);
 
-        this.view.webview.postMessage({
-            command: 'updatePost',
-            post: parsed.body
-        });
+        this.view.webview.postMessage({ command: 'updatePost', post: parsed.body });
 
         if (parsed.hasFrontmatter && parsed.frontmatter) {
-            this.view.webview.postMessage({
-                command: 'updateBlogFrontmatter',
-                frontmatter: parsed.frontmatter
-            });
+            this.view.webview.postMessage({ command: 'updateBlogFrontmatter', frontmatter: parsed.frontmatter });
             this.sendSuccess('Markdown file loaded with frontmatter!');
         } else {
             this.sendSuccess('Markdown file loaded successfully!');
@@ -715,8 +495,7 @@ export class PostHandler {
         }
 
         const history = this.historyService.getHistory();
-        const lastPost = history[0]?.postData;
-        const postText = msg.post || lastPost?.text || '';
+        const postText = msg.post || history[0]?.postData?.text || '';
 
         if (!postText.trim()) {
             this.sendError('No content to publish. Write or generate a post first.');
@@ -729,11 +508,7 @@ export class PostHandler {
             type: 'info'
         });
 
-        const postData: PostData = {
-            text: postText,
-            media: lastPost?.media || []
-        };
-        const mappedPublishStatus = msg.publishStatus === 'published' ? 'public' : (msg.publishStatus || 'draft');
+        const postData: PostData = { text: postText, media: history[0]?.postData?.media || [] };
 
         const blogMessage = {
             ...message,
@@ -744,7 +519,7 @@ export class PostHandler {
             coverImage: msg.coverImage,
             canonicalUrl: msg.canonicalUrl,
             series: msg.series,
-            publishStatus: mappedPublishStatus,
+            publishStatus: msg.publishStatus === 'published' ? 'public' : (msg.publishStatus || 'draft'),
             published: msg.publishStatus === 'published'
         };
 
@@ -782,24 +557,165 @@ export class PostHandler {
         }
     }
 
-    private async handleShareToDevTo(message: Message): Promise<void> {
-        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; published?: boolean };
-        const postText = msg.post || '';
-        const mediaPaths = msg.mediaFilePaths || [];
-        const postData: PostData = { text: postText, media: mediaPaths };
-        const history = this.historyService.getHistory();
-        const postId = history[0]?.id;
-        await this.shareToDevToWithUpdate(postData, message, postId);
+    // ─────────────────────────────────────────────────────────────────────────
+    // Platform-specific share helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private async shareToLinkedInWithUpdate(post: PostData, linkedinToken: string | undefined, postId: string | undefined): Promise<void> {
+        try {
+            const token = linkedinToken || await this.context.secrets.get('linkedinToken') || '';
+            await shareToLinkedIn(post, token, {
+                onSuccess: (msg: string) => {
+                    this.sendSuccess(msg);
+                    if (postId) this.historyService.recordShare(postId, 'linkedin', true);
+                },
+                onError: (msg: string) => {
+                    if (postId) this.historyService.recordShare(postId, 'linkedin', false, msg);
+                    throw new Error(msg);
+                }
+            });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'linkedin', false, errorMessage);
+            throw new Error(`Error sharing to LinkedIn: ${errorMessage}`);
+        }
     }
 
-    private async handleShareToMedium(message: Message): Promise<void> {
-        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; publishStatus?: string };
-        const postText = msg.post || '';
-        const mediaPaths = msg.mediaFilePaths || [];
-        const postData: PostData = { text: postText, media: mediaPaths };
-        const history = this.historyService.getHistory();
-        const postId = history[0]?.id;
-        await this.shareToMediumWithUpdate(postData, message, postId);
+    private async shareToTelegramWithUpdate(
+        post: PostData,
+        telegramBot: string | undefined,
+        telegramChat: string | undefined,
+        postId: string | undefined,
+        scheduleDate?: Date
+    ): Promise<void> {
+        try {
+            const bot  = telegramBot  || await this.context.secrets.get('telegramBot')  || '';
+            const chat = telegramChat || await this.context.secrets.get('telegramChat') || '';
+
+            await shareToTelegram(post, bot, chat, {
+                onSuccess: (msg: string) => {
+                    this.sendSuccess(msg);
+                    if (postId) this.historyService.recordShare(postId, 'telegram', true);
+                },
+                onError: (msg: string) => {
+                    if (postId) this.historyService.recordShare(postId, 'telegram', false, msg);
+                    throw new Error(msg);
+                }
+            }, scheduleDate);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'telegram', false, errorMessage);
+            throw new Error(`Error sharing to Telegram: ${errorMessage}`);
+        }
+    }
+
+    private async shareToFacebookWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const facebookToken     = await this.context.secrets.get('facebookToken')     || '';
+            const facebookPageToken = await this.context.secrets.get('facebookPageToken') || null;
+            const facebookPageId    = await this.context.secrets.get('facebookPageId')    || undefined;
+
+            await shareToFacebook(facebookToken, facebookPageToken, { ...post, pageId: facebookPageId });
+
+            this.sendSuccess('Successfully posted to Facebook!');
+            if (postId) this.historyService.recordShare(postId, 'facebook', true);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'facebook', false, errorMessage);
+            throw new Error(`Error sharing to Facebook: ${errorMessage}`);
+        }
+    }
+
+    private async shareToDiscordWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        // TODO: implement Discord webhook sharing
+        Logger.info('Discord sharing not yet implemented', { post, postId });
+        this.sendError('Discord sharing coming soon!');
+    }
+
+    private async shareToXWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const xAccessToken  = await this.context.secrets.get('xAccessToken')  || '';
+            const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
+
+            await shareToX(xAccessToken, xAccessSecret, post);
+
+            this.sendSuccess('Successfully posted to X!');
+            if (postId) this.historyService.recordShare(postId, 'x', true);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'x', false, errorMessage);
+            throw new Error(`Error sharing to X: ${errorMessage}`);
+        } finally {
+            this.view.webview.postMessage({ command: 'shareComplete' });
+        }
+    }
+
+    private async shareToRedditWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<string | undefined> {
+        try {
+            const msg = message as {
+                redditAccessToken?: string;
+                redditRefreshToken?: string;
+                post?: string;
+                redditSubreddit?: string;
+                redditTitle?: string;
+                redditFlairId?: string;
+                redditPostType?: string;
+                redditSpoiler?: boolean;
+            };
+
+            const accessToken  = msg.redditAccessToken  || await this.context.secrets.get('redditAccessToken')  || '';
+            const refreshToken = msg.redditRefreshToken || await this.context.secrets.get('redditRefreshToken') || undefined;
+
+            // Strip r/ prefix if present
+            const rawSubreddit = msg.redditSubreddit || '';
+            const subreddit = rawSubreddit.startsWith('r/') ? rawSubreddit.substring(2) : rawSubreddit;
+
+            if (!subreddit) {
+                throw new Error('Subreddit is required for Reddit posts. Please set it in Settings.');
+            }
+
+            const redditPostData = {
+                text:       msg.post || post.text,
+                media:      post.media,
+                subreddit,
+                title:      msg.redditTitle || post.text.substring(0, 300),
+                flairId:    msg.redditFlairId,
+                isSelfPost: msg.redditPostType !== 'link',
+                spoiler:    msg.redditSpoiler
+            };
+
+            const postIdOnPlatform = await shareToReddit(accessToken, refreshToken, redditPostData);
+
+            if (postId) this.historyService.recordShare(postId, 'reddit', true, undefined, postIdOnPlatform);
+            this.sendSuccess('Successfully posted to Reddit!');
+            return postIdOnPlatform;
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'reddit', false, errorMessage);
+            throw new Error(`Reddit sharing failed: ${errorMessage}`);
+        }
+    }
+
+    private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
+            const password   = (await this.context.secrets.get('blueskyPassword')   || '').trim();
+
+            if (!identifier || !password) {
+                throw new Error('BlueSky credentials not configured. Go to Settings to add them.');
+            }
+
+            await shareToBlueSky(identifier, password, post);
+
+            this.sendSuccess('Successfully posted to Bluesky!');
+            if (postId) this.historyService.recordShare(postId, 'bluesky', true);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'bluesky', false, errorMessage);
+            throw new Error(`Error sharing to Bluesky: ${errorMessage}`);
+        } finally {
+            this.view.webview.postMessage({ command: 'shareComplete' });
+        }
     }
 
     private async shareToDevToWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<void> {
@@ -815,33 +731,29 @@ export class PostHandler {
                 canonicalUrl?: string;
                 series?: string;
             };
-            const devtoApiKey = await this.context.secrets.get('devtoApiKey') || '';
 
+            const devtoApiKey = await this.context.secrets.get('devtoApiKey') || '';
             if (!devtoApiKey) {
-                throw new Error('Dev.to API Key not configured. Go to the DotShare Activity Bar to add it.');
+                throw new Error('Dev.to API Key not configured. Go to Settings to add it.');
             }
 
             await shareToDevTo(devtoApiKey, {
-                text: msg.post || post.text,
-                media: msg.mediaFilePaths || post.media,
-                title: msg.title,
-                tags: msg.tags,
-                description: msg.description,
-                coverImage: msg.coverImage,
-                published: msg.published,
+                text:         msg.post || post.text,
+                media:        msg.mediaFilePaths || post.media,
+                title:        msg.title,
+                tags:         msg.tags,
+                description:  msg.description,
+                coverImage:   msg.coverImage,
+                published:    msg.published,
                 canonicalUrl: msg.canonicalUrl,
-                series: msg.series
+                series:       msg.series
             });
 
             this.sendSuccess('Successfully posted to Dev.to!');
-            if (postId) {
-                this.historyService.recordShare(postId, 'devto', true);
-            }
+            if (postId) this.historyService.recordShare(postId, 'devto', true);
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'devto', false, errorMessage);
-            }
+            if (postId) this.historyService.recordShare(postId, 'devto', false, errorMessage);
             throw new Error(`Error sharing to Dev.to: ${errorMessage}`);
         } finally {
             this.view.webview.postMessage({ command: 'shareComplete' });
@@ -858,191 +770,134 @@ export class PostHandler {
                 publishStatus?: string;
                 canonicalUrl?: string;
             };
-            const mediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
 
+            const mediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
             if (!mediumAccessToken) {
-                throw new Error('Medium Access Token not configured. Go to the DotShare Activity Bar to add it.');
+                throw new Error('Medium Access Token not configured. Go to Settings to add it.');
             }
 
             await shareToMedium(mediumAccessToken, {
-                text: msg.post || post.text,
-                media: msg.mediaFilePaths || post.media,
-                title: msg.title,
-                tags: msg.tags,
+                text:          msg.post || post.text,
+                media:         msg.mediaFilePaths || post.media,
+                title:         msg.title,
+                tags:          msg.tags,
                 publishStatus: msg.publishStatus as 'public' | 'draft' | 'unlisted' | 'published' | undefined,
-                canonicalUrl: msg.canonicalUrl
+                canonicalUrl:  msg.canonicalUrl
             });
 
             this.sendSuccess('Successfully posted to Medium!');
-            if (postId) {
-                this.historyService.recordShare(postId, 'medium', true);
-            }
+            if (postId) this.historyService.recordShare(postId, 'medium', true);
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'medium', false, errorMessage);
-            }
+            if (postId) this.historyService.recordShare(postId, 'medium', false, errorMessage);
             throw new Error(`Error sharing to Medium: ${errorMessage}`);
         } finally {
             this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
 
-    private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
-        try {
-            const identifier = await this.context.secrets.get('blueskyIdentifier') || '';
-            const password = await this.context.secrets.get('blueskyPassword') || '';
+    // ─────────────────────────────────────────────────────────────────────────
+    // Unified Share (multi-platform)
+    // ─────────────────────────────────────────────────────────────────────────
 
-            if (!identifier || !password) {
-                throw new Error('BlueSky credentials not configured. Go to the DotShare Activity Bar to add them.');
-            }
-
-            await shareToBlueSky(identifier, password, post);
-
-            this.sendSuccess('Successfully posted to Bluesky!');
-            if (postId) {
-                this.historyService.recordShare(postId, 'bluesky', true);
-            }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) {
-                this.historyService.recordShare(postId, 'bluesky', false, errorMessage);
-            }
-            throw new Error(`Error sharing to Bluesky: ${errorMessage}`);
-        } finally {
-            // Re-enable share button
-            this.view.webview.postMessage({ command: 'shareComplete' });
-        }
-    }
-
-    private async unifiedSharePost(platforms: string[], post: PostData, mediaFilePaths: string[] = [], postId?: string): Promise<void> {
-        const results = {
-            linkedin: false,
-            telegram: false,
-            x: false,
-            facebook: false,
-            discord: false,
-            reddit: false,
-            bluesky: false,
-            devto: false,
-            medium: false
-        };
-
-        let firstError: string | null = null;
+    private async unifiedSharePost(
+        platforms: string[],
+        post: PostData,
+        mediaFilePaths: string[] = [],
+        postId?: string
+    ): Promise<void> {
+        let successCount = 0;
+        const errors: string[] = [];
 
         for (const platform of platforms) {
             try {
                 switch (platform) {
                     case 'linkedin':
                         await this.shareToLinkedInWithUpdate(post, undefined, postId);
-                        results.linkedin = true;
                         break;
                     case 'telegram':
                         await this.shareToTelegramWithUpdate(post, undefined, undefined, postId);
-                        results.telegram = true;
                         break;
                     case 'x':
                         await this.shareToXWithUpdate(post, postId);
-                        results.x = true;
                         break;
                     case 'facebook':
                         await this.shareToFacebookWithUpdate(post, postId);
-                        results.facebook = true;
                         break;
                     case 'discord':
                         await this.shareToDiscordWithUpdate(post, postId);
-                        results.discord = true;
                         break;
                     case 'reddit': {
                         const redditMessage: Message = {
                             command: 'shareToReddit',
-                            redditAccessToken: await this.context.secrets.get('redditAccessToken') || '',
+                            redditAccessToken:  await this.context.secrets.get('redditAccessToken')  || '',
                             redditRefreshToken: await this.context.secrets.get('redditRefreshToken') || '',
-                            subreddit: 'test',
-                            title: post.text?.substring(0, 300) || 'Post from DotShare',
-                            post: post.text,
-                            mediaFilePaths: mediaFilePaths
+                            redditSubreddit:    await this.context.secrets.get('redditSubreddit')    || '',
+                            redditTitle:        post.text.substring(0, 300),
+                            post:               post.text,
+                            mediaFilePaths
                         };
                         await this.shareToRedditWithUpdate(post, redditMessage, postId);
-                        results.reddit = true;
                         break;
                     }
                     case 'bluesky':
                         await this.shareToBlueSkyWithUpdate(post, postId);
-                        results.bluesky = true;
                         break;
                     case 'devto': {
-                        const devtoMsg: Message = {
-                            command: 'shareToDevTo',
-                            post: post.text,
-                            mediaFilePaths
-                        };
+                        const devtoMsg: Message = { command: 'shareToDevTo', post: post.text, mediaFilePaths };
                         await this.shareToDevToWithUpdate(post, devtoMsg, postId);
-                        results.devto = true;
                         break;
                     }
                     case 'medium': {
-                        const mediumMsg: Message = {
-                            command: 'shareToMedium',
-                            post: post.text,
-                            mediaFilePaths,
-                            publishStatus: 'public'
-                        };
+                        const mediumMsg: Message = { command: 'shareToMedium', post: post.text, mediaFilePaths, publishStatus: 'public' };
                         await this.shareToMediumWithUpdate(post, mediumMsg, postId);
-                        results.medium = true;
                         break;
                     }
                     default:
                         Logger.info(`Unknown platform: ${platform}`);
+                        continue;
                 }
+                successCount++;
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                Logger.info(`Error sharing to ${platform}:`, error);
-
-                if (!firstError) {
-                    firstError = `Error sharing to ${platform}: ${errorMessage}`;
-                }
-
+                errors.push(`${platform}: ${errorMessage}`);
+                Logger.error(`Error sharing to ${platform}:`, error);
                 if (postId) {
-                    const platformKey = platform as keyof typeof results;
-                    if (platformKey in results) {
-                        this.historyService.recordShare(postId, platform as 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky' | 'devto' | 'medium', false, errorMessage);
-                    }
+                    this.historyService.recordShare(
+                        postId,
+                        platform as 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky' | 'devto' | 'medium',
+                        false,
+                        errorMessage
+                    );
                 }
             }
         }
 
-        const successfulShares = Object.values(results).filter(success => success).length;
-
-        if (platforms.length === 0) {
-            this.sendError('No platforms selected');
-        } else if (successfulShares === platforms.length) {
+        if (successCount === platforms.length) {
             this.sendSuccess(`Successfully shared to all ${platforms.length} platform(s)!`);
-        } else if (successfulShares > 0) {
+        } else if (successCount > 0) {
             this.view.webview.postMessage({
                 command: 'status',
-                status: `Shared to ${successfulShares}/${platforms.length} platform(s). Check for any errors above.`,
+                status: `Shared to ${successCount}/${platforms.length} platform(s). Errors: ${errors.join(' | ')}`,
                 type: 'warning'
             });
         } else {
-            this.sendError(`Failed to share to any platforms. ${firstError || ''}`);
+            this.sendError(`Failed to share to any platforms. ${errors.join(' | ')}`);
         }
     }
 
-    private sendSuccess(message: string): void {
-        this.view.webview.postMessage({ command: 'status', status: message, type: 'success' });
-    }
-
-    private sendError(message: string): void {
-        this.view.webview.postMessage({ command: 'status', status: message, type: 'error' });
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // Thread Sharing
+    // ─────────────────────────────────────────────────────────────────────────
 
     private async handleShareThread(message: Message): Promise<void> {
         const platform = message.platform as string;
-        const posts = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string }>;
+        const posts    = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string }>;
 
-        if (!platform || (platform !== 'x' && platform !== 'bluesky')) {
-            this.sendError('Thread posting only supports X and Bluesky');
+        // Use platform-config to validate thread support
+        const platformConfig = PLATFORM_CONFIGS[platform];
+        if (!platformConfig || !platformConfig.supportsThreads) {
+            this.sendError(`Thread posting is not supported for "${platform}"`);
             this.view.webview.postMessage({ command: 'shareComplete' });
             return;
         }
@@ -1055,49 +910,46 @@ export class PostHandler {
 
         this.view.webview.postMessage({
             command: 'status',
-            status: `Sharing thread (${posts.length} posts) to ${platform}...`,
+            status: `Sharing thread (${posts.length} posts) to ${platformConfig.name}...`,
             type: 'info'
         });
 
         let tempMediaPath: string | undefined;
 
         try {
-            // 1. Process media (convert Base64 to temp file)
+            // Process media — convert Base64 to temp file for first post only
             let firstPostMedia: string[] | undefined;
             if (posts[0]?.mediaBase64 && posts[0]?.mediaType) {
-                
-                
                 const ext = posts[0].mediaType.split('/')[1] || 'png';
                 const tempFileName = `thread_media_${Date.now()}.${ext}`;
                 tempMediaPath = path.join(os.tmpdir(), tempFileName);
 
                 const buffer = Buffer.from(posts[0].mediaBase64, 'base64');
                 fs.writeFileSync(tempMediaPath, buffer);
-
                 firstPostMedia = [tempMediaPath];
             }
 
-            // 2. Combine posts using manual separator (===)
+            // Combine posts with manual separator
             const combinedText = posts.map(p => p.text).filter(t => t).join('\n\n===\n\n');
 
-            // 3. Share to the selected platform
             if (platform === 'x') {
-                const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
+                const xAccessToken  = await this.context.secrets.get('xAccessToken')  || '';
                 const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
                 await shareToX(xAccessToken, xAccessSecret, { text: combinedText, media: firstPostMedia });
+
             } else if (platform === 'bluesky') {
                 const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
-                const password = (await this.context.secrets.get('blueskyPassword') || '').trim();
+                const password   = (await this.context.secrets.get('blueskyPassword')   || '').trim();
 
                 if (!identifier || !password) {
-                    this.sendError('BlueSky credentials not configured.');
+                    this.sendError('BlueSky credentials not configured. Go to Settings to add them.');
                     this.view.webview.postMessage({ command: 'shareComplete' });
                     return;
                 }
                 await shareToBlueSky(identifier, password, { text: combinedText, media: firstPostMedia });
             }
 
-            this.sendSuccess(`Thread shared to ${platform}!`);
+            this.sendSuccess(`Thread shared to ${platformConfig.name}!`);
             this.view.webview.postMessage({ command: 'shareComplete' });
 
         } catch (error: unknown) {
@@ -1105,7 +957,7 @@ export class PostHandler {
             this.sendError(`Thread sharing failed: ${errorMessage}`);
             this.view.webview.postMessage({ command: 'shareComplete' });
         } finally {
-            // 4. Cleanup temp file
+            // Cleanup temp file
             if (tempMediaPath) {
                 try {
                     if (fs.existsSync(tempMediaPath)) fs.unlinkSync(tempMediaPath);
@@ -1114,5 +966,17 @@ export class PostHandler {
                 }
             }
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private sendSuccess(message: string): void {
+        this.view.webview.postMessage({ command: 'status', status: message, type: 'success' });
+    }
+
+    private sendError(message: string): void {
+        this.view.webview.postMessage({ command: 'status', status: message, type: 'error' });
     }
 }

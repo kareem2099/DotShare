@@ -63,137 +63,111 @@ export class PostExecutor {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+
     private async executeLinkedInPost(postData: PostData): Promise<PlatformResult> {
-        const linkedinToken = await this.credentialProvider.getLinkedInToken();
-        if (!linkedinToken) {
-            return {
-                success: false,
-                errorMessage: 'LinkedIn token not configured'
-            };
+        const token = await this.credentialProvider.getLinkedInToken();
+        if (!token) {
+            return { success: false, errorMessage: 'LinkedIn token not configured' };
         }
 
-        await shareToLinkedIn(postData, linkedinToken);
-        return {
-            success: true,
-            postId: undefined // Could be enhanced to capture post ID
-        };
+        await shareToLinkedIn(postData, token);
+        return { success: true };
     }
 
     private async executeTelegramPost(postData: PostData, scheduledTime?: string): Promise<PlatformResult> {
-        const credentials = await this.credentialProvider.getTelegramCredentials();
-        if (!credentials.botToken || !credentials.chatId) {
-            return {
-                success: false,
-                errorMessage: 'Telegram credentials not configured'
-            };
+        const { botToken, chatId } = await this.credentialProvider.getTelegramCredentials();
+        if (!botToken || !chatId) {
+            return { success: false, errorMessage: 'Telegram credentials not configured' };
         }
 
         const scheduleDate = scheduledTime ? new Date(scheduledTime) : undefined;
-        await shareToTelegram(postData, credentials.botToken, credentials.chatId, undefined, scheduleDate);
-        return {
-            success: true,
-            messageId: undefined // Could be enhanced to capture message ID
-        };
+        await shareToTelegram(postData, botToken, chatId, undefined, scheduleDate);
+        return { success: true };
     }
 
     private async executeXPost(postData: PostData): Promise<PlatformResult> {
-        const credentials = await this.credentialProvider.getXCredentials();
-        if (!credentials.accessToken || !credentials.accessSecret) {
-            return {
-                success: false,
-                errorMessage: 'X/Twitter credentials not configured'
-            };
+        const { accessToken, accessSecret } = await this.credentialProvider.getXCredentials();
+        if (!accessToken) {
+            return { success: false, errorMessage: 'X/Twitter credentials not configured' };
         }
 
-        await shareToX(credentials.accessToken, credentials.accessSecret, {
+        await shareToX(accessToken, accessSecret || '', {
             text: postData.text,
             media: postData.media
         });
-        return {
-            success: true,
-            tweetId: undefined // Could be enhanced to capture tweet ID
-        };
+        return { success: true };
     }
 
     private async executeFacebookPost(postData: PostData): Promise<PlatformResult> {
-        const credentials = await this.credentialProvider.getFacebookCredentials();
-        if (!credentials.token) {
-            return {
-                success: false,
-                errorMessage: 'Facebook token not configured'
-            };
+        const { token, pageToken, pageId } = await this.credentialProvider.getFacebookCredentials();
+        if (!token) {
+            return { success: false, errorMessage: 'Facebook token not configured' };
         }
 
-        const pageToken = credentials.pageToken || null;
-        const pageId = credentials.pageId || undefined;
-
-        await shareToFacebook(credentials.token, pageToken, {
+        await shareToFacebook(token, pageToken || null, {
             text: postData.text,
             media: postData.media,
             pageId
         });
-        return {
-            success: true,
-            postId: undefined // Could be enhanced to capture post ID
-        };
+        return { success: true };
     }
 
     private async executeDiscordPost(postData: PostData): Promise<PlatformResult> {
         const webhookUrl = await this.credentialProvider.getDiscordWebhookUrl();
         if (!webhookUrl) {
-            return {
-                success: false,
-                errorMessage: 'Discord webhook not configured'
-            };
+            return { success: false, errorMessage: 'Discord webhook not configured' };
         }
 
         await shareToDiscord(webhookUrl, {
             text: postData.text,
             media: postData.media
         });
-        return {
-            success: true,
-            messageId: undefined // Could be enhanced to capture message ID
-        };
+        return { success: true };
     }
 
     private async executeRedditPost(postData: PostData): Promise<PlatformResult> {
-        const credentials = await this.credentialProvider.getRedditCredentials();
-        if (!credentials.accessToken || !credentials.refreshToken) {
+        const { accessToken, refreshToken } = await this.credentialProvider.getRedditCredentials();
+        if (!accessToken) {
+            return { success: false, errorMessage: 'Reddit credentials not configured' };
+        }
+
+        const subreddit = await this.credentialProvider.getRedditSubreddit();
+        if (!subreddit) {
             return {
                 success: false,
-                errorMessage: 'Reddit credentials not configured'
+                errorMessage: 'Reddit subreddit not configured. Go to Settings to set your target community.'
             };
         }
 
-        await shareToReddit(credentials.accessToken, credentials.refreshToken, {
-            text: postData.text,
-            media: postData.media,
-            subreddit: 'test', // Default subreddit - could be enhanced to store per-post subreddit
-            isSelfPost: true
-        });
-        return {
-            success: true,
-            postName: undefined // Could be enhanced to capture post name (t3_xxx)
-        };
+        const cleanSubreddit = subreddit.startsWith('r/') ? subreddit.substring(2) : subreddit;
+
+        const postName = await shareToReddit(
+            accessToken,
+            refreshToken || undefined,
+            {
+                text:       postData.text,
+                media:      postData.media,
+                subreddit:  cleanSubreddit,
+                title:      postData.text.substring(0, 300),
+                isSelfPost: true
+            }
+        );
+
+        return { success: true, postName: postName || undefined };
     }
 
     private async executeBlueSkyPost(postData: PostData): Promise<PlatformResult> {
-        const credentials = await this.credentialProvider.getBlueSkyCredentials();
-        if (!credentials.identifier || !credentials.password) {
-            return {
-                success: false,
-                errorMessage: 'BlueSky credentials not configured'
-            };
+        const { identifier, password } = await this.credentialProvider.getBlueSkyCredentials();
+        if (!identifier || !password) {
+            return { success: false, errorMessage: 'BlueSky credentials not configured' };
         }
 
-        await shareToBlueSky(credentials.identifier, credentials.password, {
+        const postUri = await shareToBlueSky(identifier, password, {
             text: postData.text,
             media: postData.media
         });
-        return {
-            success: true,
-            postUri: undefined // Could be enhanced to capture post URI
-        };
+
+        return { success: true, postUri: postUri || undefined };
     }
 }

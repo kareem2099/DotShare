@@ -85,6 +85,8 @@ export interface ScheduledPost {
         discord?: { success: boolean; messageId?: string; errorMessage?: string; };
         reddit?: { success: boolean; postId?: string; errorMessage?: string; score?: number; comments?: number; permalink?: string; };
         bluesky?: { success: boolean; postId?: string; errorMessage?: string; };
+        devto?:   { success: boolean; url?: string; errorMessage?: string; };
+        medium?:  { success: boolean; url?: string; errorMessage?: string; };
     };
 }
 
@@ -280,6 +282,7 @@ export interface SchedulerCredentials {
     discordWebhookUrl: string;
     redditAccessToken: string;
     redditRefreshToken: string;
+    redditSubreddit: string;
     blueskyIdentifier: string;
     blueskyPassword: string;
 }
