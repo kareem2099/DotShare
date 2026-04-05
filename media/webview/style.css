@@ -882,3 +882,148 @@ details[open] > summary::before { content: '▼ '; }
 /* ── Workspace Visibility ─────────────────────────────────── */
 .workspace { display: none; }
 .workspace.active { display: block; }
+
+/* ── Platform Post App Layout ─────────────────────────────── */
+.platform-post-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Platform Header ──────────────────────────────────────── */
+.platform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-editor-background);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.platform-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.platform-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.platform-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.platform-header-text {
+  min-width: 0;
+}
+
+.platform-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.platform-subtitle {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Platform Content ─────────────────────────────────────── */
+.platform-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px;
+}
+
+/* ── Thread Post Styles ────────────────────────────────────── */
+.thread-post {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--vscode-input-background);
+}
+
+.thread-post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.thread-post-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.thread-char-counter {
+  font-size: 10px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.thread-char-counter.warn  { color: #e0a800; }
+.thread-char-counter.error { color: var(--vscode-errorForeground); }
+
+.thread-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 70px;
+  padding: 7px 9px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.thread-textarea:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.thread-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.thread-media-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.thread-media-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
