@@ -1,13 +1,15 @@
-# What's New in DotShare v3.0.0
+# What's New in DotShare v3.0.1
 
-*"The Publishing Suite"*
+*"The Publishing Suite & UX Polish"*
 
 ---
 
-## 📰 Dev.to & Medium Integration — New!
+## 📰 Dev.to & Medium Integration — Update
 
 Publish long-form articles directly from VS Code.
 
+- **Medium API Notice** — Added instructions for manual API activation if missing from settings.
+- **Improved Labels** — Clarified token terminology for Medium integration.
 - **Load Current File** — reads your active `.md` file from the editor
 - **YAML Frontmatter Parser** — auto-fills title, tags, canonical URL, cover image, series
 - **Draft vs. Publish toggle** — per-platform, independently

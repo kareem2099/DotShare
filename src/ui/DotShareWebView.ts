@@ -220,6 +220,13 @@ export class DotShareWebView {
             </select>
           </div>`
                 : `          <div class="card-title">Ⓜ️ Publish to Medium</div>
+
+          <div class="status-box warning" style="background: rgba(255, 165, 0, 0.1); border-left: 4px solid #ffa500; padding: 10px; margin-bottom: 12px; font-size: 11px; border-radius: 4px;">
+            <strong>⚠️ Notice:</strong> Medium has restricted its API. If "Integration Tokens" is missing from your 
+            <a href="https://medium.com/me/settings/publishing" target="_blank" style="color: var(--vscode-link-foreground);">Publishing Settings</a>, 
+            you <u>must</u> email <code style="color: var(--vscode-textPreformat-foreground);">yourfriends@medium.com</code> to request manual activation.
+          </div>
+
           <div class="input-group" style="margin-top:12px;">
             <label>Visibility</label>
             <select id="blog-publish-status">
