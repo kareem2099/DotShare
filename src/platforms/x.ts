@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import FormData from 'form-data'; // Required for Node.js
 import { Logger } from '../utils/Logger';
+import { TokenManager } from '../services/TokenManager';
+import { AUTH_SERVER_URL } from '../services/TokenManager';
 
 export interface TweetData {
     text: string;
@@ -16,10 +18,10 @@ function getMimeType(filePath: string): string {
     switch (ext) {
         case '.jpg':
         case '.jpeg': return 'image/jpeg';
-        case '.png':  return 'image/png';
-        case '.gif':  return 'image/gif';
-        case '.mp4':  return 'video/mp4';
-        default:      return 'application/octet-stream';
+        case '.png': return 'image/png';
+        case '.gif': return 'image/gif';
+        case '.mp4': return 'video/mp4';
+        default: return 'application/octet-stream';
     }
 }
 
@@ -35,7 +37,7 @@ function createThreadChunks(text: string, maxLength = 270): string[] {
     for (const word of words) {
         if (!word) continue;
         const space = currentChunk ? ' ' : '';
-        
+
         if ((currentChunk + space + word).length > maxLength) {
             if (!currentChunk) {
                 // The word itself is longer than maxLength! Force split it.
@@ -96,7 +98,7 @@ async function uploadMediaToX(filePath: string, accessToken: string): Promise<st
     });
 
     await axios.post('https://upload.twitter.com/1.1/media/upload.json', formData, {
-        headers: { 
+        headers: {
             Authorization: `Bearer ${accessToken}`,
             ...formData.getHeaders() // Required for Form boundaries
         },
@@ -123,11 +125,14 @@ async function uploadMediaToX(filePath: string, accessToken: string): Promise<st
 // ── Main exports ──────────────────────────────────────────────────────────────
 
 export async function shareToX(
-    accessToken: string,
+    _accessToken: string,
     _accessSecret: string,
     tweetData: TweetData
 ): Promise<string> {
     try {
+        const accessToken = await TokenManager.getValidToken('x');
+        if (!accessToken) throw new Error('X: not authenticated — connect your account in Settings.');
+
         const headers = {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
@@ -138,7 +143,7 @@ export async function shareToX(
 
         if (tweetData.media && tweetData.media.length > 0) {
             // Limit to 4 files since X allows max 4 media attachments per tweet
-            const mediaToUpload = tweetData.media.slice(0, 4); 
+            const mediaToUpload = tweetData.media.slice(0, 4);
             for (const filePath of mediaToUpload) {
                 if (!fs.existsSync(filePath)) {
                     Logger.info(`X media file not found, skipping: ${filePath}`);
@@ -177,7 +182,7 @@ export async function shareToX(
             );
 
             const tweetId: string = response.data.data.id;
-            
+
             if (i === 0) firstTweetId = tweetId;
             previousTweetId = tweetId;
 
@@ -205,5 +210,21 @@ export async function validateXCredentials(accessToken: string): Promise<boolean
         return true;
     } catch {
         return false;
+    }
+}
+
+export async function refreshXToken(refreshToken: string): Promise<{ access_token: string, refresh_token?: string, expires_in?: number }> {
+    try {
+        const response = await axios.post(`${AUTH_SERVER_URL}/api/auth/x/refresh`, {
+            refreshToken
+        });
+        return response.data;
+    } catch (error: unknown) {
+        const errorMessage = axios.isAxiosError(error)
+            ? (error.response?.data?.error || error.message)
+            : error instanceof Error ? error.message : String(error);
+
+        Logger.error('Error refreshing X token:', errorMessage);
+        throw new Error(`Failed to refresh X token: ${errorMessage}`);
     }
 }

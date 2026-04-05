@@ -4,6 +4,7 @@ import * as path from 'path';
 import FormData from 'form-data';
 import { DEFAULT_SERVER_URL } from '../constants';
 import { Logger } from '../utils/Logger';
+import { TokenManager } from '../services/TokenManager';
 
 export interface RedditPostData {
     text: string;
@@ -94,8 +95,11 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
     return uploadedAssets;
 }
 
-export async function shareToReddit(accessToken: string, refreshToken: string | undefined, postData: RedditPostData): Promise<string> {
+export async function shareToReddit(_accessToken: string, _refreshToken: string | undefined, postData: RedditPostData): Promise<string> {
     try {
+        const accessToken = await TokenManager.getValidToken('reddit');
+        if (!accessToken) throw new Error('Reddit: not authenticated — connect your account in Settings.');
+
         const title = postData.title || postData.text.split('\n')[0].substring(0, 300) || 'Post from DotShare';
         const subreddit = postData.subreddit.replace(/^r\//, '');
         

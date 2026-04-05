@@ -5,9 +5,11 @@ import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
 import { Scheduler } from './core/scheduler';
 import { Logger } from './utils/Logger';
+import { TokenManager } from './services/TokenManager';
 
 export async function activate(context: vscode.ExtensionContext) {
     Logger.init(context);
+    TokenManager.init(context);
     Logger.section('DotShare v3.0 Activating (Hybrid Mode)');
 
     // ── Data / Storage ────────────────────────────────────────
@@ -20,11 +22,9 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(DotShareProvider.viewType, provider)
     );
 
-    // ── 2. Command that opens the main WebView based on the button ──
+    // ── 2. Command that opens the main WebView ────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.openFullWebview', (page = 'post', options?: any) => {
-            // If a specific platform is requested, open the dedicated platform post panel
-            // (which correctly selects threads / social / blogs workspace via platform-config).
             const platform = options?.platform as string | undefined;
             if (page === 'post' && platform) {
                 DotShareWebView.createPlatformPost(context, platform);
@@ -34,7 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // ── 3. Redirect old commands to open the Post page ──────────
+    // ── 3. Redirect old commands ──────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.generatePost', () => {
             vscode.commands.executeCommand('dotshare.openFullWebview', 'post');
@@ -53,7 +53,7 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // ── 4. Redirect stats to open the Analytics page ──────────
+    // ── 4. Analytics ──────────────────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.showAnalytics', () => {
             DotShareWebView.createOrShow(context, 'analytics');
@@ -77,6 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
             const platform = params.get('platform');
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');
+            const expiresIn = params.get('expires_in');
 
             if (!platform || !accessToken) {
                 vscode.window.showErrorMessage('DotShare: Invalid auth callback — missing platform or token.');
@@ -85,23 +86,38 @@ export async function activate(context: vscode.ExtensionContext) {
 
             try {
                 switch (platform) {
-                    case 'linkedin': await context.secrets.store('linkedinToken', accessToken); break;
-                    case 'x':
-                        await context.secrets.store('xAccessToken', accessToken);
-                        if (refreshToken) await context.secrets.store('xRefreshToken', refreshToken);
+                    case 'linkedin':
+                        await context.secrets.store('linkedinToken', accessToken);
                         break;
-                    case 'facebook': await context.secrets.store('facebookToken', accessToken); break;
+                    case 'x':
+                        await TokenManager.storeToken(
+                            'x',
+                            accessToken,
+                            refreshToken ?? undefined,
+                            expiresIn ? Number(expiresIn) : undefined
+                        );
+                        break;
+                    case 'facebook':
+                        await TokenManager.storeToken(
+                            'facebook',
+                            accessToken,
+                            undefined,
+                            expiresIn ? Number(expiresIn) : undefined
+                        );
+                        break;
                     case 'reddit':
-                        await context.secrets.store('redditAccessToken', accessToken);
-                        if (refreshToken) await context.secrets.store('redditRefreshToken', refreshToken);
+                        await TokenManager.storeToken(
+                            'reddit',
+                            accessToken,
+                            refreshToken ?? undefined,
+                            expiresIn ? Number(expiresIn) : undefined
+                        );
                         break;
                     default:
                         vscode.window.showErrorMessage(`DotShare: Unknown platform "${platform}"`);
                         return;
                 }
 
-                // Reload config through the MessageHandler so the full updateConfiguration
-                // payload (token values, theme, language, translations) is re-sent to the webview.
                 provider.reloadConfiguration();
                 DotShareWebView.reloadConfiguration();
 
@@ -134,11 +150,11 @@ export async function activate(context: vscode.ExtensionContext) {
         linkedinToken: await context.secrets.get('linkedinToken') || '',
         telegramBot: await context.secrets.get('telegramBot') || '',
         telegramChat: await context.secrets.get('telegramChat') || '',
-        xAccessToken: await context.secrets.get('xAccessToken') || '',
+        xAccessToken: await TokenManager.getValidToken('x'),
         xAccessSecret: await context.secrets.get('xAccessSecret') || '',
-        facebookToken: await context.secrets.get('facebookToken') || '',
+        facebookToken: await TokenManager.getValidToken('facebook'),
         discordWebhook: await context.secrets.get('discordWebhook') || '',
-        redditAccessToken: await context.secrets.get('redditAccessToken') || '',
+        redditAccessToken: await TokenManager.getValidToken('reddit'),
         redditRefreshToken: await context.secrets.get('redditRefreshToken') || '',
         blueskyIdentifier: await context.secrets.get('blueskyIdentifier') || '',
         blueskyPassword: await context.secrets.get('blueskyPassword') || '',

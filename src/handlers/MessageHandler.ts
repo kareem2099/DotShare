@@ -9,6 +9,7 @@ import { ConfigHandler } from './ConfigHandler';
 import { RedditHandler } from './RedditHandler';
 import { PostHandler } from './PostHandler';
 import { Logger } from '../utils/Logger';
+import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
 
 interface Message {
     command: string;
@@ -72,12 +73,6 @@ export class MessageHandler {
                         this.sendError(`DotShare: Unknown OAuth platform "${platform}"`);
                         return;
                     }
-                    // ── Auth Server URL ─────────────────────────────────────────────
-                    // Update this constant once your auth server is deployed.
-                    // Local development  → 'http://localhost:3000'
-                    // Production example → 'https://dotshare-auth.vercel.app'
-                    const AUTH_SERVER_URL = 'https://dotshare-auth-server.vercel.app';
-                    // ────────────────────────────────────────────────────────────────
                     const authUrl = `${AUTH_SERVER_URL}/auth/${platform}`;
                     Logger.info(`DotShare: Opening OAuth for ${platform} → ${authUrl}`);
                     vscode.env.openExternal(vscode.Uri.parse(authUrl));
@@ -124,15 +119,13 @@ export class MessageHandler {
                         return;
                     }
                     switch (platform) {
-                        case 'linkedin': await this.context.secrets.store('linkedinToken', ''); break;
-                        case 'x':
-                            await this.context.secrets.store('xAccessToken', '');
-                            await this.context.secrets.store('xRefreshToken', '');
+                        case 'linkedin':
+                            await this.context.secrets.store('linkedinToken', '');
                             break;
-                        case 'facebook': await this.context.secrets.store('facebookToken', ''); break;
+                        case 'x':
+                        case 'facebook':
                         case 'reddit':
-                            await this.context.secrets.store('redditAccessToken', '');
-                            await this.context.secrets.store('redditRefreshToken', '');
+                            await TokenManager.clearToken(platform as 'x' | 'facebook' | 'reddit');
                             break;
                     }
                     // Reload full config so webview reflects disconnected state immediately

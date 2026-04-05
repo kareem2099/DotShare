@@ -422,10 +422,12 @@ export class StorageManager {
                 'discordWebhookUrl',
                 'redditAccessToken', 'redditRefreshToken',
                 'blueskyIdentifier', 'blueskyPassword',
-                'xAccessToken', 'xAccessSecret',
+                'xAccessToken', 'xAccessSecret', 'xRefreshToken',
                 'redditClientId', 'redditClientSecret', 'redditUsername', 'redditPassword',
                 'geminiApiKey', 'openaiApiKey', 'xaiApiKey',
-                'devtoApiKey', 'mediumAccessToken'
+                'devtoApiKey', 'mediumAccessToken',
+                // TokenManager expiry timestamps
+                'x_expires_at', 'reddit_expires_at', 'facebook_expires_at',
             ];
 
             for (const key of secretKeys) {
