@@ -1,88 +1,63 @@
-# What's New in DotShare v2.4.0
+# What's New in DotShare v3.0.0
 
-*"OAuth Suite & Smart Hashtags"*
-
----
-
-## One-Click OAuth — No More Pasting Tokens!
-
-**Connect your platforms with a single browser click**
-
-- Click **Connect** on any platform card → your browser opens automatically
-- You approve the permissions → the extension receives your token silently
-- Done. No tokens to copy, no forms to fill.
-
-**Supported platforms:**
-- LinkedIn
-- X (Twitter)
-- Facebook
-- Reddit
-
-All secrets live exclusively on our auth server — **zero credentials stored in your extension**.
+*"The Publishing Suite"*
 
 ---
 
-## Smart Hashtag Engine
+## 📰 Dev.to & Medium Integration — New!
 
-**Context-aware hashtags generated automatically on every post**
+Publish long-form articles directly from VS Code.
 
-The new `HashtagService` analyzes **7 sources** before picking the best 5 tags:
-
-| Source | Example |
-|--------|---------|
-| Your custom tags (Settings) | `#MyProject` |
-| Project name (package.json) | `#DotShare` |
-| Project type & keywords | `#JavaScript #NodeJS` |
-| Recent git commits | `#Feature #Fix` |
-| Frameworks in post text | `#React #Express` |
-| Tech terms detected | `#Docker #Api` |
-| Trending topics | `#OpenSource #AI` |
-
-**Platform-aware:** Reddit and Discord get **no hashtags** (they don't use them as functional tags).
-
-**Add your own permanent tags:**
-`VS Code Settings → DotShare → Custom Hashtags`
+- **Load Current File** — reads your active `.md` file from the editor
+- **YAML Frontmatter Parser** — auto-fills title, tags, canonical URL, cover image, series
+- **Draft vs. Publish toggle** — per-platform, independently
+- **Dev.to**: title, tags (max 4), series, canonical URL, description
+- **Medium**: markdown format, public / draft / unlisted status
 
 ---
 
-## Claude AI — 4th AI Provider Added
+## 🧭 Platform-First Navigation — New!
 
-Anthropic Claude joins Gemini, OpenAI, and xAI Grok as a supported AI provider for post generation.
+The sidebar now shows platform icons as primary navigation. Click any platform and the workspace switches automatically:
 
----
-
-## Cleaner Platform UI
-
-- **Connected ✓ badges** — green state shown when a platform is authenticated
-- **Disconnect buttons** — clear tokens without digging into settings
-- **Advanced accordion** — manual token fields collapsed by default, shown only when needed
-- **Direct-to-API posting** — all 4 OAuth platforms now post directly to their own APIs, no middleman
+- **X / Bluesky** → Thread Composer
+- **LinkedIn, Telegram, Facebook, Discord, Reddit** → Social Composer
+- **Dev.to, Medium** → Article Publisher
 
 ---
 
-## Bug Fixes
+## 🧵 Thread Composer + X Premium — New!
 
-- **Reddit hashtag spam fixed** — posts to Reddit no longer end with `#Programming #Technology` clutter
-- **Correct project name hashtag** — `#projectname` now always comes from `package.json → name` or the workspace folder, never from random keywords like `#test` or `#lint`
-- **Smaller extension bundle** — `.vsix` size reduced by excluding test and source files from the package
-
----
-
-## New Settings (visible in VS Code Settings UI)
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `dotshare.customHashtags` | string[] | `[]` | Your own hashtags always included in every post |
-| `dotshare.defaultPlatform` | enum | `twitter` | Platform used to tailor hashtag suggestions |
+- Build threads post-by-post with per-post character counters
+- Media attachment per post
+- **X Premium toggle** — switches character limit from 280 to **25,000 chars**
+- Supports X and Bluesky
 
 ---
 
-## Also in v2.3.0 (if you're upgrading from v2.2.0)
+## ⚙️ Platform Config System — New!
 
-- **Analytics Dashboard** — track post history, per-platform success rates, and share counts
-- **Smart hashtags** first introduced — `HashtagService` with relevance scoring and deduplication
-- **Centralized context builder** — all AI providers share one `buildProjectContext()` function
-- **Hallucination-resistant prompts** — AI only mentions technologies actually present in your project files
+New `platform-config.ts` shared between the extension and WebView — single source of truth for all platform rules (character limits, thread support, workspace routing, auth type, and more).
+
+---
+
+## 🔧 Bug Fixes
+
+- **Reddit subreddit** was hardcoded to `'test'` — now reads from Settings
+- **PostHandler** was reading post content from history — now reads from message correctly
+- **Dev.to image upload** removed — API doesn't support file uploads, URLs only
+- **Twitter char counter** — URLs now always count as 23 chars (was incorrect)
+- **Discord** now shows a clear "coming soon" error instead of silently doing nothing
+- **Thread validation** now uses `supportsThreads` from platform-config instead of hardcoded check
+
+---
+
+## 📦 Also in This Release
+
+- `types.ts` updated with v3.0 Blog/Publisher types (`BlogPost`, `FrontMatter`, `PublishTarget`, etc.)
+- `CredentialProvider` refactored — added `getRedditSubreddit()` method
+- `PostExecutor` decoupled from VS Code UI for clean background execution
+- `SECURITY.md`, `CODE_OF_CONDUCT.md`, and GitHub issue templates added
 
 ---
 
