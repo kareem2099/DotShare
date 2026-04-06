@@ -38,7 +38,8 @@
       <div class="workspace{{THREADS_ACTIVE}}" id="workspace-threads" data-workspace="threads">
         <div class="card">
           <div class="card-title">🧵 Thread Composer</div>
-          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">Build your thread manually. Each post can have its own media.</p>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">Build your thread
+            manually. Each post can have its own media.</p>
 
           <div id="thread-posts">
             <!-- Thread Post 1 -->
@@ -47,8 +48,8 @@
                 <span class="thread-post-label">Post 1</span>
                 <span class="thread-char-counter" data-thread-counter="0">0 / {{MAX_CHARS}}</span>
               </div>
-              <textarea class="thread-textarea" data-thread-textarea="0"
-                placeholder="What's on your mind?" rows="3"></textarea>
+              <textarea class="thread-textarea" data-thread-textarea="0" placeholder="What's on your mind?"
+                rows="3"></textarea>
               <div class="thread-post-actions">
                 <button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="0">📎 Media</button>
                 <input type="file" class="thread-file-input" data-thread-file="0"
@@ -61,13 +62,18 @@
             </div>
           </div>
 
-          <button class="btn btn-ghost btn-sm" id="btn-add-thread-post" style="margin-top:8px;">➕ Add another post</button>
+          <button class="btn btn-ghost btn-sm" id="btn-add-thread-post" style="margin-top:8px;">➕ Add another
+            post</button>
         </div>
 
         <div class="action-bar">
           <button class="btn btn-secondary btn-sm" id="btn-generate-ai-threads">🧠 Generate with AI</button>
           <div class="spacer"></div>
           <button class="btn btn-primary" id="btn-share-thread" disabled>🚀 Share Thread</button>
+        </div>
+        <div class="shortcut-hint" style="margin-top:6px; justify-content: flex-end;">
+          <span class="kbd">Ctrl</span><span>+</span><span class="kbd">Enter</span>
+          <span style="margin-left:2px;">to share</span>
         </div>
       </div>
 
@@ -85,9 +91,14 @@
           <div class="action-bar" style="margin-top:10px;">
             <button class="btn btn-secondary btn-sm" id="btn-generate-ai">🧠 Generate with AI</button>
             <button class="btn btn-ghost btn-sm" id="btn-attach-media">📎 Attach Media</button>
-            <input type="file" id="media-file-input" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" />
+            <input type="file" id="media-file-input" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
+              style="display:none;" />
             <div class="spacer"></div>
             <button class="btn btn-primary" id="btn-share" disabled>🚀 Share Now</button>
+          </div>
+          <div class="shortcut-hint" style="margin-top:6px; justify-content: flex-end;">
+            <span class="kbd">Ctrl</span><span>+</span><span class="kbd">Enter</span>
+            <span style="margin-left:2px;">to share</span>
           </div>
           <div id="media-preview" style="display:none; margin-top:12px;">
             <div style="display:flex;align-items:center;gap:8px;">
@@ -98,6 +109,44 @@
             </div>
           </div>
         </div>
+
+        <!-- Reddit Settings Card (Integrated, only for Reddit) -->
+        <div class="card" id="reddit-options-card"
+          style="display:none; margin-top:16px; border-left: 4px solid #ff4500;">
+          <div class="card-title">🟠 Reddit Post Settings</div>
+          <div class="card-body" style="padding:0;">
+            <div class="input-group">
+              <label for="redditSubreddit">Subreddit</label>
+              <input type="text" id="redditSubreddit" placeholder="e.g., r/programming, r/technology" required />
+              <small>Select the subreddit where you want to post</small>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label for="redditTitle">Post Title</label>
+              <input type="text" id="redditTitle" placeholder="Enter an engaging title..." maxlength="300" />
+              <small>Title is required for Reddit posts (max 300 chars)</small>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label for="redditFlair">Post Flair (Optional)</label>
+              <select id="redditFlair">
+                <option value="">No flair</option>
+              </select>
+              <small>Add flair to categorize your post</small>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label>Post Type</label>
+              <div class="radio-group" style="display:flex; gap:12px; margin-top:4px;">
+                <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="radio"
+                    name="redditPostType" value="self" checked /> Text</label>
+                <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="radio"
+                    name="redditPostType" value="link" /> Link</label>
+              </div>
+            </div>
+            <div class="checkbox-group" style="margin-top:12px;">
+              <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox"
+                  id="redditSpoiler" /> Mark as Spoiler</label>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ BLOGS WORKSPACE (Dev.to, Medium) ═══ -->
@@ -105,9 +154,12 @@
         <input type="hidden" id="blog-single-platform" value="{{PLATFORM_KEY}}" />
         <div class="card">
           <div class="card-title">📰 Article Publisher</div>
-          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">{{BLOG_INTRO_TEXT}}</p>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">{{BLOG_INTRO_TEXT}}
+          </p>
 
           <button class="btn btn-secondary" id="btn-read-md-file">📖 Read Current Markdown File</button>
+          <span class="shortcut-hint" style="margin-left:8px;"><span class="kbd">Ctrl</span><span>+</span><span
+              class="kbd">L</span></span>
 
           <div id="blog-preview" style="display:none; margin-top:16px;">
             <div class="input-group">
@@ -134,17 +186,18 @@
               <label>Canonical URL (optional)</label>
               <input type="url" id="blog-canonical-url" placeholder="https://yoursite.com/post" />
             </div>
-{{BLOG_SERIES_FIELD_HTML}}
+            {{BLOG_SERIES_FIELD_HTML}}
           </div>
         </div>
 
         <div class="card" id="blog-platforms-card" style="display:none;">
-{{BLOG_PUBLISH_CARD_HTML}}
+          {{BLOG_PUBLISH_CARD_HTML}}
         </div>
 
         <div class="action-bar" id="blog-actions" style="display:none;">
           <div class="spacer"></div>
-          <button type="button" class="btn btn-primary" id="btn-publish-blog" disabled>{{BLOG_PUBLISH_BUTTON_TEXT}}</button>
+          <button type="button" class="btn btn-primary" id="btn-publish-blog"
+            disabled>{{BLOG_PUBLISH_BUTTON_TEXT}}</button>
         </div>
       </div>
 
@@ -154,7 +207,9 @@
   <!-- AI Model Modal -->
   <div id="modelModal" class="modal" style="display:none;">
     <div class="modal-content">
-      <div class="modal-header"><h3>Select AI Model</h3><span id="closeModal" class="close-modal">&times;</span></div>
+      <div class="modal-header">
+        <h3>Select AI Model</h3><span id="closeModal" class="close-modal">&times;</span>
+      </div>
       <div class="modal-body">
         <div class="provider-tabs">
           <button class="tab-btn active" data-provider="gemini">Gemini</button>
@@ -164,7 +219,8 @@
         </div>
         <div id="geminiPanel" class="provider-panel active">
           <h4>Google Gemini</h4>
-          <div class="input-group"><label for="geminiKeyModal">API Key</label><input type="password" id="geminiKeyModal" /></div>
+          <div class="input-group"><label for="geminiKeyModal">API Key</label><input type="password"
+              id="geminiKeyModal" /></div>
           <div class="input-group"><label for="geminiModel">Model</label>
             <select id="geminiModel">
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
@@ -197,7 +253,10 @@
           <h4>xAI Grok</h4>
           <div class="input-group"><label for="xaiKey">API Key</label><input type="password" id="xaiKey" /></div>
           <div class="input-group"><label for="xaiModel">Model</label>
-            <select id="xaiModel"><option value="grok-beta">Grok Beta</option><option value="grok-1">Grok-1</option></select>
+            <select id="xaiModel">
+              <option value="grok-beta">Grok Beta</option>
+              <option value="grok-1">Grok-1</option>
+            </select>
           </div>
         </div>
       </div>
@@ -220,7 +279,7 @@
       supportsMedia: '{{SUPPORTS_MEDIA}}' === 'true',
       charCountMethod: '{{CHAR_COUNT_METHOD}}'
     };
-    
+
     // Auto-set threadPlatform for thread composer based on platform data
     if (window.__PLATFORM_DATA__ && window.__PLATFORM_DATA__.workspaceType === 'threads') {
       window.__AUTO_THREAD_PLATFORM__ = window.__PLATFORM_DATA__.platform;
@@ -234,4 +293,5 @@
   </script>
   <script src="{{SCRIPT_URI}}" nonce="{{NONCE}}"></script>
 </body>
+
 </html>

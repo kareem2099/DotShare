@@ -259,7 +259,8 @@ export class MessageHandler {
                 mediaPath: fileUri.fsPath,
                 mediaFilePath: fileUri.fsPath,
                 fileName: file.name,
-                fileSize: file.size
+                fileSize: file.size,
+                threadIndex: message.threadIndex
             });
 
             this.sendSuccess(`File "${file.name}" uploaded successfully!`);

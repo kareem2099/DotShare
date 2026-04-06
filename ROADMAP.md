@@ -18,13 +18,9 @@ The 3.x era is a **complete rethinking** of how DotShare lives inside VS Code.
 | **State** | Scattered in providers | Centralized **StateManager** |
 | **Styling** | Inline styles / basic HTML | VS Code-aware CSS variables + component system |
 
-> The activity bar icon stays — it just **opens the WebView** instead of being the UI itself.
+> The activity bar icon stays — it just **opens the WebView** instead of being the UI## v3.0 — *Foundation Strike* 🏗️
 
----
-
-## v3.0 — *Foundation Strike* 🏗️
-
-> **Tag:** `The Publishing Suite` | **Status:** 🟡 Planned
+> **Tag:** `The Publishing Suite` | **Status:** ✅ Completed
 
 This is the ground-up rebuild. Everything else in 3.x depends on getting this right.
 
@@ -32,65 +28,66 @@ This is the ground-up rebuild. Everything else in 3.x depends on getting this ri
 
 The **biggest structural change** in DotShare's history.
 
-- [ ] **`WEBVIEW_SHELL`** — Create a `DotShareWebView.ts` panel launcher. Replaces `DotShareProvider` as the primary UI host. Opens as a proper editor tab.
-- [ ] **`WEBVIEW_ROUTER`** — Implement client-side page routing inside the WebView (`post`, `publish`, `analytics`, `settings`). Think of it like a mini SPA inside VS Code.
-- [ ] **`WEBVIEW_BRIDGE`** — Robust `postMessage` protocol between the extension host and the WebView. Define typed message contracts (`WebViewMessage`, `ExtensionMessage`).
-- [ ] **`WEBVIEW_STATE`** — Centralized `StateManager` that survives WebView restores (uses `vscode.Memento` for persistence).
-- [ ] **`WEBVIEW_THEME`** — Full VS Code theme token binding. The UI must look native in Light, Dark, and High Contrast modes automatically.
+- [x] **`WEBVIEW_SHELL`** — Create a `DotShareWebView.ts` panel launcher. Replaces `DotShareProvider` as the primary UI host. Opens as a proper editor tab.
+- [x] **`WEBVIEW_ROUTER`** — Implement client-side page routing inside the WebView (`post`, `publish`, `analytics`, `settings`). Think of it like a mini SPA inside VS Code.
+- [x] **`WEBVIEW_BRIDGE`** — Robust `postMessage` protocol between the extension host and the WebView. Define typed message contracts (`WebViewMessage`, `ExtensionMessage`).
+- [x] **`WEBVIEW_STATE`** — Centralized `StateManager` that survives WebView restores (uses `vscode.Memento` for persistence).
+- [x] **`WEBVIEW_THEME`** — Full VS Code theme token binding. The UI must look native in Light, Dark, and High Contrast modes automatically.
 
 ### M2 · Page Split: Post vs. Publish vs. Analytics
 
 Three clean pages — no more clutter.
 
 #### 📣 **Post Page** (Social Media)
-- [ ] **`PAGE_POST`** — The social post composer. Character counters, thread splitting, platform toggles. Migrated and cleaned from old `DotShareProvider`.
-- [ ] **`PAGE_POST_PREVIEW`** — Live per-platform preview pane (shows how the post looks on X vs. LinkedIn vs. Bluesky).
-- [ ] **`PAGE_POST_SCHEDULER`** — Scheduling UI embedded directly in the Post page (date/time picker, scheduled queue view).
+- [x] **`PAGE_POST`** — The social post composer. Character counters, thread splitting, platform toggles. Migrated and cleaned from old `DotShareProvider`.
+- [x] **`PAGE_POST_PREVIEW`** — Live per-platform preview pane (shows how the post looks on X vs. LinkedIn vs. Bluesky).
+- [x] **`PAGE_POST_SCHEDULER`** — Scheduling UI embedded directly in the Post page (date/time picker, scheduled queue view).
 
 #### 📝 **Publish Page** (Long-form / Blog)
-- [ ] **`PAGE_PUBLISH`** — Brand new page. Inputs: Title, Tags, Canonical URL, Publish Status toggle, Markdown preview area.
-- [ ] **`PAGE_PUBLISH_LOAD_FILE`** — "Load Current File" button using `vscode.window.activeTextEditor`. Pulls the active `.md` file directly.
-- [ ] **`PAGE_PUBLISH_FRONTMATTER`** — YAML frontmatter parser (`title`, `tags`, `canonical_url`, `description`) auto-fills the form on file load.
-- [ ] **`PAGE_PUBLISH_DRAFT_TOGGLE`** — Clear UI toggle: `🟡 Save as Draft` / `🟢 Publish Live`. Per platform.
+- [x] **`PAGE_PUBLISH`** — Brand new page. Inputs: Title, Tags, Canonical URL, Publish Status toggle, Markdown preview area.
+- [x] **`PAGE_PUBLISH_LOAD_FILE`** — "Load Current File" button using `vscode.window.activeTextEditor`. Pulls the active `.md` file directly.
+- [x] **`PAGE_PUBLISH_FRONTMATTER`** — YAML frontmatter parser (`title`, `tags`, `canonical_url`, `description`) auto-fills the form on file load.
+- [x] **`PAGE_PUBLISH_DRAFT_TOGGLE`** — Clear UI toggle: `🟡 Save as Draft` / `🟢 Publish Live`. Per platform.
 
 #### 📊 **Analytics Page**
-- [ ] **`PAGE_ANALYTICS`** — Migrate `AnalyticsPanel.ts` into the WebView. Now it's a proper page, not a floating panel.
-- [ ] **`PAGE_ANALYTICS_CHART`** — Basic charts for post reach, engagement per platform (use a lightweight chart lib or canvas).
+- [x] **`PAGE_ANALYTICS`** — Migrate `AnalyticsPanel.ts` into the WebView. Now it's a proper page, not a floating panel.
+- [x] **`PAGE_ANALYTICS_CHART`** — Basic charts for post reach, engagement per platform (use a lightweight chart lib or canvas).
 
 ### M3 · Blogging Platform Integrations
 
-- [ ] **`DEVTO_API`** — Dev.to integration. `POST /api/articles`. Handle: `title`, `body_markdown`, `tags` (max 4), `canonical_url`, `published` flag. Use `api_key` auth.
-- [ ] **`DEVTO_FETCH_DRAFTS`** — List user's existing drafts from Dev.to for editing/republishing.
-- [ ] **`MEDIUM_API`** — Medium integration. Flow: `GET /v1/me` → get `authorId` → `POST /v1/users/{authorId}/posts`. Handle: `contentFormat: "markdown"`, `tags`, `publishStatus` (`public` | `draft` | `unlisted`), `canonicalUrl`.
-- [ ] **`MEDIUM_TOKEN_STORE`** — Secure Medium integration token storage via `credential-provider.ts`.
+- [x] **`DEVTO_API`** — Dev.to integration. `POST /api/articles`. Handle: `title`, `body_markdown`, `tags` (max 4), `canonical_url`, `published` flag. Use `api_key` auth.
+- [x] **`DEVTO_FETCH_DRAFTS`** — List user's existing drafts from Dev.to for editing/republishing.
+- [x] **`MEDIUM_API`** — Medium integration. Flow: `GET /v1/me` → get `authorId` → `POST /v1/users/{authorId}/posts`. Handle: `contentFormat: "markdown"`, `tags`, `publishStatus` (`public` | `draft` | `unlisted`), `canonicalUrl`.
+- [x] **`MEDIUM_TOKEN_STORE`** — Secure Medium integration token storage via `credential-provider.ts`.
 
 ### M4 · Hashtag Manager
 
-- [ ] **`HASHTAG_MANAGER`** — Visual tag manager component. Add/remove custom tags, track usage frequency per platform. Postponed from v2.x, now it ships.
-- [ ] **`HASHTAG_SUGGEST`** — Based on usage history, suggest top tags when composing a post.
+- [x] **`HASHTAG_MANAGER`** — Visual tag manager component. Add/remove custom tags, track usage frequency per platform. Postponed from v2.x, now it ships.
+- [x] **`HASHTAG_SUGGEST`** — Based on usage history, suggest top tags when composing a post.
 
 ### M5 · Codebase Refactoring
 
-- [ ] **`SPLIT_WORKFLOWS`** — Hard wall between `/platforms/` (social: character limits, threads) and `/publishers/` (new dir: markdown parsing, metadata, blog APIs).
-- [ ] **`TYPES_V3`** — Rewrite `types.ts`. Add `BlogPost`, `SocialPost`, `PublishTarget`, `DraftStatus`, `FrontMatter` types.
-- [ ] **`CONSTANTS_CLEANUP`** — Audit `constants.ts`. Remove dead values, add platform-specific limits (Dev.to tag max, Medium tag max, etc.).
-- [ ] **`LOGGER_UPGRADE`** — Add log levels (`DEBUG`, `INFO`, `WARN`, `ERROR`) to `Logger.ts`. Structured output.
+- [x] **`SPLIT_WORKFLOWS`** — Hard wall between `/platforms/` (social: character limits, threads) and `/publishers/` (new dir: markdown parsing, metadata, blog APIs).
+- [x] **`TYPES_V3`** — Rewrite `types.ts`. Add `BlogPost`, `SocialPost`, `PublishTarget`, `DraftStatus`, `FrontMatter` types.
+- [x] **`CONSTANTS_CLEANUP`** — Audit `constants.ts`. Remove dead values, add platform-specific limits (Dev.to tag max, Medium tag max, etc.).
+- [x] **`LOGGER_UPGRADE`** — Add log levels (`DEBUG`, `INFO`, `WARN`, `ERROR`) to `Logger.ts`. Structured output.
 
 ---
 
 ## v3.1 — *Polish Pass* ✨
 
-> **Status:** 🔵 Backlog | Depends on: v3.0
+> **Status:** ✅ Completed | Depends on: v3.0
 
 No new features. Make everything in 3.0 feel **production-grade**.
 
-- [ ] **`ERROR_BOUNDARIES`** — Every API call (Dev.to, Medium, all social platforms) gets a consistent error UI. No raw JSON errors shown to users ever again.
-- [ ] **`LOADING_STATES`** — Skeleton loaders and spinner states for all async operations in the WebView.
-- [ ] **`TOAST_SYSTEM`** — Replace `vscode.window.showInformationMessage` with in-WebView toast notifications (success 🟢, warning 🟡, error 🔴).
-- [ ] **`KEYBOARD_SHORTCUTS`** — Map key actions: `Ctrl+Enter` to post, `Ctrl+Shift+D` to save draft, `Ctrl+L` to load current file.
-- [ ] **`EMPTY_STATES`** — Beautiful empty states for Analytics page when no data, Scheduled Queue when empty, etc.
-- [ ] **`RESPONSIVE_WEBVIEW`** — The WebView gracefully handles narrow panel widths (e.g. when split-screen coding).
-- [ ] **`ONBOARDING_FLOW`** — First-time setup wizard. Detect missing API keys and guide the user to configure them without leaving the WebView.
+- [x] **`ERROR_BOUNDARIES`** — Every API call (Dev.to, Medium, all social platforms) gets a consistent error UI. No raw JSON errors shown to users ever again.
+- [x] **`LOADING_STATES`** — Skeleton loaders and spinner states for all async operations in the WebView.
+- [x] **`TOAST_SYSTEM`** — Replace `vscode.window.showInformationMessage` with in-WebView toast notifications (success 🟢, warning 🟡, error 🔴).
+- [x] **`KEYBOARD_SHORTCUTS`** — Map key actions: `Ctrl+Enter` to post, `Ctrl+Shift+D` to save draft, `Ctrl+L` to load current file.
+- [x] **`EMPTY_STATES`** — Beautiful empty states for Analytics page when no data, Scheduled Queue when empty, etc.
+- [x] **`RESPONSIVE_WEBVIEW`** — The WebView gracefully handles narrow panel widths (e.g. when split-screen coding).
+- [x] **`ONBOARDING_FLOW`** — First-time setup wizard. Detect missing API keys and guide the user to configure them without leaving the WebView.
+- [x] **`WHATS_NEW_V3`** — Update `WhatsNewProvider` with a 3.0 highlights page.er to configure them without leaving the WebView.
 - [ ] **`WHATS_NEW_V3`** — Update `WhatsNewProvider` with a 3.0 highlights page.
 
 ---

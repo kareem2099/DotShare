@@ -666,19 +666,11 @@ export class PostHandler {
             const accessToken  = msg.redditAccessToken  || await this.context.secrets.get('redditAccessToken')  || '';
             const refreshToken = msg.redditRefreshToken || await this.context.secrets.get('redditRefreshToken') || undefined;
 
-            // Strip r/ prefix if present
-            const rawSubreddit = msg.redditSubreddit || '';
-            const subreddit = rawSubreddit.startsWith('r/') ? rawSubreddit.substring(2) : rawSubreddit;
-
-            if (!subreddit) {
-                throw new Error('Subreddit is required for Reddit posts. Please set it in Settings.');
-            }
-
             const redditPostData = {
                 text:       msg.post || post.text,
                 media:      post.media,
-                subreddit,
-                title:      msg.redditTitle || post.text.substring(0, 300),
+                subreddit:  msg.redditSubreddit || '',
+                title:      msg.redditTitle,
                 flairId:    msg.redditFlairId,
                 isSelfPost: msg.redditPostType !== 'link',
                 spoiler:    msg.redditSpoiler

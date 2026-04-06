@@ -18,16 +18,48 @@ interface VsCodeApi {
 
 // Get vscode API - it's set by inline script in HTML before this script loads
 const vscode: VsCodeApi =
-    (typeof window !== 'undefined' && (window as Window & { __vscode?: VsCodeApi }).__vscode) ||
-    (typeof globalThis !== 'undefined' && (globalThis as typeof globalThis & { vscode?: VsCodeApi }).vscode) ||
+    (typeof window !== 'undefined' && (window as any).__vscode) ||
+    (typeof globalThis !== 'undefined' && (globalThis as any).vscode) ||
     acquireVsCodeApi();
+
+// Global types for platform data set in HTML
+interface PlatformData {
+    platform: string;
+    name: string;
+    icon: string;
+    maxChars: number;
+    workspaceType: string;
+    supportsThreads: boolean;
+    supportsMedia: boolean;
+    charCountMethod: string;
+}
+
+declare global {
+    interface Window {
+        __PLATFORM_DATA__?: PlatformData;
+        __AUTO_THREAD_PLATFORM__?: string;
+        __vscode?: VsCodeApi;
+    }
+}
 
 function send(command: string, payload: Record<string, unknown> = {}): void {
     try {
         vscode.postMessage({ command, ...payload });
     } catch (error) {
         console.error(`Failed to send command '${command}':`, error);
-        toast(`Error: Could not send command to extension`, 'error');
+        showError(`Could not send command to extension`);
+    }
+}
+
+function showError(msg: string): void {
+    toast(msg, 'error', 5000);
+}
+
+function setBtnLoading(id: string, isLoading: boolean): void {
+    const btn = get<HTMLButtonElement>(id);
+    if (btn) {
+        if (isLoading) btn.classList.add('loading');
+        else btn.classList.remove('loading');
     }
 }
 
@@ -46,11 +78,75 @@ function toast(msg: string, type: 'success' | 'error' | 'warning' | 'info' = 'in
     const el = document.createElement('div');
     el.className = 'toast ' + type;
     const icons: Record<string, string> = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-    el.innerHTML = '<span>' + icons[type] + '</span><span>' + escHtml(msg) + '</span><button class="toast-close">✕</button>';
+
+    el.innerHTML = `
+        <span>${icons[type]}</span>
+        <span>${escHtml(msg)}</span>
+        <button class="toast-close">✕</button>
+        <div class="toast-progress" style="animation-duration: ${ms}ms"></div>
+    `;
+
     el.querySelector('.toast-close')?.addEventListener('click', () => el.remove());
     container.appendChild(el);
-    if (ms > 0) setTimeout(() => { if (el.parentNode) { el.style.opacity = '0'; setTimeout(() => el.remove(), 200); } }, ms);
+
+    if (ms > 0) {
+        setTimeout(() => {
+            if (el.parentNode) {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 250);
+            }
+        }, ms);
+    }
 }
+
+// ── Keyboard Shortcuts ─────────────────────────────────────────────────────
+window.addEventListener('keydown', (e) => {
+    // Ctrl+Enter for Share
+    if (e.ctrlKey && e.key === 'Enter') {
+        const shareBtn = get<HTMLButtonElement>('btn-share');
+        if (shareBtn && !shareBtn.disabled && !shareBtn.classList.contains('loading')) {
+            shareBtn.click();
+        }
+        const threadBtn = get<HTMLButtonElement>('btn-share-thread');
+        if (threadBtn && !threadBtn.disabled && !threadBtn.classList.contains('loading')) {
+            threadBtn.click();
+        }
+    }
+    // Ctrl+L for Read File
+    if (e.ctrlKey && e.key === 'l') {
+        const readBtn = get<HTMLButtonElement>('btn-read-md-file');
+        if (readBtn && !readBtn.disabled) {
+            e.preventDefault();
+            readBtn.click();
+        }
+    }
+});
+
+// ── Onboarding Logic ────────────────────────────────────────────────────────
+function checkCredentials(config: any): void {
+    const banner = get('onboarding-banner');
+    if (!banner) return;
+
+    const hasCreds = config && (
+        config.linkedinToken || config.telegramBot || config.xAccessToken ||
+        config.facebookToken || config.discordWebhookUrl || config.redditAccessToken ||
+        config.blueskyIdentifier || config.devtoApiKey || config.mediumAccessToken
+    );
+
+    if (!hasCreds) {
+        banner.classList.add('visible');
+    } else {
+        banner.classList.remove('visible');
+    }
+}
+
+get('onboarding-dismiss')?.addEventListener('click', () => {
+    get('onboarding-banner')?.classList.remove('visible');
+});
+
+get('onboarding-goto-settings')?.addEventListener('click', () => {
+    navigateTo('settings');
+});
 
 function navigateTo(pageId: string): void {
     try {
@@ -137,21 +233,77 @@ function resetBlogPublishUi(): void {
     const hasContent = getBlogBodyText().length > 0;
     const bDev = get<HTMLButtonElement>('btn-publish-blog-devto');
     if (bDev) {
+        setBtnLoading('btn-publish-blog-devto', false);
         bDev.disabled = !hasContent;
         bDev.textContent = BLOG_BTN_LABEL_DEVTO;
     }
     const bMed = get<HTMLButtonElement>('btn-publish-blog-medium');
     if (bMed) {
+        setBtnLoading('btn-publish-blog-medium', false);
         bMed.disabled = !hasContent;
         bMed.textContent = BLOG_BTN_LABEL_MEDIUM;
     }
     const bSingle = get<HTMLButtonElement>('btn-publish-blog');
     if (bSingle) {
+        setBtnLoading('btn-publish-blog', false);
         bSingle.disabled = !hasContent;
         const singlePlat = getSingleBlogPlatform();
         if (singlePlat === 'devto') bSingle.textContent = BLOG_BTN_LABEL_DEVTO;
         else if (singlePlat === 'medium') bSingle.textContent = BLOG_BTN_LABEL_MEDIUM;
         else bSingle.textContent = singleBlogPublishDefaultLabel || '🚀 Publish Article';
+    }
+}
+
+function resetAllComposers(): void {
+    try {
+        // 1. Clear Main Textarea
+        if (textarea) {
+            textarea.value = '';
+            updateCharCounter();
+            updateShareBtn();
+        }
+
+        // 2. Clear Article Publisher
+        const blogBody = get<HTMLTextAreaElement>('blog-body');
+        if (blogBody) blogBody.value = '';
+
+        const blogFields = ['blog-title', 'blog-tags', 'blog-description', 'blog-cover-image', 'blog-canonical-url', 'blog-series'];
+        blogFields.forEach(id => {
+            const el = get<HTMLInputElement | HTMLTextAreaElement>(id);
+            if (el) el.value = '';
+        });
+
+        // 3. Clear Media
+        const mediaPreview = get('media-preview');
+        if (mediaPreview) mediaPreview.style.display = 'none';
+        const fileInput = get<HTMLInputElement>('media-file-input');
+        if (fileInput) fileInput.value = '';
+
+        // 4. Clear Reddit Fields
+        const redditFields = ['redditSubreddit', 'redditTitle', 'redditFlair'];
+        redditFields.forEach(id => {
+            const el = get<HTMLInputElement>(id);
+            if (el) el.value = '';
+        });
+
+        // 5. Reset Buttons
+        setBtnLoading('btn-share', false);
+        setBtnLoading('btn-share-thread', false);
+        setBtnLoading('btn-generate-ai', false);
+        setBtnLoading('btn-read-md-file', false);
+
+        activeMediaPath = null;
+
+        if (btnShare) {
+            btnShare.disabled = true;
+            btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now';
+        }
+
+        resetBlogPublishUi();
+
+        console.log('[DotShare] Composers reset successfully');
+    } catch (error) {
+        console.error('Error resetting composers:', error);
     }
 }
 
@@ -204,8 +356,10 @@ function wireBlogPublishButton(
 }
 
 get('btn-read-md-file')?.addEventListener('click', () => {
+    const btn = get<HTMLButtonElement>('btn-read-md-file');
+    if (btn) btn.classList.add('loading');
     send('readMarkdownFile');
-    toast('Reading current file…', 'info');
+    toast('Reading current file…', 'info', 2000);
 });
 
 wireBlogPublishButton(
@@ -263,21 +417,197 @@ get('btn-pro-multipost')?.addEventListener('click', () => {
 });
 
 let activeCommandPlatform: any = null;
+let activeMediaPath: string | null = null;
+
+// ── Threads Composer ────────────────────────────────────────────────────────
+const threadContainer = get('thread-posts');
+const btnAddThreadPost = get<HTMLButtonElement>('btn-add-thread-post');
+const btnShareThread = get<HTMLButtonElement>('btn-share-thread');
+
+let threadPosts: Array<{ text: string, mediaPath: string | null, mediaName: string | null }> = [
+    { text: '', mediaPath: null, mediaName: null }
+];
+
+function updateThreadCharCounter(index: number): void {
+    const el = document.querySelector<HTMLElement>(`[data-thread-counter="${index}"]`);
+    const ta = document.querySelector<HTMLTextAreaElement>(`[data-thread-textarea="${index}"]`);
+    if (el && ta) {
+        el.textContent = `${ta.value.length} / ${window.__PLATFORM_DATA__?.maxChars || 280}`;
+    }
+}
+
+function updateThreadShareBtn(): void {
+    const btnShareThread = get<HTMLButtonElement>('btn-share-thread');
+    if (!btnShareThread) return;
+    const hasAnyContent = threadPosts.some(p => p.text.trim().length > 0 || p.mediaPath);
+    btnShareThread.disabled = !hasAnyContent;
+}
+
+btnAddThreadPost?.addEventListener('click', () => {
+    const index = threadPosts.length;
+    threadPosts.push({ text: '', mediaPath: null, mediaName: null });
+
+    const postHtml = `
+        <div class="thread-post" data-thread-index="${index}">
+            <div class="thread-post-header">
+                <span class="thread-post-label">Post ${index + 1}</span>
+                <span class="thread-char-counter" data-thread-counter="${index}">0 / ${window.__PLATFORM_DATA__?.maxChars || 280}</span>
+                <button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="${index}">✕</button>
+            </div>
+            <textarea class="thread-textarea" data-thread-textarea="${index}" placeholder="What's on your mind?" rows="3"></textarea>
+            <div class="thread-post-actions">
+                <button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="${index}">📎 Media</button>
+                <input type="file" class="thread-file-input" data-thread-file="${index}" 
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" />
+                <div class="thread-media-preview" data-thread-preview="${index}" style="display:none;">
+                    <span class="thread-media-name"></span>
+                    <button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="${index}">✕</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (threadContainer) {
+        const div = document.createElement('div');
+        div.innerHTML = postHtml.trim();
+        threadContainer.appendChild(div.firstChild!);
+        wireThreadPostEvents(index);
+    }
+});
+
+function wireThreadPostEvents(index: number): void {
+    const ta = document.querySelector<HTMLTextAreaElement>(`[data-thread-textarea="${index}"]`);
+    const mediaBtn = document.querySelector<HTMLButtonElement>(`[data-thread-media="${index}"]`);
+    const fileInp = document.querySelector<HTMLInputElement>(`[data-thread-file="${index}"]`);
+    const remMediaBtn = document.querySelector<HTMLButtonElement>(`[data-thread-remove="${index}"]`);
+    const remPostBtn = document.querySelector<HTMLButtonElement>(`[data-remove-index="${index}"]`);
+
+    ta?.addEventListener('input', () => {
+        threadPosts[index].text = ta.value;
+        updateThreadCharCounter(index);
+        updateThreadShareBtn();
+    });
+
+    mediaBtn?.addEventListener('click', () => fileInp?.click());
+
+    fileInp?.addEventListener('change', () => {
+        const file = fileInp?.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            // In threads, we might need a way to track which post is uploading
+            // For now, let's just use a special command or add index to uploadFile
+            send('uploadFile', { 
+                file: { name: file.name, size: file.size, type: file.type, base64Data: base64 },
+                threadIndex: index 
+            });
+        };
+        reader.readAsDataURL(file);
+
+        // Preview local
+        const preview = document.querySelector<HTMLElement>(`[data-thread-preview="${index}"]`);
+        const nameEl = document.querySelector<HTMLElement>(`[data-thread-preview="${index}"] .thread-media-name`);
+        if (preview) preview.style.display = 'flex';
+        if (nameEl) nameEl.textContent = file.name;
+    });
+
+    remMediaBtn?.addEventListener('click', () => {
+        threadPosts[index].mediaPath = null;
+        threadPosts[index].mediaName = null;
+        const preview = document.querySelector<HTMLElement>(`[data-thread-preview="${index}"]`);
+        if (preview) preview.style.display = 'none';
+        if (fileInp) fileInp.value = '';
+        updateThreadShareBtn();
+    });
+
+    remPostBtn?.addEventListener('click', () => {
+        const el = document.querySelector(`.thread-post[data-thread-index="${index}"]`);
+        if (el) el.remove();
+        // Note: we don't remove from array to keep indexes simple, just mark as deleted or handle re-indexing
+        // But for simplicity in this MVP: 
+        threadPosts[index].text = '';
+        threadPosts[index].mediaPath = null;
+        updateThreadShareBtn();
+    });
+}
+
+// Initial wire up for first post
+wireThreadPostEvents(0);
+
+btnShareThread?.addEventListener('click', () => {
+    try {
+        const validPosts = threadPosts.filter(p => p.text.trim() || p.mediaPath);
+        if (validPosts.length === 0) { toast('Thread is empty', 'warning'); return; }
+
+        btnShareThread.classList.add('loading');
+        btnShareThread.disabled = true;
+        btnShareThread.textContent = '⏳ Sharing Thread…';
+
+        send('shareThread', {
+            platform: activeCommandPlatform || (window as any).__AUTO_THREAD_PLATFORM__,
+            posts: validPosts.map(p => ({
+                text: p.text,
+                mediaFilePaths: p.mediaPath ? [p.mediaPath] : []
+            }))
+        });
+    } catch (error) {
+        console.error('Thread share error:', error);
+        toast('Failed to share thread', 'error');
+        if (btnShareThread) {
+            btnShareThread.disabled = false;
+            btnShareThread.classList.remove('loading');
+            btnShareThread.textContent = '🚀 Share Thread';
+        }
+    }
+});
 
 btnShare?.addEventListener('click', () => {
     try {
         const text = textarea?.value.trim();
         if (!text) { toast('Write something first', 'warning'); return; }
+        btnShare.classList.add('loading');
         btnShare.disabled = true;
         btnShare.textContent = '⏳ Sharing…';
 
         const platforms = activeCommandPlatform ? [activeCommandPlatform] : [];
-        send('share', { post: text, platforms });
+        const payload: any = {
+            post: text,
+            platforms,
+            mediaFilePaths: activeMediaPath ? [activeMediaPath] : []
+        };
+
+        // Integrated Reddit metadata collection
+        if (activeCommandPlatform === 'reddit') {
+            const val = (id: string) => (get<HTMLInputElement>(id)?.value ?? '').trim();
+            const checked = (id: string) => get<HTMLInputElement>(id)?.checked ?? false;
+
+            const subreddit = val('redditSubreddit');
+            if (!subreddit) {
+                toast('Please enter a subreddit (e.g., r/programming)', 'warning');
+                btnShare.disabled = false;
+                btnShare.textContent = `🚀 Share to Reddit`;
+                btnShare.classList.remove('loading');
+                return;
+            }
+
+            payload.redditMetadata = {
+                subreddit,
+                title: val('redditTitle') || text.split('\n')[0].substring(0, 300),
+                flair: get<HTMLSelectElement>('redditFlair')?.value || '',
+                postType: document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value || 'self',
+                spoiler: checked('redditSpoiler')
+            };
+        }
+
+        send('share', payload);
     } catch (error) {
         console.error('Share error:', error);
         toast('Failed to share post', 'error');
         if (btnShare) {
             btnShare.disabled = false;
+            btnShare.classList.remove('loading');
             btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now';
         }
     }
@@ -1012,9 +1342,27 @@ window.addEventListener('message', function (event) {
                         const pName = activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1);
                         btnShare.textContent = `🚀 Share to ${pName}`;
                     }
+
+                    // Integrated Reddit UI toggle
+                    const redditCard = get('reddit-options-card');
+                    if (redditCard) {
+                        redditCard.style.display = (activeCommandPlatform === 'reddit') ? 'block' : 'none';
+                        if (activeCommandPlatform === 'reddit') {
+                            const titleInput = get<HTMLInputElement>('redditTitle');
+                            const postText = textarea?.value.trim() || '';
+                            if (titleInput && !titleInput.value && postText) {
+                                titleInput.value = postText.split('\n')[0].substring(0, 300);
+                            }
+                        }
+                    }
+                    setBtnLoading('btn-share', false);
+                    setBtnLoading('btn-read-md-file', false);
+                    setBtnLoading('btn-generate-ai', false);
                 } else {
                     activeCommandPlatform = null;
                     if (btnShare) btnShare.textContent = '🚀 Share Now';
+                    const redditCard = get('reddit-options-card');
+                    if (redditCard) redditCard.style.display = 'none';
                 }
                 break;
             }
@@ -1025,6 +1373,8 @@ window.addEventListener('message', function (event) {
                     if (blogBodyEl) blogBodyEl.value = String(msg.post);
                 }
                 updateBlogPublishButtonsState();
+                setBtnLoading('btn-generate-ai', false);
+                setBtnLoading('btn-share', false);
                 if (btnGenerate) { btnGenerate.disabled = false; btnGenerate.textContent = '🧠 Generate with AI'; }
                 if (btnShare) {
                     btnShare.disabled = false;
@@ -1082,28 +1432,66 @@ window.addEventListener('message', function (event) {
             }
             case 'status':
                 toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info');
+                setBtnLoading('btn-share', false);
+                setBtnLoading('btn-publish-blog', false);
+                setBtnLoading('btn-publish-blog-devto', false);
+                setBtnLoading('btn-publish-blog-medium', false);
+                setBtnLoading('btn-read-md-file', false);
+                setBtnLoading('btn-generate-ai', false);
                 if (msg.type === 'error') {
                     resetBlogPublishUi();
+                } else if (msg.type === 'success') {
+                    // Only reset if it's a completion message (like "Successfully posted")
+                    // NOT for "File uploaded successfully" or "Settings saved"
+                    const statusLower = String(msg.status || '').toLowerCase();
+                    const looksLikeCompletion = statusLower.includes('success') || statusLower.includes('published') || statusLower.includes('shared');
+                    const looksLikeIntermediate = statusLower.includes('upload') || statusLower.includes('attach') || statusLower.includes('save');
+
+                    if (looksLikeCompletion && !looksLikeIntermediate) {
+                        resetAllComposers();
+                    }
                 }
                 break;
             case 'updateAnalytics': if (msg.analytics) updateAnalytics(msg.analytics as Record<string, unknown>); break;
             case 'updatePostHistory': if (msg.postHistory) renderHistory(msg.postHistory as Array<Record<string, unknown>>); break;
             case 'updateScheduledPosts': if (msg.scheduledPosts) renderScheduledPosts(msg.scheduledPosts as Array<{ id: string; scheduledTime: string; platforms: string[]; postData: { text: string } }>); break;
             case 'shareComplete':
-                resetBlogPublishUi();
+                resetAllComposers();
                 break;
+            case 'fileUploaded':
             case 'mediaSelected':
                 if (msg.mediaPath) {
-                    const preview = get('media-preview');
-                    const nameEl = get('media-name');
-                    const sizeEl = get('media-size');
-                    if (preview) preview.style.display = 'block';
-                    if (nameEl) nameEl.textContent = String(msg.fileName || 'File');
-                    if (sizeEl && msg.fileSize) {
-                        const b = Number(msg.fileSize);
-                        sizeEl.textContent = b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+                    const path = String(msg.mediaPath);
+                    const name = String(msg.fileName || 'File');
+                    const size = msg.fileSize ? Number(msg.fileSize) : 0;
+
+                    if (msg.threadIndex !== undefined) {
+                        const idx = Number(msg.threadIndex);
+                        if (threadPosts[idx]) {
+                            threadPosts[idx].mediaPath = path;
+                            threadPosts[idx].mediaName = name;
+                        }
+                        const preview = document.querySelector<HTMLElement>(`[data-thread-preview="${idx}"]`);
+                        const nameEl = document.querySelector<HTMLElement>(`[data-thread-preview="${idx}"] .thread-media-name`);
+                        if (preview) preview.style.display = 'flex';
+                        if (nameEl) nameEl.textContent = name;
+                        updateThreadShareBtn();
+                    } else {
+                        activeMediaPath = path;
+                        const preview = get('media-preview');
+                        const nameEl = get('media-name');
+                        const sizeEl = get('media-size');
+                        if (preview) preview.style.display = 'block';
+                        if (nameEl) nameEl.textContent = name;
+                        if (sizeEl && size) {
+                            const b = size;
+                            sizeEl.textContent = b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+                        }
                     }
                 }
+                break;
+            case 'mediaRemoved':
+                activeMediaPath = null;
                 break;
             case 'themeChanged':
                 if (msg.theme === 'dark') document.body.classList.add('dark');
@@ -1163,6 +1551,7 @@ window.addEventListener('message', function (event) {
                         }
                     });
                 }
+                checkCredentials(msg);
                 break;
             case 'savedApisLoaded':
                 if (msg.platform && msg.savedApis) {

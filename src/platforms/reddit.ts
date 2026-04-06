@@ -100,13 +100,58 @@ export async function shareToReddit(_accessToken: string, _refreshToken: string 
         const accessToken = await TokenManager.getValidToken('reddit');
         if (!accessToken) throw new Error('Reddit: not authenticated — connect your account in Settings.');
 
-        const title = postData.title || postData.text.split('\n')[0].substring(0, 300) || 'Post from DotShare';
-        const subreddit = postData.subreddit.replace(/^r\//, '');
+        const rawSr = postData.subreddit.trim();
+        const subreddit = rawSr.startsWith('r/') 
+            ? rawSr.substring(2) 
+            : rawSr.startsWith('u/') 
+                ? `u_${rawSr.substring(2)}` 
+                : rawSr;
         
+        const title = postData.title || postData.text.split('\n')[0].substring(0, 300) || 'Post from DotShare';
+        
+        let kind = postData.isSelfPost === false ? 'link' : 'self';
+        let text = postData.text;
+        let url = postData.isSelfPost === false ? postData.text : undefined;
+        let mediaIds: string[] = [];
+
+        // Handle Media Uploads
+        if (postData.media && postData.media.length > 0) {
+            Logger.info(`Reddit: Uploading ${postData.media.length} media file(s)...`);
+            mediaIds = await uploadRedditMedia(accessToken, postData.media);
+            
+            if (mediaIds.length > 0) {
+                // For a single image and no explicit link, use kind=image
+                if (mediaIds.length === 1 && postData.isSelfPost !== false) {
+                    const ext = path.extname(postData.media[0]).toLowerCase();
+                    const isVideo = ['.mp4', '.webm', '.gifv'].includes(ext);
+                    
+                    if (isVideo) {
+                        kind = 'video';
+                        // Video usually uses a specific DASH URL or similar, but simplified here
+                    } else {
+                        kind = 'image';
+                    }
+                    url = `https://i.redd.it/${mediaIds[0]}`;
+                } else {
+                    // Multiple files or link post with media: embed in self-post text
+                    kind = 'self';
+                    const mediaMarkdown = mediaIds.map(id => `\n\n![DotShare Media](https://i.redd.it/${id})`).join('');
+                    text += mediaMarkdown;
+                }
+            }
+        }
+
         const data = new URLSearchParams();
         data.append('api_type', 'json');
         data.append('sr', subreddit);
         data.append('title', title);
+        data.append('kind', kind);
+
+        if (kind === 'self') {
+            data.append('text', text);
+        } else if (url) {
+            data.append('url', url);
+        }
         
         if (postData.flairId) {
             data.append('flair_id', postData.flairId);
@@ -115,32 +160,40 @@ export async function shareToReddit(_accessToken: string, _refreshToken: string 
             data.append('spoiler', 'true');
         }
 
-        if (postData.isSelfPost === false) {
-            data.append('kind', 'link');
-            data.append('url', postData.text);
-        } else {
-            data.append('kind', 'self');
-            data.append('text', postData.text);
-        }
-        
         const headers = {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'DotShare/1.0'
+            'User-Agent': 'DotShare/1.0 (by /u/DotShareApp)'
         };
 
         const response = await axios.post('https://oauth.reddit.com/api/submit', data, { headers });
         
+        // Robust Error Handling
         if (response.data.json?.errors?.length > 0) {
-            const errorStrings = response.data.json.errors.map((e: any[]) => e.join(': ')).join(', ');
+            const errorStrings = response.data.json.errors.map((e: any[]) => {
+                return Array.isArray(e) ? e.join(': ') : String(e);
+            }).join(', ');
             throw new Error(`Reddit API Error: ${errorStrings}`);
         }
         
-        const postId = response.data.json?.data?.name || 'posted';
+        if (response.data.error) {
+            throw new Error(`Reddit API Error: ${response.data.error_description || response.data.error}`);
+        }
+        
+        const postId = response.data.json?.data?.name || response.data.name || 'posted';
+        Logger.info('Successfully posted to Reddit:', postId);
         return postId;
         
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+    } catch (error: any) {
+        let errorMessage = error instanceof Error ? error.message : String(error);
+        if (axios.isAxiosError(error) && error.response?.data) {
+            const data = error.response.data;
+            if (data.json?.errors) {
+                errorMessage = data.json.errors.map((e: any) => Array.isArray(e) ? e.join(': ') : String(e)).join(', ');
+            } else if (data.error) {
+                errorMessage = `${data.error}: ${data.error_description || ''}`;
+            }
+        }
         Logger.error('Error posting to Reddit:', errorMessage);
         throw new Error(`Failed to post to Reddit: ${errorMessage}`);
     }
@@ -218,17 +271,21 @@ export async function getRedditSubreddits(accessToken: string, query?: string): 
 
 export async function validateRedditSubreddit(accessToken: string, subreddit: string): Promise<boolean> {
     try {
-        // Validate input
-        if (!subreddit || subreddit.trim() === '') {
-            Logger.error('Error validating subreddit: subreddit name is empty');
+        const rawSr = subreddit.trim();
+        if (!rawSr) {
+            Logger.error('Error validating subreddit: name is empty');
             return false;
         }
 
-        const cleanSubreddit = subreddit.trim();
+        const cleanSubreddit = rawSr.startsWith('r/') 
+            ? rawSr.substring(2) 
+            : rawSr.startsWith('u/') 
+                ? `u_${rawSr.substring(2)}` 
+                : rawSr;
 
         const headers = {
             'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
+            'User-Agent': 'DotShare/1.0 (by /u/DotShareApp)'
         };
 
         const response = await axios.get(`https://oauth.reddit.com/r/${cleanSubreddit}/about.json`, { headers });

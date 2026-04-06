@@ -1,65 +1,43 @@
-# What's New in DotShare v3.0.1
+# What's New in DotShare v3.1.0
 
-*"The Publishing Suite & UX Polish"*
-
----
-
-## 📰 Dev.to & Medium Integration — Update
-
-Publish long-form articles directly from VS Code.
-
-- **Medium API Notice** — Added instructions for manual API activation if missing from settings.
-- **Improved Labels** — Clarified token terminology for Medium integration.
-- **Load Current File** — reads your active `.md` file from the editor
-- **YAML Frontmatter Parser** — auto-fills title, tags, canonical URL, cover image, series
-- **Draft vs. Publish toggle** — per-platform, independently
-- **Dev.to**: title, tags (max 4), series, canonical URL, description
-- **Medium**: markdown format, public / draft / unlisted status
+*"The Polish Pass"*
 
 ---
 
-## 🧭 Platform-First Navigation — New!
+## ✨ Professional UI & Feedback
 
-The sidebar now shows platform icons as primary navigation. Click any platform and the workspace switches automatically:
+Experience a smoother, more responsive DotShare with real-time feedback and better state management.
 
-- **X / Bluesky** → Thread Composer
-- **LinkedIn, Telegram, Facebook, Discord, Reddit** → Social Composer
-- **Dev.to, Medium** → Article Publisher
-
----
-
-## 🧵 Thread Composer + X Premium — New!
-
-- Build threads post-by-post with per-post character counters
-- Media attachment per post
-- **X Premium toggle** — switches character limit from 280 to **25,000 chars**
-- Supports X and Bluesky
+- **New Toast System** — Beautiful notifications with progress bars and auto-dismiss.
+- **Loading States** — Buttons now show spinners while performing actions (sharing, generating AI, reading files).
+- **Onboarding Banner** — A helpful guide for new users to get started with settings.
+- **Improved Empty States** — Clearer instructions and quick-action buttons when there's no history or analytics.
 
 ---
 
-## ⚙️ Platform Config System — New!
+## ⌨️ Productivity Keyboard Shortcuts
 
-New `platform-config.ts` shared between the extension and WebView — single source of truth for all platform rules (character limits, thread support, workspace routing, auth type, and more).
+Speed up your workflow with new native-feeling shortcuts within the WebView:
 
----
-
-## 🔧 Bug Fixes
-
-- **Reddit subreddit** was hardcoded to `'test'` — now reads from Settings
-- **PostHandler** was reading post content from history — now reads from message correctly
-- **Dev.to image upload** removed — API doesn't support file uploads, URLs only
-- **Twitter char counter** — URLs now always count as 23 chars (was incorrect)
-- **Discord** now shows a clear "coming soon" error instead of silently doing nothing
-- **Thread validation** now uses `supportsThreads` from platform-config instead of hardcoded check
+- **`Ctrl + Enter`** — Instantly share your post/thread.
+- **`Ctrl + L`** — Load the current Markdown file into the Article Publisher.
+- **Shortcut Hints** — Visual badges in the UI to help you learn the shortcuts.
 
 ---
 
-## 📦 Also in This Release
+## 📱 Responsive & Native Design
 
-- `types.ts` updated with v3.0 Blog/Publisher types (`BlogPost`, `FrontMatter`, `PublishTarget`, etc.)
-- `CredentialProvider` refactored — added `getRedditSubreddit()` method
-- `PostExecutor` decoupled from VS Code UI for clean background execution
-- `SECURITY.md`, `CODE_OF_CONDUCT.md`, and GitHub issue templates added
+- **Dynamic Layouts** — The UI now adapts gracefully to narrow sidebars (down to 280px).
+- **Theme Sync** — Enhanced support for VS Code light/dark and high-contrast themes.
+- **Native Tokens** — Deeper integration with VS Code's design system for a seamless look.
+
+---
+
+## 🔧 Polish & Fixes
+
+- **Error Boundaries** — Catching and displaying errors gracefully instead of failing silently.
+- **Unified Messaging** — Standardized communication between the editor and the UI.
+- **Performance** — Removed redundant re-renders for a snappier experience.
 
 ---
 

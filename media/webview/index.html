@@ -35,6 +35,21 @@
 
       <!-- ──────────────────── POST PAGE ──────────────────── -->
       <section class="page active" id="page-post">
+
+        <!-- ── Onboarding Banner (visible only when no credentials) ── -->
+        <div id="onboarding-banner">
+          <div class="onboarding-icon">👋</div>
+          <div class="onboarding-body">
+            <div class="onboarding-title">Welcome to DotShare!</div>
+            <p class="onboarding-text">Connect your social platforms to start sharing. It only takes a minute to set up
+              your first account.</p>
+            <div class="onboarding-actions">
+              <button class="btn btn-primary btn-sm" id="onboarding-goto-settings">⚙️ Go to Settings</button>
+              <button class="btn btn-ghost btn-sm" id="onboarding-dismiss">Maybe later</button>
+            </div>
+          </div>
+        </div>
+
         <div class="page-header">
           <div>
             <div class="page-title" id="create-post-title">Create Post</div>
@@ -68,6 +83,10 @@
             <button class="btn btn-ghost btn-sm" id="btn-schedule" disabled title="Coming Soon"
               style="opacity: 0.5; cursor: not-allowed;">⏰ Schedule (Coming Soon)</button>
             <button class="btn btn-primary" id="btn-share" disabled>🚀 Share Now</button>
+          </div>
+          <div class="shortcut-hint" style="margin-top:6px;">
+            <span class="kbd">Ctrl</span><span>+</span><span class="kbd">Enter</span>
+            <span style="margin-left:2px;">to share</span>
           </div>
           <!-- Media preview -->
           <div id="media-preview" style="display:none; margin-top:12px;">
@@ -115,6 +134,8 @@
           <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">Read your
             Markdown file, then publish with the button for each platform.</p>
           <button class="btn btn-secondary" id="btn-read-md-file" type="button">📖 Read Current Markdown File</button>
+          <span class="shortcut-hint" style="margin-left:8px;"><span class="kbd">Ctrl</span><span>+</span><span
+              class="kbd">L</span></span>
           <div id="blog-preview" style="display:none;margin-top:16px;">
             <div class="input-group">
               <label for="blog-body">Article (Markdown body)</label>
@@ -183,6 +204,7 @@
             <div class="empty-state">
               <div class="empty-state-icon">🕐</div>
               <div class="empty-state-title">No scheduled posts</div>
+              <p class="empty-state-hint">Your upcoming posts will appear here once scheduled.</p>
             </div>
           </div>
         </div>
@@ -254,6 +276,7 @@
             <div class="empty-state">
               <div class="empty-state-icon">📭</div>
               <div class="empty-state-title">No history yet</div>
+              <p class="empty-state-hint">Posts you share will appear here with their platform results.</p>
             </div>
           </div>
         </div>
@@ -265,6 +288,7 @@
             <div class="empty-state">
               <div class="empty-state-icon">🕐</div>
               <div class="empty-state-title">No scheduled posts yet</div>
+              <p class="empty-state-hint">Schedule a post from the Create tab to see it here.</p>
             </div>
           </div>
         </div>
@@ -278,7 +302,11 @@
           <div class="list-container" id="reddit-posts-list">
             <div class="empty-state">
               <div class="empty-state-icon">🟠</div>
-              <div class="empty-state-title">Configure Reddit credentials first, then load your posts</div>
+              <div class="empty-state-title">No Reddit posts loaded</div>
+              <p class="empty-state-hint">Configure Reddit in Settings, then click "Load My Posts".</p>
+              <div class="empty-state-action">
+                <button class="btn btn-ghost btn-sm" onclick="navigateTo('settings')">⚙️ Open Settings</button>
+              </div>
             </div>
           </div>
         </div>

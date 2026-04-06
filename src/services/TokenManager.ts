@@ -141,22 +141,29 @@ export class TokenManager {
         const refreshToken = await this._context.secrets.get('redditRefreshToken');
         if (!refreshToken) throw new Error('No Reddit refresh token stored');
 
-        const res = await this.post<{ access_token: string; expires_in?: number }>(
+        const res = await this.post<{ access_token: string; refresh_token?: string; expires_in?: number }>(
             `${AUTH_SERVER_URL}/api/auth/reddit/refresh`,
             { refreshToken }
         );
-        const { access_token, expires_in } = res.data;
+        const { access_token, refresh_token, expires_in } = res.data;
 
         await this._context.secrets.store('redditAccessToken', access_token);
-
-        if (expires_in) {
-            await this._context.secrets.store(
-                'reddit_expires_at',
-                String(Date.now() + expires_in * 1000)
-            );
+        
+        // Reddit may rotate refresh tokens
+        if (refresh_token) {
+            await this._context.secrets.store('redditRefreshToken', refresh_token);
         }
 
-        Logger.info('TokenManager: Reddit token refreshed ✅');
+        if (expires_in) {
+            const expiresAt = Date.now() + expires_in * 1000;
+            await this._context.secrets.store(
+                'reddit_expires_at',
+                String(expiresAt)
+            );
+            Logger.info(`TokenManager: Reddit token refreshed, expires at ${new Date(expiresAt).toISOString()} ✅`);
+        } else {
+            Logger.info('TokenManager: Reddit token refreshed ✅');
+        }
     }
 
     private static async extendFacebook(): Promise<void> {
