@@ -23,7 +23,7 @@ export class DotShareWebView {
 
     private constructor(private readonly _context: vscode.ExtensionContext) {}
 
-    public static createOrShow(context: vscode.ExtensionContext, page = 'post', options?: any): void {
+    public static createOrShow(context: vscode.ExtensionContext, page = 'post', options?: Record<string, unknown>): void {
         DotShareWebView._context = context;
 
         // If panel already exists, reveal it and navigate to the page
@@ -65,15 +65,38 @@ export class DotShareWebView {
         DotShareWebView._messageHandler = new MessageHandler(shim, context, historyService, analyticsService, mediaService);
 
         // Receive messages from the WebView
+        const messageHandlerRef = DotShareWebView._messageHandler;
         panel.webview.onDidReceiveMessage(
-            async (data) => { await DotShareWebView._messageHandler!.handleMessage(data); },
+            async (data) => {
+                if (!messageHandlerRef) {
+                    Logger.error('[DotShareWebView] Message handler not initialized');
+                    return;
+                }
+                try {
+                    await messageHandlerRef.handleMessage(data);
+                } catch (error: unknown) {
+                    const msg = error instanceof Error ? error.message : String(error);
+                    Logger.error('[DotShareWebView] Message handler error:', msg);
+                    panel.webview.postMessage({
+                        command: 'status',
+                        status: `Error: ${msg}`,
+                        type: 'error'
+                    });
+                }
+            },
             undefined,
             context.subscriptions
         );
 
-        // Load initial data
-        DotShareWebView._messageHandler.handleMessage({ command: 'loadConfiguration' });
-        DotShareWebView._messageHandler.handleMessage({ command: 'loadPostHistory' });
+        // Load initial data (fire and forget with error handling)
+        DotShareWebView._messageHandler.handleMessage({ command: 'loadConfiguration' }).catch((error: unknown) => {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[DotShareWebView] Error loading configuration:', msg);
+        });
+        DotShareWebView._messageHandler.handleMessage({ command: 'loadPostHistory' }).catch((error: unknown) => {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[DotShareWebView] Error loading post history:', msg);
+        });
 
         // Navigate to the requested page
         setTimeout(() => {
@@ -150,13 +173,32 @@ export class DotShareWebView {
         const messageHandler = new MessageHandler(shim, context, historyService, analyticsService, mediaService);
 
         panel.webview.onDidReceiveMessage(
-            async (data) => { await messageHandler.handleMessage(data); },
+            async (data) => {
+                try {
+                    await messageHandler.handleMessage(data);
+                } catch (error: unknown) {
+                    const msg = error instanceof Error ? error.message : String(error);
+                    Logger.error(`[DotShareWebView] Message handler error (${platformKey}):`, msg);
+                    panel.webview.postMessage({
+                        command: 'status',
+                        status: `Error: ${msg}`,
+                        type: 'error'
+                    });
+                }
+            },
             undefined,
             context.subscriptions
         );
 
-        messageHandler.handleMessage({ command: 'loadConfiguration' });
-        messageHandler.handleMessage({ command: 'loadPostHistory' });
+        // Load initial data (fire and forget with error handling)
+        messageHandler.handleMessage({ command: 'loadConfiguration' }).catch((error: unknown) => {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error(`[DotShareWebView] Error loading configuration (${platformKey}):`, msg);
+        });
+        messageHandler.handleMessage({ command: 'loadPostHistory' }).catch((error: unknown) => {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error(`[DotShareWebView] Error loading post history (${platformKey}):`, msg);
+        });
 
         setTimeout(() => {
             panel.webview.postMessage({ command: 'navigate', page: 'post', options: { platform: platformKey } });

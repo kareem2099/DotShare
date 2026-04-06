@@ -18,8 +18,8 @@ interface VsCodeApi {
 
 // Get vscode API - it's set by inline script in HTML before this script loads
 const vscode: VsCodeApi =
-    (typeof window !== 'undefined' && (window as any).__vscode) ||
-    (typeof globalThis !== 'undefined' && (globalThis as any).vscode) ||
+    (typeof window !== 'undefined' && (window as unknown as Window & { __vscode?: VsCodeApi }).__vscode) ||
+    (typeof globalThis !== 'undefined' && (globalThis as unknown as { vscode?: VsCodeApi }).vscode) ||
     acquireVsCodeApi();
 
 // Global types for platform data set in HTML
@@ -123,7 +123,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ── Onboarding Logic ────────────────────────────────────────────────────────
-function checkCredentials(config: any): void {
+function checkCredentials(config: Record<string, unknown>): void {
     const banner = get('onboarding-banner');
     if (!banner) return;
 
@@ -389,19 +389,40 @@ const textarea = get<HTMLTextAreaElement>('post-text');
 const counter = get('char-counter');
 const btnShare = get<HTMLButtonElement>('btn-share');
 const btnGenerate = get<HTMLButtonElement>('btn-generate-ai');
-const btnSchedule = get<HTMLButtonElement>('btn-schedule');
 const btnMedia = get<HTMLButtonElement>('btn-attach-media');
 const btnRemMedia = get<HTMLButtonElement>('btn-remove-media');
 
 function updateCharCounter(): void {
     if (!textarea || !counter) return;
     const len = textarea.value.length;
-    counter.textContent = String(len);
+    const platform = activeCommandPlatform || '';
+    const maxChars = platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null;
+    
+    counter.textContent = maxChars ? `${len}/${maxChars}` : String(len);
     counter.className = 'compose-counter';
+    
+    // Apply warning/error classes based on character limit
+    if (maxChars) {
+        const warnThreshold = Math.floor(maxChars * 0.8);
+        const errorThreshold = maxChars;
+        if (len > errorThreshold) {
+            counter.classList.add('error');
+        } else if (len > warnThreshold) {
+            counter.classList.add('warn');
+        }
+    }
 }
 
 function updateShareBtn(): void {
-    if (btnShare) btnShare.disabled = !textarea?.value.trim().length;
+    if (!btnShare) return;
+    if (!textarea?.value.trim().length) {
+        btnShare.disabled = true;
+        return;
+    }
+    // Disable if exceeds max chars for the platform
+    const platform = activeCommandPlatform || '';
+    const maxChars = platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null;
+    btnShare.disabled = maxChars ? textarea.value.length > maxChars : false;
 }
 
 textarea?.addEventListener('input', () => { updateCharCounter(); updateShareBtn(); });
@@ -416,7 +437,7 @@ get('btn-pro-multipost')?.addEventListener('click', () => {
     }
 });
 
-let activeCommandPlatform: any = null;
+let activeCommandPlatform: string | null = null;
 let activeMediaPath: string | null = null;
 
 // ── Threads Composer ────────────────────────────────────────────────────────
@@ -424,7 +445,7 @@ const threadContainer = get('thread-posts');
 const btnAddThreadPost = get<HTMLButtonElement>('btn-add-thread-post');
 const btnShareThread = get<HTMLButtonElement>('btn-share-thread');
 
-let threadPosts: Array<{ text: string, mediaPath: string | null, mediaName: string | null }> = [
+const threadPosts: Array<{ text: string, mediaPath: string | null, mediaName: string | null }> = [
     { text: '', mediaPath: null, mediaName: null }
 ];
 
@@ -470,7 +491,10 @@ btnAddThreadPost?.addEventListener('click', () => {
     if (threadContainer) {
         const div = document.createElement('div');
         div.innerHTML = postHtml.trim();
-        threadContainer.appendChild(div.firstChild!);
+        const firstChild = div.firstChild;
+        if (firstChild) {
+            threadContainer.appendChild(firstChild);
+        }
         wireThreadPostEvents(index);
     }
 });
@@ -546,7 +570,7 @@ btnShareThread?.addEventListener('click', () => {
         btnShareThread.textContent = '⏳ Sharing Thread…';
 
         send('shareThread', {
-            platform: activeCommandPlatform || (window as any).__AUTO_THREAD_PLATFORM__,
+            platform: activeCommandPlatform || (window as unknown as { __AUTO_THREAD_PLATFORM__?: string }).__AUTO_THREAD_PLATFORM__,
             posts: validPosts.map(p => ({
                 text: p.text,
                 mediaFilePaths: p.mediaPath ? [p.mediaPath] : []
@@ -572,7 +596,7 @@ btnShare?.addEventListener('click', () => {
         btnShare.textContent = '⏳ Sharing…';
 
         const platforms = activeCommandPlatform ? [activeCommandPlatform] : [];
-        const payload: any = {
+        const payload: Record<string, unknown> = {
             post: text,
             platforms,
             mediaFilePaths: activeMediaPath ? [activeMediaPath] : []
@@ -905,18 +929,6 @@ document.querySelectorAll<HTMLElement>('[id^="oauthAdvancedToggle_"]').forEach(t
     });
 });
 
-// Saved APIs buttons
-document.querySelectorAll<HTMLElement>('.saved-apis-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        try {
-            const platform = btn.getAttribute('data-platform');
-            if (platform) send('loadSavedApis', { platform });
-        } catch (error) {
-            console.error('Load saved APIs error:', error);
-            toast('Failed to load saved APIs', 'error');
-        }
-    });
-});
 
 // AI Model modal
 get('configureAIBtn')?.addEventListener('click', () => {
@@ -1258,12 +1270,15 @@ get('cancelRedditPostBtn')?.addEventListener('click', () => {
 get('shareRedditPostBtn')?.addEventListener('click', () => {
     try {
         const val = (id: string) => (get<HTMLInputElement>(id)?.value ?? '').trim();
+        const postText = textarea?.value.trim() || '';
+
         send('shareToReddit', {
-            subreddit: val('redditSubreddit'),
-            title: val('redditTitle'),
-            flair: val('redditFlair'),
-            postType: (document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value) || 'self',
-            spoiler: get<HTMLInputElement>('redditSpoiler')?.checked || false
+            post:            postText,
+            redditSubreddit: val('redditSubreddit'),
+            redditTitle:     val('redditTitle'),
+            redditFlairId:   get<HTMLSelectElement>('redditFlair')?.value || '',
+            redditPostType:  document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value || 'self',
+            redditSpoiler:   get<HTMLInputElement>('redditSpoiler')?.checked || false
         });
         const modal = get('redditPostModal');
         if (modal) modal.style.display = 'none';
@@ -1274,46 +1289,6 @@ get('shareRedditPostBtn')?.addEventListener('click', () => {
     }
 });
 
-// Saved APIs modal
-get('closeSavedApisModal')?.addEventListener('click', () => {
-    try {
-        const modal = get('savedApisModal');
-        if (modal) modal.style.display = 'none';
-    } catch (error) {
-        console.error('Saved APIs modal close error:', error);
-    }
-});
-
-get('addNewApiSetBtn')?.addEventListener('click', () => {
-    try {
-        const form = get('editApiForm');
-        if (form) form.style.display = 'block';
-    } catch (error) {
-        console.error('Add API set error:', error);
-        toast('Failed to open form', 'error');
-    }
-});
-
-get('cancelApiEditBtn')?.addEventListener('click', () => {
-    try {
-        const form = get('editApiForm');
-        if (form) form.style.display = 'none';
-    } catch (error) {
-        console.error('Cancel API edit error:', error);
-    }
-});
-
-get('saveApiSetBtn')?.addEventListener('click', () => {
-    try {
-        const name = get<HTMLInputElement>('apiSetName')?.value?.trim();
-        if (!name) { toast('Enter a configuration name', 'warning'); return; }
-        send('saveApiSet', { name });
-        toast('Configuration saved!', 'success');
-    } catch (error) {
-        console.error('Save API set error:', error);
-        toast('Failed to save configuration', 'error');
-    }
-});
 
 // Subreddit suggestions
 document.querySelectorAll<HTMLElement>('.subreddit-suggestion').forEach(btn => {
@@ -1552,32 +1527,6 @@ window.addEventListener('message', function (event) {
                     });
                 }
                 checkCredentials(msg);
-                break;
-            case 'savedApisLoaded':
-                if (msg.platform && msg.savedApis) {
-                    const apis = msg.savedApis as Array<{ id: string; name: string; isDefault?: boolean }>;
-                    const listEl = get('savedApisList');
-                    if (listEl) {
-                        if (!apis.length) {
-                            listEl.innerHTML = '<div class="no-saved-apis"><p>No saved API configurations yet.</p></div>';
-                        } else {
-                            listEl.innerHTML = apis.map(api => `
-                                <div class="saved-api-item">
-                                    <div class="saved-api-info">
-                                        <span class="saved-api-name">${api.name}</span>
-                                        ${api.isDefault ? '<span style="color: var(--success); font-size: 10px;">Default</span>' : ''}
-                                    </div>
-                                    <div class="saved-api-actions">
-                                        <button class="btn btn-sm btn-secondary" onclick="send('loadApiConfig', {apiId: '${api.id}'})">Load</button>
-                                        <button class="btn btn-sm btn-ghost" onclick="send('deleteApiConfig', {apiId: '${api.id}'})">Delete</button>
-                                    </div>
-                                </div>
-                            `).join('');
-                        }
-                    }
-                    const modal = get('savedApisModal');
-                    if (modal) modal.style.display = 'flex';
-                }
                 break;
         }
     } catch (error) {

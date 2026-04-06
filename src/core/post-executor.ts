@@ -127,7 +127,11 @@ export class PostExecutor {
     }
 
     private async executeRedditPost(postData: PostData): Promise<PlatformResult> {
-        const { accessToken, refreshToken } = await this.credentialProvider.getRedditCredentials();
+        // Validate credentials are configured before attempting to post.
+        // Note: shareToReddit fetches its own token via TokenManager internally,
+        // so we don't pass the token here, but this early validation ensures
+        // we fail fast with a clear error if credentials are missing.
+        const { accessToken } = await this.credentialProvider.getRedditCredentials();
         if (!accessToken) {
             return { success: false, errorMessage: 'Reddit credentials not configured' };
         }
@@ -143,8 +147,6 @@ export class PostExecutor {
         const cleanSubreddit = subreddit.startsWith('r/') ? subreddit.substring(2) : subreddit;
 
         const postName = await shareToReddit(
-            accessToken,
-            refreshToken || undefined,
             {
                 text:       postData.text,
                 media:      postData.media,

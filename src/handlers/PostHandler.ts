@@ -676,13 +676,36 @@ export class PostHandler {
                 spoiler:    msg.redditSpoiler
             };
 
-            const postIdOnPlatform = await shareToReddit(accessToken, refreshToken, redditPostData);
+            const postIdOnPlatform = await shareToReddit(redditPostData);
 
             if (postId) this.historyService.recordShare(postId, 'reddit', true, undefined, postIdOnPlatform);
-            this.sendSuccess('Successfully posted to Reddit!');
+
+            // v3.1.0: append AutoMod silent-removal disclaimer to success toast
+            const subredditLabel = msg.redditSubreddit
+                ? ` to ${msg.redditSubreddit.startsWith('r/') ? msg.redditSubreddit : `r/${msg.redditSubreddit}`}`
+                : '';
+            this.sendSuccess(
+                `Successfully posted${subredditLabel}! ` +
+                `⚠️ Note: AutoModerator may silently remove posts that don't meet account age or karma requirements — check the subreddit rules if your post doesn't appear.`
+            );
+
             return postIdOnPlatform;
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            // Properly extract error message from any error type
+            let errorMessage = 'Unknown error';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error && typeof error === 'object') {
+                const obj = error as Record<string, unknown>;
+                if (obj.message && typeof obj.message === 'string') {
+                    errorMessage = obj.message;
+                } else {
+                    errorMessage = String(obj);
+                }
+            }
+            
             if (postId) this.historyService.recordShare(postId, 'reddit', false, errorMessage);
             throw new Error(`Reddit sharing failed: ${errorMessage}`);
         }

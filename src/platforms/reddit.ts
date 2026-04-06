@@ -2,7 +2,6 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import FormData from 'form-data';
-import { DEFAULT_SERVER_URL } from '../constants';
 import { Logger } from '../utils/Logger';
 import { TokenManager } from '../services/TokenManager';
 
@@ -31,12 +30,183 @@ interface RedditPostListingData {
     created_utc: number;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Error Code → User-Friendly Message Mapping (v3.1.0)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const REDDIT_ERROR_MAP: Record<string, (subreddit?: string) => string> = {
+    BAD_FLAIR_TARGET: (sr) => `r/${sr ?? 'this subreddit'} requires a flair. Please select one before posting.`,
+    FLAIR_TEMPLATE_REQUIRED: (sr) => `r/${sr ?? 'this subreddit'} requires a flair. Please select one before posting.`,
+    SUBREDDIT_NOEXIST: (sr) => `Subreddit r/${sr ?? 'unknown'} does not exist.`,
+    SUBREDDIT_NOTALLOWED: (sr) => `You are not allowed to post in r/${sr ?? 'this subreddit'}.`,
+    SUBREDDIT_QUARANTINED: (sr) => `r/${sr ?? 'this subreddit'} is quarantined. You must opt-in on Reddit before posting.`,
+    NO_TEXT: () => 'Post body is empty. Please add some text.',
+    TOO_LONG: () => 'Post body exceeds Reddit\'s character limit.',
+    NO_SELFS: (sr) => `r/${sr ?? 'this subreddit'} does not allow text posts. Try a link post instead.`,
+    NO_LINKS: (sr) => `r/${sr ?? 'this subreddit'} does not allow link posts. Try a text post instead.`,
+    RATELIMIT: () => 'You are posting too quickly. Please wait a moment and try again.',
+    THREAD_LOCKED: () => 'This thread is locked and cannot be replied to.',
+    DOMAIN_BANNED: () => 'The link domain is banned on Reddit.',
+    BAD_URL: () => 'The URL provided is invalid or banned on Reddit.',
+    ALREADY_SUB: (sr) => `This link has already been submitted to r/${sr ?? 'this subreddit'}.`,
+    SUBMIT_VALIDATION_FLAIR_REQUIRED: (sr) => `r/${sr ?? 'this subreddit'} requires a flair before submitting.`,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Header Helpers (v3.1.0 — centralized to avoid duplication)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const REDDIT_BASE_HEADERS = {
+    'User-Agent': 'DotShare/1.0 (by /u/DotShareApp)',
+    'Accept': 'application/json'
+};
+
+function getAuthHeaders(accessToken: string): Record<string, string> {
+    return {
+        ...REDDIT_BASE_HEADERS,
+        'Authorization': `Bearer ${accessToken}`
+    };
+}
+
+function getBasicAuthHeaders(clientId: string, clientSecret: string): Record<string, string> {
+    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    return {
+        ...REDDIT_BASE_HEADERS,
+        'Authorization': `Basic ${auth}`
+    };
+}
+
+/**
+ * Maps a Reddit API error code + subreddit name → a friendly message.
+ * Falls back to the raw error string if the code is unknown.
+ */
+function mapRedditError(errorCode: unknown, subreddit?: string, fallback?: string): string {
+    // Ensure errorCode is a string
+    const codeStr = typeof errorCode === 'string' ? errorCode : String(errorCode ?? '');
+    const normalised = codeStr.toUpperCase().trim();
+    const mapper = REDDIT_ERROR_MAP[normalised];
+    if (mapper) return mapper(subreddit);
+    // Unknown code — return the fallback or the raw code itself
+    return fallback ?? `Reddit error: ${codeStr || 'Unknown'}`;
+}
+
+/**
+ * Extracts Reddit error codes from an Axios error response and maps them to
+ * user-friendly strings. Handles complex error structures with detailed logging.
+ */
+function extractRedditErrors(error: unknown, subreddit?: string): string {
+    if (!axios.isAxiosError(error)) {
+        if (error instanceof Error) return error.message;
+        if (typeof error === 'string') return error;
+        if (error && typeof error === 'object') {
+            const obj = error as Record<string, unknown>;
+            if (obj.message && typeof obj.message === 'string') return obj.message;
+        }
+        return 'Unknown error occurred';
+    }
+
+    const data = error.response?.data;
+    const status = error.response?.status;
+
+    // Debug: Log the actual data structure for troubleshooting
+    if (data) {
+        Logger.debug('Reddit API error response:', {
+            status,
+            dataKeys: typeof data === 'object' ? Object.keys(data as Record<string, unknown>) : 'not-object',
+            dataType: typeof data,
+            rawData: JSON.stringify(data, null, 2)
+        });
+    }
+
+    // Handle top-level json.errors array: [[code, message, field], ...]
+    if (data?.json?.errors && Array.isArray(data.json.errors) && data.json.errors.length > 0) {
+        return (data.json.errors as unknown[])
+            .map((e) => {
+                if (Array.isArray(e) && e.length > 0) {
+                    const code = String(e[0] ?? 'UNKNOWN_ERROR');
+                    const details = e.length > 1 && e[1] ? String(e[1]) : undefined;
+                    return mapRedditError(code, subreddit, details);
+                }
+                return mapRedditError(String(e ?? 'UNKNOWN_ERROR'), subreddit);
+            })
+            .join(' | ');
+    }
+
+    // Handle flat error field
+    if (data?.error) {
+        // data.error might be an object, so convert safely
+        let errorStr = '';
+        if (typeof data.error === 'string') {
+            errorStr = data.error;
+        } else if (typeof data.error === 'object' && data.error !== null) {
+            // If error is an object, try to extract reason or message
+            const errObj = data.error as Record<string, unknown>;
+            if (errObj.reason && typeof errObj.reason === 'string') {
+                errorStr = errObj.reason;
+            } else if (errObj.message && typeof errObj.message === 'string') {
+                errorStr = errObj.message;
+            } else {
+                errorStr = JSON.stringify(errObj);
+            }
+        } else {
+            errorStr = String(data.error ?? 'UNKNOWN_ERROR');
+        }
+
+        const code = errorStr.toUpperCase().trim();
+
+        // HTTP 403 — commonly "forbidden" / restricted sub
+        if (status === 403 || code === 'FORBIDDEN' || code === '403') {
+            return `Access forbidden to r/${subreddit ?? 'this subreddit'}. Make sure the subreddit exists and allows your post type.`;
+        }
+
+        // HTTP 400 — commonly malformed request / bad flair
+        if (status === 400 || code === 'BAD_REQUEST' || code === '400') {
+            return `Bad request to Reddit. This may be due to a missing or invalid flair for r/${subreddit ?? 'this subreddit'}.`;
+        }
+
+        const details = data.error_description ? String(data.error_description) : undefined;
+        return mapRedditError(code, subreddit, details);
+    }
+
+    // Generic HTTP error
+    if (status) {
+        const message = data?.message ? String(data.message) : '';
+        return `Reddit returned HTTP ${status}. ${message}`.trim();
+    }
+
+    return error.message || 'Unknown Reddit API error';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Media Upload Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Maps file extension to correct MIME type for image/video uploads.
+ * Ensures PNG transparency, GIF animation, and proper video formats.
+ */
+function getMimeType(ext: string): string {
+    const mimeMap: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.gifv': 'video/mp4'
+    };
+    return mimeMap[ext.toLowerCase()] || 'image/jpeg';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Media Upload
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function uploadRedditMedia(accessToken: string, mediaFiles: string[]): Promise<string[]> {
     const uploadedAssets: string[] = [];
 
     for (const mediaFile of mediaFiles) {
         try {
-            // Check file extension and size
             const ext = path.extname(mediaFile).toLowerCase();
             const supportedImageExts = ['.jpg', '.jpeg', '.png', '.gif'];
             const supportedVideoExts = ['.mp4', '.webm', '.gifv'];
@@ -47,24 +217,18 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
             }
 
             const stats = fs.statSync(mediaFile);
-            const maxSizeBytes = supportedVideoExts.includes(ext) ? 128 * 1024 * 1024 : 20 * 1024 * 1024; // 128MB for video, 20MB for images
+            const maxSizeBytes = supportedVideoExts.includes(ext) ? 128 * 1024 * 1024 : 20 * 1024 * 1024;
 
             if (stats.size > maxSizeBytes) {
                 Logger.warn(`Media file too large: ${stats.size} bytes (max: ${maxSizeBytes})`);
                 continue;
             }
 
-            // Request upload lease
             const leaseResponse = await axios.post('https://oauth.reddit.com/api/v1/me/upload.json', {
                 filepath: path.basename(mediaFile),
-                mimetype: supportedVideoExts.includes(ext)
-                    ? (ext === '.webm' ? 'video/webm' : 'video/mp4')
-                    : 'image/jpeg' // Reddit determines actual type from upload
+                mimetype: getMimeType(ext)
             }, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'User-Agent': 'DotShare/1.0'
-                }
+                headers: getAuthHeaders(accessToken)
             });
 
             const { args } = leaseResponse.data;
@@ -73,7 +237,6 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
                 continue;
             }
 
-            // Parse form data and upload to S3
             const formData = new FormData();
             Object.entries(args.fields).forEach(([key, value]) => {
                 formData.append(key, value as string);
@@ -82,60 +245,73 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 
             await axios.post(args.action, formData, {
                 headers: formData.getHeaders(),
-                timeout: 60000 // 60 second timeout for uploads
+                timeout: 60000
             });
 
-            uploadedAssets.push(args.fields.key); // key is the asset identifier
+            uploadedAssets.push(args.fields.key);
         } catch (error) {
             Logger.error(`Failed to upload media ${mediaFile}:`, error);
-            // Continue with other media files
         }
     }
 
     return uploadedAssets;
 }
 
-export async function shareToReddit(_accessToken: string, _refreshToken: string | undefined, postData: RedditPostData): Promise<string> {
+// ─────────────────────────────────────────────────────────────────────────────
+// Share to Reddit (v3.1.0 — robust error handling)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function shareToReddit(postData: RedditPostData): Promise<string> {
+    // Normalise subreddit name early so it's available for error messages
+    const rawSr = postData.subreddit.trim();
+    const subreddit = rawSr.startsWith('r/')
+        ? rawSr.substring(2)
+        : rawSr.startsWith('u/')
+            ? `u_${rawSr.substring(2)}`
+            : rawSr;
+
     try {
         const accessToken = await TokenManager.getValidToken('reddit');
         if (!accessToken) throw new Error('Reddit: not authenticated — connect your account in Settings.');
 
-        const rawSr = postData.subreddit.trim();
-        const subreddit = rawSr.startsWith('r/') 
-            ? rawSr.substring(2) 
-            : rawSr.startsWith('u/') 
-                ? `u_${rawSr.substring(2)}` 
-                : rawSr;
-        
         const title = postData.title || postData.text.split('\n')[0].substring(0, 300) || 'Post from DotShare';
-        
+
         let kind = postData.isSelfPost === false ? 'link' : 'self';
         let text = postData.text;
-        let url = postData.isSelfPost === false ? postData.text : undefined;
+        let url: string | undefined;
+
+        // Validate URL for link posts
+        if (postData.isSelfPost === false) {
+            try {
+                new URL(postData.text);
+                url = postData.text;
+            } catch {
+                throw new Error('For link posts, the text field must be a valid URL.');
+            }
+        }
+
         let mediaIds: string[] = [];
 
-        // Handle Media Uploads
         if (postData.media && postData.media.length > 0) {
             Logger.info(`Reddit: Uploading ${postData.media.length} media file(s)...`);
             mediaIds = await uploadRedditMedia(accessToken, postData.media);
-            
+
             if (mediaIds.length > 0) {
-                // For a single image and no explicit link, use kind=image
                 if (mediaIds.length === 1 && postData.isSelfPost !== false) {
                     const ext = path.extname(postData.media[0]).toLowerCase();
                     const isVideo = ['.mp4', '.webm', '.gifv'].includes(ext);
-                    
+
                     if (isVideo) {
                         kind = 'video';
-                        // Video usually uses a specific DASH URL or similar, but simplified here
                     } else {
                         kind = 'image';
                     }
-                    url = `https://i.redd.it/${mediaIds[0]}`;
+                    // Use the S3 key directly; Reddit's API will process it correctly
+                    url = mediaIds[0];
                 } else {
-                    // Multiple files or link post with media: embed in self-post text
                     kind = 'self';
-                    const mediaMarkdown = mediaIds.map(id => `\n\n![DotShare Media](https://i.redd.it/${id})`).join('');
+                    // For multiple media or embedded in text posts, add markdown references
+                    const mediaMarkdown = mediaIds.map(id => `\n\n![DotShare Media](${id})`).join('');
                     text += mediaMarkdown;
                 }
             }
@@ -152,7 +328,7 @@ export async function shareToReddit(_accessToken: string, _refreshToken: string 
         } else if (url) {
             data.append('url', url);
         }
-        
+
         if (postData.flairId) {
             data.append('flair_id', postData.flairId);
         }
@@ -161,51 +337,75 @@ export async function shareToReddit(_accessToken: string, _refreshToken: string 
         }
 
         const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'DotShare/1.0 (by /u/DotShareApp)'
+            ...getAuthHeaders(accessToken),
+            'Content-Type': 'application/x-www-form-urlencoded'
         };
 
         const response = await axios.post('https://oauth.reddit.com/api/submit', data, { headers });
-        
-        // Robust Error Handling
+
+        // Reddit returns HTTP 200 even for errors — check json.errors
         if (response.data.json?.errors?.length > 0) {
-            const errorStrings = response.data.json.errors.map((e: any[]) => {
-                return Array.isArray(e) ? e.join(': ') : String(e);
-            }).join(', ');
-            throw new Error(`Reddit API Error: ${errorStrings}`);
+            const friendlyErrors = (response.data.json.errors as unknown[])
+                .map((e) => {
+                    if (Array.isArray(e) && e.length > 0) {
+                        const code = String(e[0] ?? 'UNKNOWN_ERROR');
+                        const details = e.length > 1 && e[1] ? String(e[1]) : undefined;
+                        return mapRedditError(code, subreddit, details);
+                    }
+                    return mapRedditError(String(e ?? 'UNKNOWN_ERROR'), subreddit);
+                })
+                .join(' | ');
+            throw new Error(friendlyErrors);
         }
-        
+
         if (response.data.error) {
-            throw new Error(`Reddit API Error: ${response.data.error_description || response.data.error}`);
+            // Handle case where error might be an object
+            let errorStr = '';
+            if (typeof response.data.error === 'string') {
+                errorStr = response.data.error;
+            } else if (typeof response.data.error === 'object' && response.data.error !== null) {
+                const errObj = response.data.error as Record<string, unknown>;
+                if (errObj.reason && typeof errObj.reason === 'string') {
+                    errorStr = errObj.reason;
+                } else if (errObj.message && typeof errObj.message === 'string') {
+                    errorStr = errObj.message;
+                } else {
+                    errorStr = JSON.stringify(errObj);
+                }
+            } else {
+                errorStr = String(response.data.error ?? 'UNKNOWN_ERROR');
+            }
+            throw new Error(mapRedditError(errorStr, subreddit, response.data.error_description ? String(response.data.error_description) : undefined));
         }
-        
+
         const postId = response.data.json?.data?.name || response.data.name || 'posted';
         Logger.info('Successfully posted to Reddit:', postId);
         return postId;
-        
-    } catch (error: any) {
-        let errorMessage = error instanceof Error ? error.message : String(error);
-        if (axios.isAxiosError(error) && error.response?.data) {
-            const data = error.response.data;
-            if (data.json?.errors) {
-                errorMessage = data.json.errors.map((e: any) => Array.isArray(e) ? e.join(': ') : String(e)).join(', ');
-            } else if (data.error) {
-                errorMessage = `${data.error}: ${data.error_description || ''}`;
-            }
+
+    } catch (error: unknown) {
+        // Re-throw already-mapped errors (thrown above) as-is
+        if (error instanceof Error && !axios.isAxiosError(error)) {
+            Logger.error('Error posting to Reddit:', error.message);
+            throw new Error(`Failed to post to Reddit: ${error.message}`);
         }
-        Logger.error('Error posting to Reddit:', errorMessage);
-        throw new Error(`Failed to post to Reddit: ${errorMessage}`);
+
+        // Map Axios errors
+        const friendlyMessage = extractRedditErrors(error, subreddit);
+        Logger.error('Error posting to Reddit:', friendlyMessage);
+        throw new Error(`Failed to post to Reddit: ${friendlyMessage}`);
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Token Management
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function refreshRedditToken(
     refreshToken: string,
     clientId?: string,
     clientSecret?: string
-): Promise<{access_token: string, expires_in: number}> {
+): Promise<{ access_token: string, expires_in: number }> {
     try {
-        // Use provided credentials or fall back to environment variables
         const finalClientId = clientId || process.env.REDDIT_CLIENT_ID || '';
         const finalClientSecret = clientSecret || process.env.REDDIT_CLIENT_SECRET || '';
 
@@ -213,11 +413,9 @@ export async function refreshRedditToken(
             throw new Error('Reddit client ID and client secret are required. Provide them as parameters or set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET environment variables.');
         }
 
-        const auth = Buffer.from(`${finalClientId}:${finalClientSecret}`).toString('base64');
         const headers = {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'DotShare/1.0'
+            ...getBasicAuthHeaders(finalClientId, finalClientSecret),
+            'Content-Type': 'application/x-www-form-urlencoded'
         };
 
         const data = new URLSearchParams();
@@ -235,30 +433,28 @@ export async function refreshRedditToken(
 
 export async function validateRedditCredentials(accessToken: string): Promise<boolean> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const response = await axios.get('https://oauth.reddit.com/api/v1/me', { headers });
+        const response = await axios.get('https://oauth.reddit.com/api/v1/me', { 
+            headers: getAuthHeaders(accessToken)
+        });
         return !!response.data.name;
     } catch (error) {
         return false;
     }
 }
 
-export async function getRedditSubreddits(accessToken: string, query?: string): Promise<Array<{display_name: string, display_name_prefixed: string}>> {
-    try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
+// ─────────────────────────────────────────────────────────────────────────────
+// Subreddit Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
+export async function getRedditSubreddits(accessToken: string, query?: string): Promise<Array<{ display_name: string, display_name_prefixed: string }>> {
+    try {
         const endpoint = query
             ? `https://oauth.reddit.com/api/search_subreddits?query=${encodeURIComponent(query)}`
             : 'https://oauth.reddit.com/subreddits/mine/subscriber?limit=10';
 
-        const response = await axios.get(endpoint, { headers });
+        const response = await axios.get(endpoint, { 
+            headers: getAuthHeaders(accessToken)
+        });
         return response.data.data?.children?.map((sub: Record<string, unknown>) => ({
             display_name: (sub.data as Record<string, unknown>).display_name as string,
             display_name_prefixed: (sub.data as Record<string, unknown>).display_name_prefixed as string
@@ -277,19 +473,16 @@ export async function validateRedditSubreddit(accessToken: string, subreddit: st
             return false;
         }
 
-        const cleanSubreddit = rawSr.startsWith('r/') 
-            ? rawSr.substring(2) 
-            : rawSr.startsWith('u/') 
-                ? `u_${rawSr.substring(2)}` 
+        const cleanSubreddit = rawSr.startsWith('r/')
+            ? rawSr.substring(2)
+            : rawSr.startsWith('u/')
+                ? `u_${rawSr.substring(2)}`
                 : rawSr;
 
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0 (by /u/DotShareApp)'
-        };
-
-        const response = await axios.get(`https://oauth.reddit.com/r/${cleanSubreddit}/about.json`, { headers });
-        const isValid = !!(response.data && response.data.kind === 't5'); // t5 is subreddit kind
+        const response = await axios.get(`https://oauth.reddit.com/r/${cleanSubreddit}/about.json`, { 
+            headers: getAuthHeaders(accessToken)
+        });
+        const isValid = !!(response.data && response.data.kind === 't5');
 
         if (!isValid) {
             Logger.warn(`Subreddit validation failed: r/${cleanSubreddit} is not a valid subreddit`);
@@ -316,13 +509,10 @@ export async function validateRedditSubreddit(accessToken: string, subreddit: st
 
 export async function validateRedditUser(accessToken: string, username: string): Promise<boolean> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const response = await axios.get(`https://oauth.reddit.com/user/${username}/about.json`, { headers });
-        return !!(response.data && response.data.kind === 't2'); // t2 is user kind
+        const response = await axios.get(`https://oauth.reddit.com/user/${username}/about.json`, { 
+            headers: getAuthHeaders(accessToken)
+        });
+        return !!(response.data && response.data.kind === 't2');
     } catch (error) {
         Logger.error('Error validating Reddit user:', error);
         return false;
@@ -332,15 +522,12 @@ export async function validateRedditUser(accessToken: string, username: string):
 export async function validateRedditTarget(accessToken: string, target: string): Promise<boolean> {
     try {
         if (target.startsWith('u/')) {
-            // Validate user profile
             const username = target.substring(2);
             return await validateRedditUser(accessToken, username);
         } else if (target.startsWith('r/')) {
-            // Validate subreddit with r/ prefix
             const subredditName = target.substring(2);
             return await validateRedditSubreddit(accessToken, subredditName);
         } else {
-            // Assume plain subreddit name
             return await validateRedditSubreddit(accessToken, target);
         }
     } catch (error) {
@@ -349,14 +536,11 @@ export async function validateRedditTarget(accessToken: string, target: string):
     }
 }
 
-export async function getRedditFlairs(accessToken: string, subreddit: string): Promise<Array<{id: string, text: string}>> {
+export async function getRedditFlairs(accessToken: string, subreddit: string): Promise<Array<{ id: string, text: string }>> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/api/link_flair_v2`, { headers });
+        const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/api/link_flair_v2`, { 
+            headers: getAuthHeaders(accessToken)
+        });
         return response.data || [];
     } catch (error) {
         Logger.error('Error fetching subreddit flairs:', error);
@@ -364,14 +548,11 @@ export async function getRedditFlairs(accessToken: string, subreddit: string): P
     }
 }
 
-export async function getRedditPostDetails(accessToken: string, postId: string): Promise<{score: number, num_comments: number, permalink: string} | null> {
+export async function getRedditPostDetails(accessToken: string, postId: string): Promise<{ score: number, num_comments: number, permalink: string } | null> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const response = await axios.get(`https://oauth.reddit.com/by_id/${postId}`, { headers });
+        const response = await axios.get(`https://oauth.reddit.com/by_id/${postId}`, { 
+            headers: getAuthHeaders(accessToken)
+        });
         const post = response.data.data.children[0].data;
         return {
             score: post.score,
@@ -392,12 +573,9 @@ interface RedditRule {
 
 export async function getRedditSubredditRules(accessToken: string, subreddit: string): Promise<RedditRule[]> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/about/rules.json`, { headers });
+        const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/about/rules.json`, { 
+            headers: getAuthHeaders(accessToken)
+        });
         const rules = response.data.rules || [];
 
         return rules.map((rule: RedditRule) => ({
@@ -427,12 +605,9 @@ export async function getRedditSubredditInfo(accessToken: string, subreddit: str
     lang: string;
 } | null> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/about.json`, { headers });
+        const response = await axios.get(`https://oauth.reddit.com/r/${subreddit}/about.json`, { 
+            headers: getAuthHeaders(accessToken)
+        });
         const data = response.data.data;
 
         return {
@@ -456,16 +631,11 @@ export async function getRedditSubredditInfo(accessToken: string, subreddit: str
     }
 }
 
-export async function getRedditTrendingSubreddits(accessToken: string, limit = 25): Promise<Array<{display_name: string, display_name_prefixed: string, subscribers: number}>> {
+export async function getRedditTrendingSubreddits(accessToken: string, limit = 25): Promise<Array<{ display_name: string, display_name_prefixed: string, subscribers: number }>> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        // Reddit provides trending subreddits through various endpoints
-        // We'll use the popular subreddits endpoint with sorting
-        const response = await axios.get(`https://oauth.reddit.com/subreddits/popular?limit=${limit}&sort=hot`, { headers });
+        const response = await axios.get(`https://oauth.reddit.com/subreddits/popular?limit=${limit}&sort=hot`, { 
+            headers: getAuthHeaders(accessToken)
+        });
         return response.data.data.children.map((sub: { data: RedditSubredditData }) => ({
             display_name: sub.data.display_name,
             display_name_prefixed: sub.data.display_name_prefixed,
@@ -477,32 +647,25 @@ export async function getRedditTrendingSubreddits(accessToken: string, limit = 2
     }
 }
 
-export async function getRelatedSubreddits(accessToken: string, subreddit: string): Promise<Array<{display_name: string, display_name_prefixed: string}>> {
+export async function getRelatedSubreddits(accessToken: string, subreddit: string): Promise<Array<{ display_name: string, display_name_prefixed: string }>> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        // Get subreddit info and search for similar subreddits based on keywords
         const subredditInfo = await getRedditSubredditInfo(accessToken, subreddit);
         if (!subredditInfo) return [];
 
-        // Search for subreddits based on the current subreddit's name and description keywords
         const searchTerms = [
             subredditInfo.display_name,
             ...(subredditInfo.public_description ? subredditInfo.public_description.split(' ').slice(0, 3) : [])
         ];
 
-        const uniqueRelated: Array<{display_name: string, display_name_prefixed: string}> = [];
+        const uniqueRelated: Array<{ display_name: string, display_name_prefixed: string }> = [];
 
-        for (const term of searchTerms.slice(0, 2)) { // Limit to 2 search terms to avoid rate limits
-            if (term.length < 3) continue; // Skip very short terms
+        for (const term of searchTerms.slice(0, 2)) {
+            if (term.length < 3) continue;
 
             try {
                 const searchResponse = await axios.get(
                     `https://oauth.reddit.com/api/search_subreddits?query=${encodeURIComponent(term)}&limit=5`,
-                    { headers }
+                    { headers: getAuthHeaders(accessToken) }
                 );
 
                 const results = searchResponse.data?.subreddits || [];
@@ -516,11 +679,9 @@ export async function getRelatedSubreddits(accessToken: string, subreddit: strin
                     }
                 }
             } catch (searchError) {
-                // Continue with next term if one fails
                 Logger.warn(`Failed to search related subreddits for term "${term}":`, searchError);
             }
 
-            // Limit to 10 related subreddits
             if (uniqueRelated.length >= 10) break;
         }
 
@@ -531,20 +692,15 @@ export async function getRelatedSubreddits(accessToken: string, subreddit: strin
     }
 }
 
-/**
- * Helper function for developers to generate Reddit access token and refresh token
- * @param clientId Reddit app client ID
- * @param clientSecret Reddit app client secret
- * @param username Reddit username
- * @param password Reddit password
- * @returns Promise<{access_token: string, refresh_token: string, expires_in: number}>
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Post Management
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function editRedditPost(accessToken: string, postId: string, newText: string): Promise<boolean> {
     try {
         const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'DotShare/1.0'
+            ...getAuthHeaders(accessToken),
+            'Content-Type': 'application/x-www-form-urlencoded'
         };
 
         const data = new URLSearchParams();
@@ -569,9 +725,8 @@ export async function editRedditPost(accessToken: string, postId: string, newTex
 export async function deleteRedditPost(accessToken: string, postId: string): Promise<boolean> {
     try {
         const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'DotShare/1.0'
+            ...getAuthHeaders(accessToken),
+            'Content-Type': 'application/x-www-form-urlencoded'
         };
 
         const data = new URLSearchParams();
@@ -592,18 +747,15 @@ export async function deleteRedditPost(accessToken: string, postId: string): Pro
     }
 }
 
-export async function getRedditUserPosts(accessToken: string, username?: string, limit = 10): Promise<Array<{id: string, title: string, subreddit: string, score: number, permalink: string, created: number}>> {
+export async function getRedditUserPosts(accessToken: string, username?: string, limit = 10): Promise<Array<{ id: string, title: string, subreddit: string, score: number, permalink: string, created: number }>> {
     try {
-        const headers = {
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'DotShare/1.0'
-        };
-
-        const targetUsername = username || 'me'; // 'me' for current user
-        const response = await axios.get(`https://oauth.reddit.com/user/${targetUsername}/submitted?sort=new&limit=${limit}`, { headers });
+        const targetUsername = username || 'me';
+        const response = await axios.get(`https://oauth.reddit.com/user/${targetUsername}/submitted?sort=new&limit=${limit}`, { 
+            headers: getAuthHeaders(accessToken)
+        });
 
         return response.data.data.children.map((post: { data: RedditPostListingData }) => ({
-            id: post.data.name, // Fullname like t3_xyz123
+            id: post.data.name,
             title: post.data.title,
             subreddit: post.data.subreddit,
             score: post.data.score,
@@ -621,19 +773,15 @@ export async function generateRedditTokens(
     clientSecret: string,
     username: string,
     password: string
-): Promise<{access_token: string, refresh_token?: string, expires_in?: number}> {
+): Promise<{ access_token: string, refresh_token?: string, expires_in?: number }> {
     try {
-        // Encode credentials in base64 for Basic Auth
-        const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-
         const headers = {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'DotShare/1.0'
+            ...getBasicAuthHeaders(clientId, clientSecret),
+            'Content-Type': 'application/x-www-form-urlencoded'
         };
 
         const data = new URLSearchParams();
-        data.append('grant_type', 'password'); // Reddit script apps can use password grant
+        data.append('grant_type', 'password');
         data.append('username', username);
         data.append('password', password);
 

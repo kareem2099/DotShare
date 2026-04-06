@@ -368,6 +368,22 @@ header {
     filter: brightness(1.1);
 }
 
+.oauth-connect-btn.oauth-disabled,
+.oauth-connect-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
+.oauth-connect-btn.oauth-disabled:hover,
+.oauth-connect-btn:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+}
+
 .oauth-connect-btn--x {
     background: linear-gradient(135deg, #14171a, #2d2d2d);
 }

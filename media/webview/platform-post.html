@@ -79,6 +79,62 @@
 
       <!-- ═══ SOCIAL WORKSPACE (LinkedIn, Telegram, Facebook, Discord, Reddit) ═══ -->
       <div class="workspace{{SOCIAL_ACTIVE}}" id="workspace-social" data-workspace="social">
+        <!-- Reddit Settings Card (Integrated, only for Reddit) -->
+        <!-- v3.1.0: Added AutoMod disclaimer + flair requirement hint -->
+        <div class="card" id="reddit-options-card"
+          style="display:none; margin-top:16px; border-left: 4px solid #ff4500;">
+          <div class="card-title">🟠 Reddit Post Settings</div>
+
+          <!-- ── AutoMod silent-removal disclaimer ── -->
+          <div class="reddit-disclaimer">
+            <span class="reddit-disclaimer-icon">⚠️</span>
+            <span class="reddit-disclaimer-content">
+              <strong>Heads up:</strong>
+              A successful post doesn't guarantee visibility.
+              AutoModerator may silently remove posts that don't meet a subreddit's
+              <strong>account age</strong>, <strong>karma</strong>, or
+              <strong>flair</strong> requirements. Check the subreddit rules before posting.
+            </span>
+          </div>
+
+          <div class="card-body" style="padding:0;">
+            <div class="input-group">
+              <label for="redditSubreddit">Subreddit</label>
+              <input type="text" id="redditSubreddit" placeholder="e.g., r/programming, r/technology" required />
+              <small>Select the subreddit where you want to post</small>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label for="redditTitle">Post Title</label>
+              <input type="text" id="redditTitle" placeholder="Enter an engaging title..." maxlength="300" />
+              <small>Title is required for Reddit posts (max 300 chars)</small>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label for="redditFlair">Post Flair (Optional)</label>
+              <select id="redditFlair">
+                <option value="">No flair</option>
+              </select>
+              <!-- v3.1.0: hint that flair may be mandatory -->
+              <small>
+                Some subreddits <em>require</em> a flair — if your post gets rejected with a flair error,
+                select one here and try again.
+              </small>
+            </div>
+            <div class="input-group" style="margin-top:12px;">
+              <label>Post Type</label>
+              <div class="radio-group" style="display:flex; gap:12px; margin-top:4px;">
+                <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="radio"
+                    name="redditPostType" value="self" checked /> Text</label>
+                <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="radio"
+                    name="redditPostType" value="link" /> Link</label>
+              </div>
+            </div>
+            <div class="checkbox-group" style="margin-top:12px;">
+              <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox"
+                  id="redditSpoiler" /> Mark as Spoiler</label>
+            </div>
+          </div>
+        </div>
+
         <!-- Compose card -->
         <div class="card">
           <div class="card-title">✍️ Compose</div>
@@ -106,44 +162,6 @@
               <span id="media-name" style="font-size:12px;flex:1;"></span>
               <span id="media-size" style="font-size:11px;color:var(--vscode-descriptionForeground);"></span>
               <button class="btn btn-ghost btn-sm" id="btn-remove-media">✕</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Reddit Settings Card (Integrated, only for Reddit) -->
-        <div class="card" id="reddit-options-card"
-          style="display:none; margin-top:16px; border-left: 4px solid #ff4500;">
-          <div class="card-title">🟠 Reddit Post Settings</div>
-          <div class="card-body" style="padding:0;">
-            <div class="input-group">
-              <label for="redditSubreddit">Subreddit</label>
-              <input type="text" id="redditSubreddit" placeholder="e.g., r/programming, r/technology" required />
-              <small>Select the subreddit where you want to post</small>
-            </div>
-            <div class="input-group" style="margin-top:12px;">
-              <label for="redditTitle">Post Title</label>
-              <input type="text" id="redditTitle" placeholder="Enter an engaging title..." maxlength="300" />
-              <small>Title is required for Reddit posts (max 300 chars)</small>
-            </div>
-            <div class="input-group" style="margin-top:12px;">
-              <label for="redditFlair">Post Flair (Optional)</label>
-              <select id="redditFlair">
-                <option value="">No flair</option>
-              </select>
-              <small>Add flair to categorize your post</small>
-            </div>
-            <div class="input-group" style="margin-top:12px;">
-              <label>Post Type</label>
-              <div class="radio-group" style="display:flex; gap:12px; margin-top:4px;">
-                <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="radio"
-                    name="redditPostType" value="self" checked /> Text</label>
-                <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="radio"
-                    name="redditPostType" value="link" /> Link</label>
-              </div>
-            </div>
-            <div class="checkbox-group" style="margin-top:12px;">
-              <label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox"
-                  id="redditSpoiler" /> Mark as Spoiler</label>
             </div>
           </div>
         </div>

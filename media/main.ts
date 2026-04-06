@@ -260,6 +260,45 @@ function escapeHtml(str: string): string {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Auth Server Health Check ────────────────────────────────
+let authServerHealthy = true;
+
+async function checkAuthServerHealth(): Promise<void> {
+    try {
+        const authServerUrl = 'https://dotshare-auth-server.vercel.app';
+        const response = await fetch(`${authServerUrl}/`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(5000), // 5 second timeout
+        });
+        authServerHealthy = response.ok;
+    } catch (error) {
+        console.warn('[Server Health] Auth server is down or unreachable:', error instanceof Error ? error.message : String(error));
+        authServerHealthy = false;
+    }
+    setOAuthButtonsState();
+}
+
+function setOAuthButtonsState(): void {
+    const oauthBtns = document.querySelectorAll<HTMLButtonElement>('[id^="oauthConnect_"]');
+    const serverStatusMsg = 'Server Under Maintenance - OAuth temporarily unavailable';
+    
+    oauthBtns.forEach(btn => {
+        if (!authServerHealthy) {
+            btn.disabled = true;
+            btn.title = serverStatusMsg;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.classList.add('oauth-disabled');
+        } else {
+            btn.disabled = false;
+            btn.title = '';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.classList.remove('oauth-disabled');
+        }
+    });
+}
+
 // ── Event Listeners ──────────────────────────────────────────
 function initEventListeners(): void {
 
@@ -297,6 +336,10 @@ function initEventListeners(): void {
     // ② OAuth connect (id pattern: oauthConnect_<platform>)
     document.querySelectorAll<HTMLElement>('[id^="oauthConnect_"]').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (!authServerHealthy) {
+                showStatus('Server under maintenance. OAuth temporarily unavailable.', 'error');
+                return;
+            }
             const platform = btn.getAttribute('data-platform');
             if (platform) openOAuth(platform);
         });
@@ -400,6 +443,14 @@ function initEventListeners(): void {
     getEl('openAnalyticsBtn')?.addEventListener('click', () => {
         send({ command: 'openFullWebview', action: 'analytics' });
     });
+
+    // Check auth server health on startup
+    checkAuthServerHealth();
+    
+    // Periodically check server health (every 30 seconds)
+    setInterval(() => {
+        checkAuthServerHealth();
+    }, 30000);
 }
 
 // ── Message Handler ──────────────────────────────────────────

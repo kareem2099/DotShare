@@ -347,8 +347,6 @@
         <div class="card platform-card linkedin">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>💼 LinkedIn</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="linkedin" data-key="savedApisBtn">📚
-              Saved APIs</button>
           </div>
           <div class="account-selector" id="accountSelector_linkedin" style="display:none;">
             <label for="accountSelect_linkedin">Active Account:</label>
@@ -391,8 +389,6 @@
         <div class="card platform-card telegram">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>📱 Telegram</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="telegram" data-key="savedApisBtn">📚
-              Saved APIs</button>
           </div>
           <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:8px;"
             data-key="telegramDesc">Send posts to Telegram channels or groups</p>
@@ -419,8 +415,6 @@
         <div class="card platform-card x">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>𝕏 X / Twitter</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="x" data-key="savedApisBtn">📚 Saved
-              APIs</button>
           </div>
           <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:8px;"
             data-key="xTwitterDescription">Share real-time updates to X</p>
@@ -458,8 +452,6 @@
         <div class="card platform-card facebook">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>📘 Facebook</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="facebook" data-key="savedApisBtn">📚
-              Saved APIs</button>
           </div>
           <div class="account-selector" id="accountSelector_facebook" style="display:none;">
             <label for="accountSelect_facebook">Active Account:</label>
@@ -509,8 +501,6 @@
         <div class="card platform-card discord">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>💬 Discord</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="discord" data-key="savedApisBtn">📚 Saved
-              APIs</button>
           </div>
           <div class="account-selector" id="accountSelector_discord" style="display:none;">
             <label for="accountSelect_discord">Active Account:</label>
@@ -538,8 +528,6 @@
         <div class="card platform-card reddit">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>🟠 Reddit</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="reddit" data-key="savedApisBtn">📚 Saved
-              APIs</button>
           </div>
           <div class="account-selector" id="accountSelector_reddit" style="display:none;">
             <label for="accountSelect_reddit">Active Account:</label>
@@ -629,8 +617,6 @@
         <div class="card platform-card bluesky">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>🦋 BlueSky</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="bluesky" data-key="savedApisBtn">📚 Saved
-              APIs</button>
           </div>
           <div class="account-selector" id="accountSelector_bluesky" style="display:none;">
             <label for="accountSelect_bluesky">Active Account:</label>
@@ -662,8 +648,6 @@
         <div class="card platform-card devto">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>👨‍💻 Dev.to</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="devto" data-key="savedApisBtn">📚 Saved
-              APIs</button>
           </div>
           <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:8px;">Publish long-form
             articles with your API key from <a href="https://dev.to/settings/extensions" target="_blank">Dev.to
@@ -681,8 +665,6 @@
         <div class="card platform-card medium">
           <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
             <span>Ⓜ️ Medium</span>
-            <button class="btn btn-ghost btn-sm saved-apis-btn" data-platform="medium" data-key="savedApisBtn">📚 Saved
-              APIs</button>
           </div>
           <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:8px;">Integration token
             from <a href="https://medium.com/me/settings/security" target="_blank">Medium → Security</a>.</p>
@@ -903,6 +885,18 @@
         <span id="closeRedditPostModal" class="close-modal">&times;</span>
       </div>
       <div class="modal-body">
+        <!-- ── AutoMod silent-removal disclaimer ── -->
+        <div class="reddit-disclaimer">
+          <span class="reddit-disclaimer-icon">⚠️</span>
+          <span class="reddit-disclaimer-content">
+            <strong>Heads up:</strong>
+            A successful post doesn't guarantee visibility.
+            AutoModerator may silently remove posts that don't meet a subreddit's
+            <strong>account age</strong>, <strong>karma</strong>, or
+            <strong>flair</strong> requirements. Check the subreddit rules before posting.
+          </span>
+        </div>
+
         <div class="input-group">
           <label for="redditSubreddit">Subreddit</label>
           <input type="text" id="redditSubreddit" placeholder="e.g., r/programming, r/technology" required />
@@ -918,7 +912,11 @@
           <select id="redditFlair">
             <option value="">No flair</option>
           </select>
-          <small>Add flair to categorize your post</small>
+          <!-- v3.1.0: hint that flair may be mandatory -->
+          <small>
+            Some subreddits <em>require</em> a flair — if your post gets rejected with a flair error,
+            select one here and try again.
+          </small>
         </div>
         <div class="input-group">
           <label>Post Type</label>
@@ -939,43 +937,6 @@
     </div>
   </div>
 
-  <!-- ── Saved APIs Modal ── -->
-  <div id="savedApisModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Saved API Configurations — <span id="currentPlatformName"></span></h3>
-        <span id="closeSavedApisModal" class="close-modal">&times;</span>
-      </div>
-      <div class="modal-body">
-        <div class="saved-apis-section">
-          <div class="saved-apis-header">
-            <h4 data-key="savedApiSets">Your Saved API Sets</h4>
-            <button id="addNewApiSetBtn" class="btn btn-secondary btn-sm" data-key="addNewBtn">➕ Add New</button>
-          </div>
-          <div id="savedApisList" class="saved-apis-list">
-            <div class="no-saved-apis">
-              <p data-key="noSavedApisYet">No saved API configurations yet.</p>
-              <p>Click "Add New" to save your first API set.</p>
-            </div>
-          </div>
-        </div>
-        <div id="editApiForm" class="edit-api-form" style="display:none;">
-          <h4 id="formTitle">Add New API Configuration</h4>
-          <div class="input-group">
-            <label for="apiSetName">Configuration Name</label>
-            <input type="text" id="apiSetName" placeholder="e.g., Personal, Work, Business..." required />
-          </div>
-          <div id="apiFields" class="api-fields">
-            <!-- Dynamic API fields inserted by JS -->
-          </div>
-          <div class="form-actions" style="margin-top:12px;display:flex;gap:8px;">
-            <button id="saveApiSetBtn" class="btn btn-primary">💾 Save Configuration</button>
-            <button id="cancelApiEditBtn" class="btn btn-ghost">❌ Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- ── Toast / Status ── -->
   <div id="toast-container"></div>
