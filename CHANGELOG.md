@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-04-07 — "The Polish Pass"
+
+### Added
+- **WebView Toast Engine**: Replaced intrusive VS Code popups with custom, non-intrusive notifications (progress bars, auto-dismiss, contextual colors).
+- **Global Loading States**: Buttons switch to "Spinning/⏳" state and disable themselves automatically during async posting operations.
+- **Character Limit Validation**: Integrated max-chars verification system (`MAX_CHARS`) into the UI, offering visual highlights (warning at 80% limit, error styling over 100%, button disabled).
+- **UI Aesthetics**: Substantial UI/UX visual upgrade employing glassmorphism effects (`backdrop-filter: blur(8px)`) and CSS animations on modals/cards.
+
+### Fixed
+- **Reddit Native Image Upload (S3 Boss Fight)**: Fixed the complex native image upload pipeline for Reddit via S3. Implemented robust FormData field parsing, corrected `Content-Length` missing errors that triggered AWS 400 violations, and correctly fed raw S3 payload URLs back to `api/submit` to prevent "Invalid image URL" traps from Reddit's unpopulated CDN.
+- **The Disappearing Preview Race Condition**: Implemented selective reset logic inside the WebView message handlers. Differentiates "intermediate" success (file upload complete) from "terminal" success (post completely shared) to prevent erasing user inputs prematurely.
+- **Reddit UI Integration**: Fixed HTML field mismatches in `platform-post.html` and `app.ts` (`redditSubreddit`, `redditTitle`, `redditFlairId`, `redditPostType`, `redditSpoiler`) that caused the `PostHandler` to drop the actual text payload.
+- **Variable Cleanup**: Scoured and removed unused UI variables like `btnSchedule` to pass strict ESLint criteria.
+- **NPM Package Updates**: Resolved multiple Critical/High security alerts across development packages by bumping `flatted`, `handlebars`, `picomatch`, and other dev dependencies via npm auditing.
+
 ## [3.0.1] - 2026-04-05
 
 ### Added

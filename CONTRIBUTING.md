@@ -73,9 +73,10 @@ DotShare/
 
 2. **Make your changes** following the existing code style
 
-3. **Run the linter**:
+3. **Run the linter and formatter**:
    ```bash
    npm run lint
+   npm run format
    ```
 
 4. **Run tests**:

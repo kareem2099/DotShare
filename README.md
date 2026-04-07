@@ -4,7 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/kareem2099/DotShare)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-The_Polish_Pass-ffcc00?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -249,85 +250,22 @@ dotshare "Backend optimization complete ⚡" --platforms linkedin,twitter
 
 ## 🤝 Contributing
 
-We love contributions! Here's how you can help:
-
-```bash
-# Clone repository
-git clone https://github.com/kareem2099/DotShare.git
-cd DotShare
-
-# Install dependencies
-npm install
-
-# Compile TypeScript
-npm run compile
-
-# Run tests
-npm test
-
-# Start development
-code .  # Press F5 to launch extension host
-```
-
-### Code Style
-
-```bash
-npm run lint
-npm run format
-```
+We love contributions! Whether it's adding new platforms, fixing bugs, or improving documentation, we welcome your help.
+👉 **[Read our Contributing Guidelines](CONTRIBUTING.md)** to get started.
 
 ---
 
 ## 📈 Roadmap
 
-### v3.1 (Planned)
-- [ ] Dev.to draft fetcher — list and continue editing existing drafts
-- [ ] Basic engagement charts in Analytics page
-- [ ] Advanced Hashtag Manager UI (add/remove/track usage frequency)
-- [ ] Tag suggestion from history (frequency-based)
-- [ ] Cloud Scheduling Server (24/7 posting without keeping VS Code open)
-- [ ] Remove deprecated `DotShareProvider.ts` entirely
-
-### v3.0.0 ✅ Released — "The Publishing Suite"
-- [x] Dev.to article publishing (title, tags, canonical URL, series, draft/publish)
-- [x] Medium article publishing (markdown/HTML, publish status, canonical URL)
-- [x] Active file reader — load `.md` directly into publish form
-- [x] YAML frontmatter parser for auto-fill
-- [x] Platform-First Navigation (sidebar redesign)
-- [x] Thread Composer for X and Bluesky
-- [x] X Premium toggle (25K character limit)
-- [x] `platform-config.ts` — single source of truth for all platform metadata
-- [x] Social vs. Blog logic fully decoupled
-
-[Vote on features →](https://github.com/kareem2099/DotShare/discussions)
+Our development roadmap and feature tracking has been moved to a dedicated file. 
+👉 **[View the full Roadmap here](ROADMAP.md)**
 
 ---
 
 ## 📜 Changelog
 
-### v3.0.0 — "The Publishing Suite" (Latest) 🎉
-- 📰 **Dev.to Integration**: Publish markdown articles with full metadata support
-- Ⓜ️ **Medium Integration**: Publish articles with draft/publish/unlisted control
-- 🧵 **Thread Composer**: Native thread builder for X and Bluesky
-- 𝕏 **X Premium Toggle**: Switch to 25,000 character limit
-- 🧭 **Platform-First Navigation**: Click platform icon → workspace auto-switches
-- ⚙️ **`platform-config.ts`**: Single source of truth for all platform rules
-- 🐛 Multiple bug fixes in PostHandler, PostExecutor, and CredentialProvider
-
-### v2.4.0
-- 🔐 One-Click OAuth for LinkedIn, X, Facebook, Reddit
-- 🏷️ Smart Hashtag Engine with 7 context sources
-- 🤖 Claude AI added as 4th AI provider
-
-### v2.3.0
-- 🧠 Smart AI Hashtags with relevance scoring
-- 📊 Analytics Dashboard
-
-### v2.2.0
-- 🏗️ Complete architecture refactoring (monolith → 9 focused files)
-- 🔒 Critical security fix — VS Code SecretStorage for credentials
-
-[Full changelog →](CHANGELOG.md)
+A detailed history of all changes, features, and bug fixes can be found in our CHANGELOG file.
+👉 **[Read the Full Changelog here](CHANGELOG.md)**
 
 ---
 
