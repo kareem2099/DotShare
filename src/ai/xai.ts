@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { PostData, XAIResponse, XAIModelsResponse } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
+import { Logger } from '../utils/Logger';
 
 export async function generatePost(apiKey: string, model = 'grok-2-latest'): Promise<PostData | null> {
     const context = await buildProjectContext();
@@ -71,7 +72,7 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
 
         return models.length > 0 ? models : ['grok-3', 'grok-3-mini', 'grok-2-latest'];
     } catch (error) {
-        console.error('xAI fetch models error:', error);
+        Logger.error('xAI fetch models error', error);
         return ['grok-3', 'grok-3-mini', 'grok-2-latest'];
     }
 }

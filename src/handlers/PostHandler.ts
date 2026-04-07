@@ -273,7 +273,8 @@ export class PostHandler {
             type: 'info'
         });
 
-        await this.unifiedSharePost(platforms, postData, mediaFilePaths, history[0]?.id);
+        const redditMetadata = message.redditMetadata as Record<string, unknown> | undefined;
+        await this.unifiedSharePost(platforms, postData, mediaFilePaths, history[0]?.id, { redditMetadata });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -819,7 +820,8 @@ export class PostHandler {
         platforms: string[],
         post: PostData,
         mediaFilePaths: string[] = [],
-        postId?: string
+        postId?: string,
+        metadata?: { redditMetadata?: Record<string, unknown> }
     ): Promise<void> {
         let successCount = 0;
         const errors: string[] = [];
@@ -843,12 +845,16 @@ export class PostHandler {
                         await this.shareToDiscordWithUpdate(post, postId);
                         break;
                     case 'reddit': {
+                        const redditMeta = metadata?.redditMetadata || {};
                         const redditMessage: Message = {
                             command: 'shareToReddit',
                             redditAccessToken:  await this.context.secrets.get('redditAccessToken')  || '',
                             redditRefreshToken: await this.context.secrets.get('redditRefreshToken') || '',
-                            redditSubreddit:    await this.context.secrets.get('redditSubreddit')    || '',
-                            redditTitle:        post.text.substring(0, 300),
+                            redditSubreddit:    (redditMeta.subreddit as string) || await this.context.secrets.get('redditSubreddit') || '',
+                            redditTitle:        (redditMeta.title as string)     || post.text.substring(0, 300),
+                            redditFlairId:      (redditMeta.flair as string)     || '',
+                            redditPostType:     (redditMeta.postType as string)  || 'self',
+                            redditSpoiler:      (redditMeta.spoiler as boolean)  || false,
                             post:               post.text,
                             mediaFilePaths
                         };
@@ -859,12 +865,24 @@ export class PostHandler {
                         await this.shareToBlueSkyWithUpdate(post, postId);
                         break;
                     case 'devto': {
-                        const devtoMsg: Message = { command: 'shareToDevTo', post: post.text, mediaFilePaths };
+                        const devtoMsg: Message = { 
+                            command: 'shareToDevTo', 
+                            post: post.text, 
+                            mediaFilePaths,
+                            title: post.text.split('\n')[0].substring(0, 100),
+                            published: false
+                        };
                         await this.shareToDevToWithUpdate(post, devtoMsg, postId);
                         break;
                     }
                     case 'medium': {
-                        const mediumMsg: Message = { command: 'shareToMedium', post: post.text, mediaFilePaths, publishStatus: 'public' };
+                        const mediumMsg: Message = { 
+                            command: 'shareToMedium', 
+                            post: post.text, 
+                            mediaFilePaths, 
+                            title: post.text.split('\n')[0].substring(0, 100),
+                            publishStatus: 'public' 
+                        };
                         await this.shareToMediumWithUpdate(post, mediumMsg, postId);
                         break;
                     }

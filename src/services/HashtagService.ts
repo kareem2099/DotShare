@@ -4,6 +4,7 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { detectProjectType, fileExists } from '../utils/projectDetector';
+import { Logger } from '../utils/Logger';
 
 const execAsync = promisify(exec);
 
@@ -102,7 +103,7 @@ export class HashtagService {
             return uniqueSuggestions.sort((a, b) => b.relevance - a.relevance).slice(0, limit);
 
         } catch (error) {
-            console.error('[DotShare] Error generating hashtags:', error);
+            Logger.error('[DotShare] Error generating hashtags', error);
             return [
                 { hashtag: '#Programming', relevance: 0.5, reason: 'Fallback' },
                 { hashtag: '#Code', relevance: 0.5, reason: 'Fallback' }
@@ -299,7 +300,7 @@ export class HashtagService {
                 postContent: ''
             };
         } catch (error) {
-            console.error('[DotShare] Error fetching workspace context:', error);
+            Logger.error('[DotShare] Error fetching workspace context', error);
             return { projectType: 'generic', keywords: [], postContent: '' };
         }
     }

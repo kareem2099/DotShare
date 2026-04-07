@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { PostData } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
+import { Logger } from '../utils/Logger';
 
 export async function generatePost(apiKey: string, modelName = 'claude-sonnet-4-6'): Promise<PostData | null> {
     const context = await buildProjectContext();
@@ -57,7 +58,7 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
         return models.length > 0 ? models : ['claude-sonnet-4-6'];
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`Claude fetch models error: ${errorMessage}`);
+        Logger.error('Claude fetch models error', errorMessage);
         return ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'];
     }
 }

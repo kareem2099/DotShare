@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PostData, GeminiModelsResponse } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
+import { Logger } from '../utils/Logger';
 
 export async function generatePost(geminiKey: string, modelName = 'gemini-3.0-flash'): Promise<PostData | null> {
     const context = await buildProjectContext();
@@ -67,7 +68,7 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
         return models.length > 0 ? models : ['gemini-3.0-flash'];
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`Gemini API Error fetching models: ${errorMessage}`);
+        Logger.error('Gemini API Error fetching models', errorMessage);
 
         return ['gemini-3.0-flash', 'gemini-3.0-pro'];
     }

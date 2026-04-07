@@ -8,11 +8,11 @@ import { TokenManager } from '../services/TokenManager';
 export interface RedditPostData {
     text: string;
     media?: string[];
-    subreddit: string;
-    title?: string; // For link posts, title is required
-    flairId?: string; // Optional flair ID
-    isSelfPost?: boolean; // Whether this is a self-post or link post
-    spoiler?: boolean; // Mark post as spoiler
+    subreddit: string; // Can be r/subredditname or u/username
+    title?: string;
+    flair?: string; // v3.1.0: consistent name with UI
+    postType?: string; // 'link' | 'self' | 'image' | 'video'
+    spoiler?: boolean;
 }
 
 interface RedditSubredditData {
@@ -77,7 +77,24 @@ function getBasicAuthHeaders(clientId: string, clientSecret: string): Record<str
 }
 
 /**
- * Maps a Reddit API error code + subreddit name → a friendly message.
+ * Detects if the input is a subreddit (r/...) or username (u/...)
+ * Returns the correct 'sr' name for the Reddit API.
+ */
+function parseRedditTarget(input: string): string {
+    const trimmed = input.trim();
+    if (trimmed.toLowerCase().startsWith('u/')) {
+        // IMPORTANT: In Reddit API, to post to a user profile, 
+        // the subreddit name must be prefixed with 'u_'
+        return `u_${trimmed.substring(2)}`;
+    } else if (trimmed.toLowerCase().startsWith('r/')) {
+        return trimmed.substring(2);
+    } else {
+        return trimmed;
+    }
+}
+
+/**
+ * Sends a direct message (DM) to a Reddit user
  * Falls back to the raw error string if the code is unknown.
  */
 function mapRedditError(errorCode: unknown, subreddit?: string, fallback?: string): string {
@@ -202,8 +219,8 @@ function getMimeType(ext: string): string {
 // Media Upload
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function uploadRedditMedia(accessToken: string, mediaFiles: string[]): Promise<string[]> {
-    const uploadedAssets: string[] = [];
+export async function uploadRedditMedia(accessToken: string, mediaFiles: string[]): Promise<Array<{ id: string; url: string }>> {
+    const uploadedAssets: Array<{ id: string; url: string }> = [];
 
     for (const mediaFile of mediaFiles) {
         try {
@@ -224,33 +241,76 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
                 continue;
             }
 
-            const leaseResponse = await axios.post('https://oauth.reddit.com/api/v1/me/upload.json', {
-                filepath: path.basename(mediaFile),
-                mimetype: getMimeType(ext)
-            }, {
+            // [FIX v3.1.0]: Use official media asset endpoint with URLSearchParams (form-encoded)
+            const params = new URLSearchParams();
+            params.append('filepath', path.basename(mediaFile));
+            params.append('mimetype', getMimeType(ext));
+
+            const leaseResponse = await axios.post('https://oauth.reddit.com/api/media/asset.json', params, {
                 headers: getAuthHeaders(accessToken)
             });
 
-            const { args } = leaseResponse.data;
-            if (!args) {
-                Logger.warn('Failed to get upload lease for', mediaFile);
+            const { args, asset } = leaseResponse.data;
+            if (!args || !asset?.asset_id) {
+                Logger.warn('Failed to get upload lease or asset ID for', mediaFile);
                 continue;
             }
 
+            let keyValue = '';
             const formData = new FormData();
-            Object.entries(args.fields).forEach(([key, value]) => {
-                formData.append(key, value as string);
+            if (Array.isArray(args.fields)) {
+                args.fields.forEach((field: {name: string, value: unknown}) => {
+                    formData.append(field.name, String(field.value));
+                    if (field.name === 'key') keyValue = String(field.value);
+                });
+            } else {
+                Object.entries(args.fields).forEach(([key, value]) => {
+                    formData.append(key, String(value));
+                    if (key === 'key') keyValue = String(value);
+                });
+            }
+            formData.append('file', fs.createReadStream(mediaFile), { 
+                filename: path.basename(mediaFile),
+                contentType: getMimeType(ext) 
             });
-            formData.append('file', fs.createReadStream(mediaFile));
 
-            await axios.post(args.action, formData, {
-                headers: formData.getHeaders(),
-                timeout: 60000
+            const uploadUrl = args.action.startsWith('http') 
+                ? args.action 
+                : `https:${args.action}`;
+
+            if (!uploadUrl || uploadUrl === 'https:') {
+                Logger.warn('Reddit: invalid upload URL from lease, skipping media');
+                continue;
+            }
+
+            // S3 strictly requires Content-Length and rejects chunked transfer encoding
+            const contentLength = await new Promise<number>((resolve, reject) => {
+                formData.getLength((err, length) => err ? reject(err) : resolve(length));
             });
 
-            uploadedAssets.push(args.fields.key);
-        } catch (error) {
-            Logger.error(`Failed to upload media ${mediaFile}:`, error);
+            await axios.post(uploadUrl, formData, {
+                headers: {
+                    ...formData.getHeaders(),
+                    'Content-Length': contentLength.toString()
+                },
+                timeout: 60000,
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity
+            });
+
+            // Pass the direct S3 URL back to the publish API.
+            // i.redd.it will return 404/Invalid Image URL if queried immediately before propagation.
+            const finalUrl = `${uploadUrl}/${keyValue}`;
+
+            uploadedAssets.push({
+                id: asset.asset_id,
+                url: finalUrl
+            });
+        } catch (error: any) {
+            Logger.error(`Failed to upload media ${mediaFile}:`, error.message);
+            if (error.response?.data) {
+                Logger.error('S3 Error Response:', error.response.data.toString());
+            }
         }
     }
 
@@ -261,76 +321,111 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 // Share to Reddit (v3.1.0 — robust error handling)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// FUTURE FEATURE: DotDirect (Reddit DM)
+// ⚠️ This is currently unused and reserved for a future update where 
+// users can explicitly choose to send a Private Message instead of a Post.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sends a direct message (DM) to a Reddit user
+ */
+async function sendRedditDM(username: string, subject: string, body: string, accessToken: string): Promise<string> {
+    try {
+        const data = new URLSearchParams();
+        data.append('api_type', 'json');
+        data.append('to', username);
+        data.append('subject', subject);
+        data.append('text', body);
+
+        const headers = {
+            ...getAuthHeaders(accessToken),
+            'Content-Type': 'application/x-www-form-urlencoded'
+        };
+
+        const response = await axios.post('https://oauth.reddit.com/api/compose', data, { headers });
+
+        if (response.data.json?.errors?.length > 0) {
+            const errorMsg = (response.data.json.errors[0] as unknown[])?.join(' ') || 'Failed to send DM';
+            throw new Error(errorMsg);
+        }
+
+        Logger.info(`Successfully sent DM to u/${username}`);
+        return `dm_to_${username}`;
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('Error sending Reddit DM:', errorMessage);
+        throw new Error(`Failed to send DM to u/${username}: ${errorMessage}`);
+    }
+}
+
 export async function shareToReddit(postData: RedditPostData): Promise<string> {
-    // Normalise subreddit name early so it's available for error messages
-    const rawSr = postData.subreddit.trim();
-    const subreddit = rawSr.startsWith('r/')
-        ? rawSr.substring(2)
-        : rawSr.startsWith('u/')
-            ? `u_${rawSr.substring(2)}`
-            : rawSr;
+    // Clean and parse the target (e.g., 'u/FreeRave' -> 'u_FreeRave')
+    const subreddit = parseRedditTarget(postData.subreddit);
 
     try {
         const accessToken = await TokenManager.getValidToken('reddit');
         if (!accessToken) throw new Error('Reddit: not authenticated — connect your account in Settings.');
 
+        // [LOGIC CHANGE v3.1.0]: We no longer branch to DMs here. 
+        // u/username now correctly posts to the user's profile timeline.
+
         const title = postData.title || postData.text.split('\n')[0].substring(0, 300) || 'Post from DotShare';
 
-        let kind = postData.isSelfPost === false ? 'link' : 'self';
+        let kind = postData.postType === 'link' ? 'link' : 'self';
         let text = postData.text;
         let url: string | undefined;
 
-        // Validate URL for link posts
-        if (postData.isSelfPost === false) {
+        // Force 'link' kind if we actually have a URL and no media
+        if (postData.postType === 'link' || (!postData.postType && text.startsWith('http'))) {
             try {
-                new URL(postData.text);
-                url = postData.text;
+                new URL(text);
+                url = text;
+                kind = 'link';
             } catch {
-                throw new Error('For link posts, the text field must be a valid URL.');
+                // If it's not a valid URL, fallback to self post
+                kind = 'self';
             }
         }
 
-        let mediaIds: string[] = [];
+        let mediaIds;
+        const data = new URLSearchParams();
 
         if (postData.media && postData.media.length > 0) {
             Logger.info(`Reddit: Uploading ${postData.media.length} media file(s)...`);
             mediaIds = await uploadRedditMedia(accessToken, postData.media);
 
             if (mediaIds.length > 0) {
-                if (mediaIds.length === 1 && postData.isSelfPost !== false) {
+                if (mediaIds.length === 1 && postData.postType !== 'link') {
                     const ext = path.extname(postData.media[0]).toLowerCase();
                     const isVideo = ['.mp4', '.webm', '.gifv'].includes(ext);
 
-                    if (isVideo) {
-                        kind = 'video';
-                    } else {
-                        kind = 'image';
-                    }
-                    // Use the S3 key directly; Reddit's API will process it correctly
-                    url = mediaIds[0];
+                    kind = isVideo ? 'video' : 'image';
+                    // Reverting to use URL for Reddit submit API as required
+                    url = mediaIds[0].url; 
                 } else {
                     kind = 'self';
-                    // For multiple media or embedded in text posts, add markdown references
-                    const mediaMarkdown = mediaIds.map(id => `\n\n![DotShare Media](${id})`).join('');
+                    const mediaMarkdown = mediaIds.map(m => `\n\n![DotShare Media](${m.url})`).join('');
                     text += mediaMarkdown;
                 }
             }
         }
 
-        const data = new URLSearchParams();
         data.append('api_type', 'json');
         data.append('sr', subreddit);
-        data.append('title', title);
+        data.append('title', title.substring(0, 300));
         data.append('kind', kind);
 
+        // Append the url whether it is a link, image or video post
         if (kind === 'self') {
             data.append('text', text);
-        } else if (url) {
+        } else if (url) { 
             data.append('url', url);
+            data.append('resubmit', 'true');
         }
 
-        if (postData.flairId) {
-            data.append('flair_id', postData.flairId);
+        if (postData.flair) {
+            data.append('flair_id', postData.flair);
         }
         if (postData.spoiler) {
             data.append('spoiler', 'true');
@@ -378,21 +473,21 @@ export async function shareToReddit(postData: RedditPostData): Promise<string> {
             throw new Error(mapRedditError(errorStr, subreddit, response.data.error_description ? String(response.data.error_description) : undefined));
         }
 
-        const postId = response.data.json?.data?.name || response.data.name || 'posted';
-        Logger.info('Successfully posted to Reddit:', postId);
-        return postId;
+        const postIdResult = response.data.json?.data?.name || response.data.name || 'posted';
+        Logger.info('Successfully posted to Reddit:', postIdResult);
+        return postIdResult;
 
     } catch (error: unknown) {
         // Re-throw already-mapped errors (thrown above) as-is
         if (error instanceof Error && !axios.isAxiosError(error)) {
             Logger.error('Error posting to Reddit:', error.message);
-            throw new Error(`Failed to post to Reddit: ${error.message}`);
+            throw new Error(`Failed to share to Reddit: ${error.message}`);
         }
 
         // Map Axios errors
         const friendlyMessage = extractRedditErrors(error, subreddit);
-        Logger.error('Error posting to Reddit:', friendlyMessage);
-        throw new Error(`Failed to post to Reddit: ${friendlyMessage}`);
+        Logger.error('Error sharing to Reddit:', friendlyMessage);
+        throw new Error(`Failed to share to ${postData.subreddit}: ${friendlyMessage}`);
     }
 }
 

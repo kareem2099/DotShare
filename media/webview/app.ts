@@ -42,6 +42,23 @@ declare global {
     }
 }
 
+// ── Messages from Extension ──────────────────────────────────────────────────
+type WebviewMessage =
+    | { command: 'navigate'; page: string; options?: { platform?: string } }
+    | { command: 'updatePost'; post: string }
+    | { command: 'revealBlogPublisher' }
+    | { command: 'updateBlogFrontmatter'; frontmatter: Record<string, unknown> }
+    | { command: 'status'; status: string; type?: 'success' | 'error' | 'warning' | 'info' }
+    | { command: 'updateAnalytics'; analytics: Record<string, unknown> }
+    | { command: 'updatePostHistory'; postHistory: Array<Record<string, unknown>> }
+    | { command: 'updateScheduledPosts'; scheduledPosts: Array<Record<string, unknown>> }
+    | { command: 'shareComplete' }
+    | { command: 'fileUploaded' | 'mediaSelected'; mediaPath: string; fileName: string; fileSize?: number; threadIndex?: number }
+    | { command: 'mediaRemoved' }
+    | { command: 'themeChanged'; theme: 'light' | 'dark' }
+    | { command: 'languageChanged'; translations: Record<string, string> }
+    | { command: 'updateConfiguration'; [key: string]: unknown };
+
 function send(command: string, payload: Record<string, unknown> = {}): void {
     try {
         vscode.postMessage({ command, ...payload });
@@ -396,7 +413,8 @@ function updateCharCounter(): void {
     if (!textarea || !counter) return;
     const len = textarea.value.length;
     const platform = activeCommandPlatform || '';
-    const maxChars = platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null;
+    // Priority: 1. Extension Data, 2. Local Fallback
+    const maxChars = window.__PLATFORM_DATA__?.maxChars || (platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null);
     
     counter.textContent = maxChars ? `${len}/${maxChars}` : String(len);
     counter.className = 'compose-counter';
@@ -421,7 +439,7 @@ function updateShareBtn(): void {
     }
     // Disable if exceeds max chars for the platform
     const platform = activeCommandPlatform || '';
-    const maxChars = platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null;
+    const maxChars = window.__PLATFORM_DATA__?.maxChars || (platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null);
     btnShare.disabled = maxChars ? textarea.value.length > maxChars : false;
 }
 
@@ -496,8 +514,36 @@ btnAddThreadPost?.addEventListener('click', () => {
             threadContainer.appendChild(firstChild);
         }
         wireThreadPostEvents(index);
+        reIndexThreads();
     }
 });
+
+/**
+ * Ensures thread labels and data attributes are consistent after additions/removals.
+ * v3.1.0 — "The Robust Re-indexer"
+ */
+function reIndexThreads(): void {
+    const posts = document.querySelectorAll('.thread-post');
+    posts.forEach((p, i) => {
+        const el = p as HTMLElement;
+        el.setAttribute('data-thread-index', String(i));
+        const label = el.querySelector('.thread-post-label');
+        if (label) label.textContent = `Post ${i + 1}`;
+
+        // Update attribute targets for internal elements
+        const ta = el.querySelector('.thread-textarea');
+        if (ta) ta.setAttribute('data-thread-textarea', String(i));
+
+        const counter = el.querySelector('.thread-char-counter');
+        if (counter) counter.setAttribute('data-thread-counter', String(i));
+
+        const remBtn = el.querySelector('.btn-remove-thread-post');
+        if (remBtn) remBtn.setAttribute('data-remove-index', String(i));
+    });
+
+    // Update global array lengths if necessary or handle mapping
+    // Note: threadPosts array must stay in sync with DOM for simple sharing logic
+}
 
 function wireThreadPostEvents(index: number): void {
     const ta = document.querySelector<HTMLTextAreaElement>(`[data-thread-textarea="${index}"]`);
@@ -549,10 +595,11 @@ function wireThreadPostEvents(index: number): void {
     remPostBtn?.addEventListener('click', () => {
         const el = document.querySelector(`.thread-post[data-thread-index="${index}"]`);
         if (el) el.remove();
-        // Note: we don't remove from array to keep indexes simple, just mark as deleted or handle re-indexing
-        // But for simplicity in this MVP: 
-        threadPosts[index].text = '';
-        threadPosts[index].mediaPath = null;
+        
+        // Remove from the logical array to ensure share payload is correct
+        threadPosts.splice(index, 1);
+        
+        reIndexThreads();
         updateThreadShareBtn();
     });
 }
@@ -1267,22 +1314,92 @@ get('cancelRedditPostBtn')?.addEventListener('click', () => {
     }
 });
 
+// Update Reddit form fields based on target type (subreddit vs user)
+get<HTMLInputElement>('redditSubreddit')?.addEventListener('input', () => {
+    try {
+        const subredditInput = get<HTMLInputElement>('redditSubreddit');
+        const titleGroup = document.querySelector('[for="redditTitle"]')?.closest('.input-group') as HTMLElement | null;
+        const flairGroup = document.querySelector('[for="redditFlair"]')?.closest('.input-group') as HTMLElement | null;
+        
+        let postTypeGroup: HTMLElement | null = null;
+        const allLabels = document.querySelectorAll('label');
+        for (let i = 0; i < allLabels.length; i++) {
+            if (allLabels[i].textContent?.includes('Post Type')) {
+                const parent = allLabels[i].closest('.input-group');
+                if (parent instanceof HTMLElement) {
+                    postTypeGroup = parent;
+                }
+                break;
+            }
+        }
+        
+        const spoilerCheckbox = document.querySelector('[for="redditSpoiler"]')?.closest('.checkbox-group') as HTMLElement | null;
+        const emptySmall = document.querySelector('[for="redditSubreddit"]')?.nextElementSibling as HTMLElement | null;
+        
+        if (subredditInput && titleGroup && flairGroup && spoilerCheckbox) {
+            const target = subredditInput.value.trim().toLowerCase();
+            const isUserDM = target.startsWith('u/');
+            
+            // Logic simplification v3.1.0:
+            // Backend is the Single Source of Truth for target parsing.
+            // UI only updates labels for UX clarity.
+            
+            // Show/hide fields based on target type
+            titleGroup.style.display = isUserDM ? 'none' : 'flex';
+            flairGroup.style.display = isUserDM ? 'none' : 'flex';
+            if (postTypeGroup instanceof HTMLElement) {
+                postTypeGroup.style.display = isUserDM ? 'none' : 'flex';
+            }
+            spoilerCheckbox.style.display = isUserDM ? 'none' : 'flex';
+            
+            // Update label and help text
+            const label = document.querySelector('label[for="redditSubreddit"]') as HTMLElement | null;
+            if (label) {
+                label.textContent = isUserDM ? 'Reddit Username' : 'Subreddit';
+            }
+            
+            if (emptySmall) {
+                emptySmall.textContent = isUserDM 
+                    ? 'Submit a post to your profile timeline'
+                    : 'Select the subreddit where you want to post';
+            }
+        }
+    } catch (error) {
+        console.error('Reddit field toggle error:', error);
+    }
+});
+
 get('shareRedditPostBtn')?.addEventListener('click', () => {
     try {
         const val = (id: string) => (get<HTMLInputElement>(id)?.value ?? '').trim();
         const postText = textarea?.value.trim() || '';
-
+        const subredditField = val('redditSubreddit');
+        
+        // Validate target is provided
+        if (!subredditField) {
+            toast('Please enter a subreddit (r/...) or username (u/...)', 'error');
+            return;
+        }
+        
+        const isUserPost = subredditField.toLowerCase().startsWith('u/');
+        
+        // Validate required fields based on target type
+        if (!isUserPost && !val('redditTitle')) {
+            toast('Please enter a post title for subreddit posts', 'error');
+            return;
+        }
+        
         send('shareToReddit', {
             post:            postText,
-            redditSubreddit: val('redditSubreddit'),
-            redditTitle:     val('redditTitle'),
+            redditSubreddit: subredditField,
+            redditTitle:     val('redditTitle'),  // Subject for DMs, Title for posts
             redditFlairId:   get<HTMLSelectElement>('redditFlair')?.value || '',
             redditPostType:  document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value || 'self',
             redditSpoiler:   get<HTMLInputElement>('redditSpoiler')?.checked || false
         });
         const modal = get('redditPostModal');
         if (modal) modal.style.display = 'none';
-        toast('Sharing to Reddit…', 'info');
+        toast(`Sharing to Reddit…`, 'info');
     } catch (error) {
         console.error('Share to Reddit error:', error);
         toast('Failed to share to Reddit', 'error');
@@ -1304,7 +1421,7 @@ document.querySelectorAll<HTMLElement>('.subreddit-suggestion').forEach(btn => {
 });
 
 
-window.addEventListener('message', function (event) {
+window.addEventListener('message', function (event: MessageEvent<WebviewMessage>) {
     try {
         const msg = event.data;
         if (!msg || !msg.command) return;

@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { PostData } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
+import { Logger } from '../utils/Logger';
 
 export async function generatePost(apiKey: string, model = 'gpt-4o'): Promise<PostData | null> {
     const context = await buildProjectContext();
@@ -61,7 +62,7 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
         return gptModels.length > 0 ? gptModels : ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3', 'o1'];
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`OpenAI fetch models error: ${errorMessage}`);
+        Logger.error('OpenAI fetch models error', errorMessage);
         return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3', 'o1'];
     }
 }

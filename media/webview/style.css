@@ -1378,7 +1378,8 @@ details[open]>summary::before {
   left: 0;
   height: 3px;
   border-radius: 0 0 6px 6px;
-  animation: toast-progress linear forwards;
+  animation: toast-progress linear;
+  animation-fill-mode: forwards;
 }
 
 .toast.success .toast-progress {
