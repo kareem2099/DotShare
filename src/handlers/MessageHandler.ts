@@ -31,7 +31,7 @@ export class MessageHandler {
         // Initialize sub-handlers
         this.configHandler = new ConfigHandler(view, context);
         this.redditHandler = new RedditHandler(view, context, historyService);
-        this.postHandler = new PostHandler(view, context, historyService, analyticsService);
+        this.postHandler = new PostHandler(view, context, historyService, analyticsService, mediaService);
     }
 
     public async handleMessage(message: unknown) {
@@ -47,7 +47,7 @@ export class MessageHandler {
             await this.postHandler.handleMessage(message);
         }
         else if (cmd.includes('Reddit') || cmd === 'generateRedditTokens' || cmd === 'getRedditFlairs' ||
-                 cmd === 'getRedditUserPosts' || cmd === 'editRedditPost' || cmd === 'deleteRedditPost') {
+            cmd === 'getRedditUserPosts' || cmd === 'editRedditPost' || cmd === 'deleteRedditPost') {
             // Reddit-specific operations
             await this.redditHandler.handleMessage(message);
         }
@@ -144,7 +144,7 @@ export class MessageHandler {
                         return;
                     }
                     await this.context.globalState.update('dotshareLanguage', language);
-                    
+
                     let translations = {};
                     try {
                         const filePath = path.join(this.context.extensionPath, 'media', 'locales', `${language}.json`);
@@ -154,7 +154,7 @@ export class MessageHandler {
                     } catch (e) {
                         Logger.warn(`Failed to load translations for ${language}`, e);
                     }
-                    
+
                     this.view.webview.postMessage({ command: 'languageChanged', language, translations });
                     this.sendSuccess(`Language changed to ${language}`);
                     break;

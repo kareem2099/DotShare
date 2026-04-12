@@ -54,10 +54,11 @@ type WebviewMessage =
     | { command: 'updateScheduledPosts'; scheduledPosts: Array<Record<string, unknown>> }
     | { command: 'shareComplete' }
     | { command: 'fileUploaded' | 'mediaSelected'; mediaPath: string; fileName: string; fileSize?: number; threadIndex?: number }
+    | { command: 'mediaAttached'; mediaFiles?: Array<{ mediaPath: string; fileName: string; fileSize?: number }> }
     | { command: 'mediaRemoved' }
     | { command: 'themeChanged'; theme: 'light' | 'dark' }
     | { command: 'languageChanged'; translations: Record<string, string> }
-    | { command: 'updateConfiguration'; [key: string]: unknown };
+    | { command: 'updateConfiguration';[key: string]: unknown };
 
 function send(command: string, payload: Record<string, unknown> = {}): void {
     try {
@@ -260,15 +261,6 @@ function resetBlogPublishUi(): void {
         bMed.disabled = !hasContent;
         bMed.textContent = BLOG_BTN_LABEL_MEDIUM;
     }
-    const bSingle = get<HTMLButtonElement>('btn-publish-blog');
-    if (bSingle) {
-        setBtnLoading('btn-publish-blog', false);
-        bSingle.disabled = !hasContent;
-        const singlePlat = getSingleBlogPlatform();
-        if (singlePlat === 'devto') bSingle.textContent = BLOG_BTN_LABEL_DEVTO;
-        else if (singlePlat === 'medium') bSingle.textContent = BLOG_BTN_LABEL_MEDIUM;
-        else bSingle.textContent = singleBlogPublishDefaultLabel || '🚀 Publish Article';
-    }
 }
 
 function resetAllComposers(): void {
@@ -303,13 +295,21 @@ function resetAllComposers(): void {
             if (el) el.value = '';
         });
 
-        // 5. Reset Buttons
+        // 5. Unlock and reset all composer controls
+        setComposerLocked(false);
         setBtnLoading('btn-share', false);
-        setBtnLoading('btn-share-thread', false);
         setBtnLoading('btn-generate-ai', false);
         setBtnLoading('btn-read-md-file', false);
 
-        activeMediaPath = null;
+        // Full reset for thread share button (disabled + text + loading class)
+        const threadBtn = get<HTMLButtonElement>('btn-share-thread');
+        if (threadBtn) {
+            threadBtn.classList.remove('loading');
+            threadBtn.disabled = false;
+            threadBtn.textContent = '🚀 Share Thread';
+        }
+
+        activeMediaPaths = [];
 
         if (btnShare) {
             btnShare.disabled = true;
@@ -317,6 +317,53 @@ function resetAllComposers(): void {
         }
 
         resetBlogPublishUi();
+
+        // 6. Clear Main Media Grid
+        const mainGrid = get('main-media-grid');
+        if (mainGrid) mainGrid.innerHTML = '';
+        const countInfo = get('media-count-info');
+        if (countInfo) countInfo.textContent = '';
+
+        // 7. Reset Thread Composer back to a single empty post
+        if (threadContainer) {
+            // Remove all existing thread post elements from DOM
+            threadContainer.innerHTML = '';
+
+            // Reset the logical array to one empty post
+            threadPosts.length = 0;
+            threadPosts.push({ text: '', mediaFilePaths: [] });
+
+            // Rebuild the first post HTML (matches the template in btnAddThreadPost handler)
+            const maxChars = window.__PLATFORM_DATA__?.maxChars || 280;
+            const firstPostHtml = `
+        <div class="thread-post" data-thread-index="0">
+            <div class="thread-post-header">
+                <span class="thread-post-label">Post 1</span>
+                <span class="thread-char-counter" data-thread-counter="0">0 / ${maxChars}</span>
+                <button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="0">✕</button>
+            </div>
+            <textarea class="thread-textarea" data-thread-textarea="0" placeholder="What's on your mind?" rows="3"></textarea>
+            <div class="thread-post-actions">
+                <button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="0">📎 Media</button>
+                <input type="file" class="thread-file-input" data-thread-file="0"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" multiple />
+                <div class="thread-media-preview" data-thread-preview="0" style="display:none;">
+                    <span class="thread-media-name"></span>
+                    <button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="0">✕</button>
+                </div>
+            </div>
+        </div>
+    `;
+            const div = document.createElement('div');
+            div.innerHTML = firstPostHtml.trim();
+            const firstChild = div.firstChild;
+            if (firstChild) threadContainer.appendChild(firstChild);
+
+            // Re-wire events for the fresh first post
+            wireThreadPostEvents(0);
+        }
+
+        updateThreadShareBtn();
 
         console.log('[DotShare] Composers reset successfully');
     } catch (error) {
@@ -415,10 +462,10 @@ function updateCharCounter(): void {
     const platform = activeCommandPlatform || '';
     // Priority: 1. Extension Data, 2. Local Fallback
     const maxChars = window.__PLATFORM_DATA__?.maxChars || (platform && MAX_CHARS[platform] ? MAX_CHARS[platform] : null);
-    
+
     counter.textContent = maxChars ? `${len}/${maxChars}` : String(len);
     counter.className = 'compose-counter';
-    
+
     // Apply warning/error classes based on character limit
     if (maxChars) {
         const warnThreshold = Math.floor(maxChars * 0.8);
@@ -445,6 +492,36 @@ function updateShareBtn(): void {
 
 textarea?.addEventListener('input', () => { updateCharCounter(); updateShareBtn(); });
 
+function renderMediaGrid(): void {
+    const grid = get('main-media-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    activeMediaPaths.forEach((path, idx) => {
+        const item = document.createElement('div');
+        item.className = 'media-item';
+        // Simple visual optimization: use icons or tiny previews
+        item.innerHTML = `
+            <img src="${path}" class="media-thumb" />
+            <button class="media-remove-btn" data-idx="${idx}">✕</button>
+        `;
+        item.querySelector('.media-remove-btn')?.addEventListener('click', () => {
+            activeMediaPaths.splice(idx, 1);
+            renderMediaGrid();
+            const countInfo = get('media-count-info');
+            if (countInfo) {
+                const count = activeMediaPaths.length;
+                countInfo.textContent = count === 0 ? '' : count === 1 ? '1 file selected' : `${count} files selected`;
+            }
+            if (activeMediaPaths.length === 0) {
+                const preview = get('media-preview');
+                if (preview) preview.style.display = 'none';
+            }
+        });
+        grid.appendChild(item);
+    });
+}
+
 // Pro teaser — track interest clicks
 get('btn-pro-multipost')?.addEventListener('click', () => {
     try {
@@ -456,15 +533,15 @@ get('btn-pro-multipost')?.addEventListener('click', () => {
 });
 
 let activeCommandPlatform: string | null = null;
-let activeMediaPath: string | null = null;
+let activeMediaPaths: string[] = [];
 
 // ── Threads Composer ────────────────────────────────────────────────────────
 const threadContainer = get('thread-posts');
 const btnAddThreadPost = get<HTMLButtonElement>('btn-add-thread-post');
 const btnShareThread = get<HTMLButtonElement>('btn-share-thread');
 
-const threadPosts: Array<{ text: string, mediaPath: string | null, mediaName: string | null }> = [
-    { text: '', mediaPath: null, mediaName: null }
+const threadPosts: Array<{ text: string, mediaFilePaths: string[] }> = [
+    { text: '', mediaFilePaths: [] }
 ];
 
 function updateThreadCharCounter(index: number): void {
@@ -478,32 +555,67 @@ function updateThreadCharCounter(index: number): void {
 function updateThreadShareBtn(): void {
     const btnShareThread = get<HTMLButtonElement>('btn-share-thread');
     if (!btnShareThread) return;
-    const hasAnyContent = threadPosts.some(p => p.text.trim().length > 0 || p.mediaPath);
+    const hasAnyContent = threadPosts.some(p => p.text.trim().length > 0 || (p.mediaFilePaths && p.mediaFilePaths.length > 0));
     btnShareThread.disabled = !hasAnyContent;
+}
+
+/**
+ * Locks or unlocks all composer inputs during a share operation.
+ * Prevents the user from editing content or triggering a second share
+ * while one is already in progress.
+ */
+function setComposerLocked(locked: boolean): void {
+    // Main textarea + media
+    if (textarea) textarea.disabled = locked;
+    if (btnMedia) btnMedia.disabled = locked;
+    if (btnRemMedia) btnRemMedia.disabled = locked;
+    if (fileInput) fileInput.disabled = locked;
+
+    // Thread: add-post button
+    if (btnAddThreadPost) btnAddThreadPost.disabled = locked;
+
+    // Thread: all internal controls
+    document.querySelectorAll<HTMLTextAreaElement>('.thread-textarea').forEach(ta => {
+        ta.disabled = locked;
+    });
+    document.querySelectorAll<HTMLButtonElement>('.thread-media-btn, .thread-remove-media, .btn-remove-thread-post').forEach(btn => {
+        btn.disabled = locked;
+    });
+    document.querySelectorAll<HTMLInputElement>('.thread-file-input').forEach(inp => {
+        inp.disabled = locked;
+    });
+
+    // Blog fields
+    const blogBody = get<HTMLTextAreaElement>('blog-body');
+    if (blogBody) blogBody.disabled = locked;
+    ['blog-title', 'blog-tags', 'blog-description', 'blog-cover-image', 'blog-canonical-url', 'blog-series'].forEach(id => {
+        const el = get<HTMLInputElement | HTMLTextAreaElement>(id);
+        if (el) el.disabled = locked;
+    });
 }
 
 btnAddThreadPost?.addEventListener('click', () => {
     const index = threadPosts.length;
-    threadPosts.push({ text: '', mediaPath: null, mediaName: null });
+    threadPosts.push({ text: '', mediaFilePaths: [] });
 
     const postHtml = `
-        <div class="thread-post" data-thread-index="${index}">
-            <div class="thread-post-header">
-                <span class="thread-post-label">Post ${index + 1}</span>
-                <span class="thread-char-counter" data-thread-counter="${index}">0 / ${window.__PLATFORM_DATA__?.maxChars || 280}</span>
-                <button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="${index}">✕</button>
-            </div>
-            <textarea class="thread-textarea" data-thread-textarea="${index}" placeholder="What's on your mind?" rows="3"></textarea>
-            <div class="thread-post-actions">
-                <button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="${index}">📎 Media</button>
-                <input type="file" class="thread-file-input" data-thread-file="${index}" 
-                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" />
-                <div class="thread-media-preview" data-thread-preview="${index}" style="display:none;">
-                    <span class="thread-media-name"></span>
-                    <button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="${index}">✕</button>
-                </div>
-            </div>
+<div class="thread-post" data-thread-index="${index}">
+    <div class="thread-post-header">
+        <span class="thread-post-label">Post ${index + 1}</span>
+        <span class="thread-char-counter" data-thread-counter="${index}">0 / ${window.__PLATFORM_DATA__?.maxChars || 280}</span>
+        <button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="${index}">✕</button>
+    </div>
+    <textarea class="thread-textarea" data-thread-textarea="${index}" placeholder="What's on your mind?" rows="3"></textarea>
+    <div class="thread-post-actions">
+        <button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="${index}">📎 Media</button>
+        <input type="file" class="thread-file-input" data-thread-file="${index}" 
+            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" multiple />
+        <div class="thread-media-preview" data-thread-preview="${index}" style="display:none;">
+            <span class="thread-media-name"></span>
+            <button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="${index}">✕</button>
         </div>
+    </div>
+</div>
     `;
 
     if (threadContainer) {
@@ -561,31 +673,55 @@ function wireThreadPostEvents(index: number): void {
     mediaBtn?.addEventListener('click', () => fileInp?.click());
 
     fileInp?.addEventListener('change', () => {
-        const file = fileInp?.files?.[0];
-        if (!file) return;
+        const files = fileInp?.files;
+        if (!files || files.length === 0) return;
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = (reader.result as string).split(',')[1];
-            // In threads, we might need a way to track which post is uploading
-            // For now, let's just use a special command or add index to uploadFile
-            send('uploadFile', { 
-                file: { name: file.name, size: file.size, type: file.type, base64Data: base64 },
-                threadIndex: index 
-            });
-        };
-        reader.readAsDataURL(file);
+        const MAX_IMAGES = 4;
+        const existing = threadPosts[index]?.mediaFilePaths?.length ?? 0;
+        const remaining = MAX_IMAGES - existing;
 
-        // Preview local
+        if (remaining <= 0) {
+            toast(`⚠️ You can only attach up to ${MAX_IMAGES} images per post.`, 'warning');
+            if (fileInp) fileInp.value = '';
+            return;
+        }
+
+        // Process up to remaining slots (total cap = 4)
+        const filesToProcess = Array.from(files).slice(0, remaining);
+
+        if (Array.from(files).length > remaining) {
+            toast(`⚠️ Only ${remaining} more image(s) allowed. Extra files were skipped.`, 'warning', 5000);
+        }
+
+        filesToProcess.forEach(file => {
+            // Warning for large files (> 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                toast(`\u26A0\uFE0F ${file.name} is quite large (${(file.size / 1024 / 1024).toFixed(1)}MB). It will be automatically optimized for Bluesky.`, "warning", 5000);
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64 = (reader.result as string).split(',')[1];
+                send('uploadFile', {
+                    file: { name: file.name, size: file.size, type: file.type, base64Data: base64 },
+                    threadIndex: index
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Update UI preview state (will be finalized when fileUploaded messages arrive)
         const preview = document.querySelector<HTMLElement>(`[data-thread-preview="${index}"]`);
         const nameEl = document.querySelector<HTMLElement>(`[data-thread-preview="${index}"] .thread-media-name`);
         if (preview) preview.style.display = 'flex';
-        if (nameEl) nameEl.textContent = file.name;
+        if (nameEl) {
+            const total = existing + filesToProcess.length;
+            nameEl.textContent = total === 1 ? filesToProcess[0].name : `${total} files selected`;
+        }
     });
 
     remMediaBtn?.addEventListener('click', () => {
-        threadPosts[index].mediaPath = null;
-        threadPosts[index].mediaName = null;
+        threadPosts[index].mediaFilePaths = [];
         const preview = document.querySelector<HTMLElement>(`[data-thread-preview="${index}"]`);
         if (preview) preview.style.display = 'none';
         if (fileInp) fileInp.value = '';
@@ -595,10 +731,10 @@ function wireThreadPostEvents(index: number): void {
     remPostBtn?.addEventListener('click', () => {
         const el = document.querySelector(`.thread-post[data-thread-index="${index}"]`);
         if (el) el.remove();
-        
+
         // Remove from the logical array to ensure share payload is correct
         threadPosts.splice(index, 1);
-        
+
         reIndexThreads();
         updateThreadShareBtn();
     });
@@ -609,9 +745,11 @@ wireThreadPostEvents(0);
 
 btnShareThread?.addEventListener('click', () => {
     try {
-        const validPosts = threadPosts.filter(p => p.text.trim() || p.mediaPath);
+        const validPosts = threadPosts.filter(p => p.text.trim() || (p.mediaFilePaths && p.mediaFilePaths.length > 0));
         if (validPosts.length === 0) { toast('Thread is empty', 'warning'); return; }
 
+        // Lock the whole UI so user can't edit or re-submit
+        setComposerLocked(true);
         btnShareThread.classList.add('loading');
         btnShareThread.disabled = true;
         btnShareThread.textContent = '⏳ Sharing Thread…';
@@ -620,7 +758,7 @@ btnShareThread?.addEventListener('click', () => {
             platform: activeCommandPlatform || (window as unknown as { __AUTO_THREAD_PLATFORM__?: string }).__AUTO_THREAD_PLATFORM__,
             posts: validPosts.map(p => ({
                 text: p.text,
-                mediaFilePaths: p.mediaPath ? [p.mediaPath] : []
+                mediaFilePaths: p.mediaFilePaths || []
             }))
         });
     } catch (error) {
@@ -638,6 +776,9 @@ btnShare?.addEventListener('click', () => {
     try {
         const text = textarea?.value.trim();
         if (!text) { toast('Write something first', 'warning'); return; }
+
+        // Lock the whole UI so user can't edit or re-submit
+        setComposerLocked(true);
         btnShare.classList.add('loading');
         btnShare.disabled = true;
         btnShare.textContent = '⏳ Sharing…';
@@ -646,7 +787,7 @@ btnShare?.addEventListener('click', () => {
         const payload: Record<string, unknown> = {
             post: text,
             platforms,
-            mediaFilePaths: activeMediaPath ? [activeMediaPath] : []
+            mediaFilePaths: activeMediaPaths || []
         };
 
         // Integrated Reddit metadata collection
@@ -726,45 +867,64 @@ fileInput?.addEventListener('change', () => {
     try {
         const files = fileInput.files;
         if (!files || files.length === 0) return;
-        const file = files[0];
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const base64 = (reader.result as string).split(',')[1];
-                send('uploadFile', { file: { name: file.name, size: file.size, type: file.type, base64Data: base64 } });
-            } catch (uploadError) {
-                console.error('File upload error:', uploadError);
-                toast('Failed to upload file', 'error');
+
+        // Process up to 4 files
+        const filesToProcess = Array.from(files).slice(0, 4);
+
+        filesToProcess.forEach(file => {
+            // Warning for large files (> 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                toast(`\u26A0\uFE0F ${file.name} is quite large (${(file.size / 1024 / 1024).toFixed(1)}MB). It will be automatically optimized for Bluesky.`, "warning", 5000);
             }
-        };
-        reader.onerror = () => {
-            console.error('File read error:', reader.error);
-            toast('Failed to read file', 'error');
-        };
-        reader.readAsDataURL(file);
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const base64 = (reader.result as string).split(',')[1];
+                    send('uploadFile', { file: { name: file.name, size: file.size, type: file.type, base64Data: base64 } });
+                    // Logical update for grid will happen when fileUploaded/mediaSelected arrive, 
+                    // but for local file input we can sometimes preview immediately if desired.
+                    // However, standard flow is: upload -> extension -> message back -> render.
+                } catch (uploadError) {
+                    console.error('File upload error:', uploadError);
+                    toast('Failed to upload file', 'error');
+                }
+            };
+            reader.onerror = () => {
+                console.error('File read error:', reader.error);
+                toast('Failed to read file', 'error');
+            };
+            reader.readAsDataURL(file);
+        });
+
         // Show preview
         const preview = get('media-preview');
-        const nameEl = get('media-name');
-        const sizeEl = get('media-size');
+        const countInfo = get('media-count-info');
         if (preview) preview.style.display = 'block';
-        if (nameEl) nameEl.textContent = file.name;
-        if (sizeEl) {
-            const b = file.size;
-            sizeEl.textContent = b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+        if (countInfo) {
+            const count = filesToProcess.length;
+            const totalSize = filesToProcess.reduce((acc, f) => acc + f.size, 0);
+            const sizeStr = totalSize < 1024 ? totalSize + ' B' : totalSize < 1048576 ? (totalSize / 1024).toFixed(1) + ' KB' : (totalSize / 1048576).toFixed(1) + ' MB';
+            countInfo.textContent = count === 1 ? `${filesToProcess[0].name} (${sizeStr})` : `${count} files selected (${sizeStr})`;
         }
     } catch (error) {
         console.error('File input handler error:', error);
         toast('Failed to process file', 'error');
     }
 });
-btnRemMedia?.addEventListener('click', () => {
+get('btn-remove-all-media')?.addEventListener('click', () => {
     try {
         const preview = get('media-preview');
         if (preview) preview.style.display = 'none';
         if (fileInput) fileInput.value = '';
+        const mainGrid = get('main-media-grid');
+        if (mainGrid) mainGrid.innerHTML = '';
+        const countInfo = get('media-count-info');
+        if (countInfo) countInfo.textContent = '';
+        activeMediaPaths = [];
         send('removeMedia');
     } catch (error) {
-        console.error('Remove media error:', error);
+        console.error('Remove all media error:', error);
         toast('Failed to remove media', 'error');
     }
 });
@@ -1320,7 +1480,7 @@ get<HTMLInputElement>('redditSubreddit')?.addEventListener('input', () => {
         const subredditInput = get<HTMLInputElement>('redditSubreddit');
         const titleGroup = document.querySelector('[for="redditTitle"]')?.closest('.input-group') as HTMLElement | null;
         const flairGroup = document.querySelector('[for="redditFlair"]')?.closest('.input-group') as HTMLElement | null;
-        
+
         let postTypeGroup: HTMLElement | null = null;
         const allLabels = document.querySelectorAll('label');
         for (let i = 0; i < allLabels.length; i++) {
@@ -1332,18 +1492,18 @@ get<HTMLInputElement>('redditSubreddit')?.addEventListener('input', () => {
                 break;
             }
         }
-        
+
         const spoilerCheckbox = document.querySelector('[for="redditSpoiler"]')?.closest('.checkbox-group') as HTMLElement | null;
         const emptySmall = document.querySelector('[for="redditSubreddit"]')?.nextElementSibling as HTMLElement | null;
-        
+
         if (subredditInput && titleGroup && flairGroup && spoilerCheckbox) {
             const target = subredditInput.value.trim().toLowerCase();
             const isUserDM = target.startsWith('u/');
-            
+
             // Logic simplification v3.1.0:
             // Backend is the Single Source of Truth for target parsing.
             // UI only updates labels for UX clarity.
-            
+
             // Show/hide fields based on target type
             titleGroup.style.display = isUserDM ? 'none' : 'flex';
             flairGroup.style.display = isUserDM ? 'none' : 'flex';
@@ -1351,15 +1511,15 @@ get<HTMLInputElement>('redditSubreddit')?.addEventListener('input', () => {
                 postTypeGroup.style.display = isUserDM ? 'none' : 'flex';
             }
             spoilerCheckbox.style.display = isUserDM ? 'none' : 'flex';
-            
+
             // Update label and help text
             const label = document.querySelector('label[for="redditSubreddit"]') as HTMLElement | null;
             if (label) {
                 label.textContent = isUserDM ? 'Reddit Username' : 'Subreddit';
             }
-            
+
             if (emptySmall) {
-                emptySmall.textContent = isUserDM 
+                emptySmall.textContent = isUserDM
                     ? 'Submit a post to your profile timeline'
                     : 'Select the subreddit where you want to post';
             }
@@ -1374,28 +1534,28 @@ get('shareRedditPostBtn')?.addEventListener('click', () => {
         const val = (id: string) => (get<HTMLInputElement>(id)?.value ?? '').trim();
         const postText = textarea?.value.trim() || '';
         const subredditField = val('redditSubreddit');
-        
+
         // Validate target is provided
         if (!subredditField) {
             toast('Please enter a subreddit (r/...) or username (u/...)', 'error');
             return;
         }
-        
+
         const isUserPost = subredditField.toLowerCase().startsWith('u/');
-        
+
         // Validate required fields based on target type
         if (!isUserPost && !val('redditTitle')) {
             toast('Please enter a post title for subreddit posts', 'error');
             return;
         }
-        
+
         send('shareToReddit', {
-            post:            postText,
+            post: postText,
             redditSubreddit: subredditField,
-            redditTitle:     val('redditTitle'),  // Subject for DMs, Title for posts
-            redditFlairId:   get<HTMLSelectElement>('redditFlair')?.value || '',
-            redditPostType:  document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value || 'self',
-            redditSpoiler:   get<HTMLInputElement>('redditSpoiler')?.checked || false
+            redditTitle: val('redditTitle'),  // Subject for DMs, Title for posts
+            redditFlairId: get<HTMLSelectElement>('redditFlair')?.value || '',
+            redditPostType: document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value || 'self',
+            redditSpoiler: get<HTMLInputElement>('redditSpoiler')?.checked || false
         });
         const modal = get('redditPostModal');
         if (modal) modal.style.display = 'none';
@@ -1524,30 +1684,34 @@ window.addEventListener('message', function (event: MessageEvent<WebviewMessage>
             }
             case 'status':
                 toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info');
-                setBtnLoading('btn-share', false);
-                setBtnLoading('btn-publish-blog', false);
-                setBtnLoading('btn-publish-blog-devto', false);
-                setBtnLoading('btn-publish-blog-medium', false);
-                setBtnLoading('btn-read-md-file', false);
-                setBtnLoading('btn-generate-ai', false);
+                // On error: unlock the UI immediately so user can try again
                 if (msg.type === 'error') {
-                    resetBlogPublishUi();
-                } else if (msg.type === 'success') {
-                    // Only reset if it's a completion message (like "Successfully posted")
-                    // NOT for "File uploaded successfully" or "Settings saved"
-                    const statusLower = String(msg.status || '').toLowerCase();
-                    const looksLikeCompletion = statusLower.includes('success') || statusLower.includes('published') || statusLower.includes('shared');
-                    const looksLikeIntermediate = statusLower.includes('upload') || statusLower.includes('attach') || statusLower.includes('save');
-
-                    if (looksLikeCompletion && !looksLikeIntermediate) {
-                        resetAllComposers();
+                    setComposerLocked(false);
+                    setBtnLoading('btn-share', false);
+                    setBtnLoading('btn-publish-blog', false);
+                    setBtnLoading('btn-publish-blog-devto', false);
+                    setBtnLoading('btn-publish-blog-medium', false);
+                    setBtnLoading('btn-read-md-file', false);
+                    setBtnLoading('btn-generate-ai', false);
+                    const tBtn = get<HTMLButtonElement>('btn-share-thread');
+                    if (tBtn) {
+                        tBtn.classList.remove('loading');
+                        tBtn.disabled = false;
+                        tBtn.textContent = '🚀 Share Thread';
                     }
+                    resetBlogPublishUi();
+                } else {
+                    // For info/success/warning: only unlock non-share buttons (intermediate status)
+                    setBtnLoading('btn-read-md-file', false);
+                    setBtnLoading('btn-generate-ai', false);
                 }
                 break;
             case 'updateAnalytics': if (msg.analytics) updateAnalytics(msg.analytics as Record<string, unknown>); break;
             case 'updatePostHistory': if (msg.postHistory) renderHistory(msg.postHistory as Array<Record<string, unknown>>); break;
             case 'updateScheduledPosts': if (msg.scheduledPosts) renderScheduledPosts(msg.scheduledPosts as Array<{ id: string; scheduledTime: string; platforms: string[]; postData: { text: string } }>); break;
             case 'shareComplete':
+                // Definitive signal: sharing finished (success or error already toasted)
+                // Unlock + full reset
                 resetAllComposers();
                 break;
             case 'fileUploaded':
@@ -1557,33 +1721,74 @@ window.addEventListener('message', function (event: MessageEvent<WebviewMessage>
                     const name = String(msg.fileName || 'File');
                     const size = msg.fileSize ? Number(msg.fileSize) : 0;
 
+                    // Warning for large files (> 2MB)
+                    const isLargeFile = size > 2 * 1024 * 1024;
+                    const warningText = isLargeFile ? ' ⚠️ (Auto-compressed for Bluesky)' : '';
+
                     if (msg.threadIndex !== undefined) {
                         const idx = Number(msg.threadIndex);
                         if (threadPosts[idx]) {
-                            threadPosts[idx].mediaPath = path;
-                            threadPosts[idx].mediaName = name;
+                            if (!threadPosts[idx].mediaFilePaths) threadPosts[idx].mediaFilePaths = [];
+                            const MAX_IMAGES = 4;
+                            if (threadPosts[idx].mediaFilePaths.length >= MAX_IMAGES) {
+                                toast(`⚠️ Post ${idx + 1} already has ${MAX_IMAGES} images attached. Extra image skipped.`, 'warning');
+                            } else {
+                                threadPosts[idx].mediaFilePaths.push(path);
+                            }
                         }
                         const preview = document.querySelector<HTMLElement>(`[data-thread-preview="${idx}"]`);
                         const nameEl = document.querySelector<HTMLElement>(`[data-thread-preview="${idx}"] .thread-media-name`);
                         if (preview) preview.style.display = 'flex';
-                        if (nameEl) nameEl.textContent = name;
+                        if (nameEl) {
+                            const count = threadPosts[idx]?.mediaFilePaths?.length ?? 0;
+                            nameEl.textContent = count === 1 ? name + warningText : `${count} files selected`;
+                        }
                         updateThreadShareBtn();
                     } else {
-                        activeMediaPath = path;
+                        if (!activeMediaPaths) activeMediaPaths = [];
+                        activeMediaPaths.push(path);
+                        renderMediaGrid();
+
                         const preview = get('media-preview');
-                        const nameEl = get('media-name');
-                        const sizeEl = get('media-size');
+                        const countInfo = get('media-count-info');
                         if (preview) preview.style.display = 'block';
-                        if (nameEl) nameEl.textContent = name;
-                        if (sizeEl && size) {
-                            const b = size;
-                            sizeEl.textContent = b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+
+                        if (countInfo) {
+                            const count = activeMediaPaths.length;
+                            let sizeStr = '';
+                            if (size) {
+                                sizeStr = size < 1024 ? size + ' B' : size < 1048576 ? (size / 1024).toFixed(1) + ' KB' : (size / 1048576).toFixed(1) + ' MB';
+                                sizeStr = ` (${sizeStr}${warningText})`;
+                            }
+                            countInfo.textContent = count === 1 ? name + sizeStr : `${count} files selected`;
+                        }
+
+                        if (isLargeFile && activeMediaPaths.length === 1) {
+                            toast('Image > 2MB. It will be optimized automatically for Bluesky.', 'info', 6000);
                         }
                     }
                 }
                 break;
+            case 'mediaAttached': {
+                // mediaAttached carries an array of files (e.g. from VS Code file-picker)
+                const attachedFiles = msg.mediaFiles;
+                if (attachedFiles && Array.isArray(attachedFiles)) {
+                    const MAX_IMAGES = 4;
+                    const toAdd = attachedFiles.slice(0, MAX_IMAGES - activeMediaPaths.length);
+                    toAdd.forEach(f => activeMediaPaths.push(f.mediaPath));
+                    renderMediaGrid();
+                    if (attachedFiles.length > toAdd.length) {
+                        toast(`⚠️ Only ${MAX_IMAGES} images allowed. Extra files were skipped.`, 'warning');
+                    }
+                    const preview = get('media-preview');
+                    const countInfo = get('media-count-info');
+                    if (preview) preview.style.display = 'block';
+                    if (countInfo) countInfo.textContent = activeMediaPaths.length === 1 ? toAdd[0].fileName : `${activeMediaPaths.length} files selected`;
+                }
+                break;
+            }
             case 'mediaRemoved':
-                activeMediaPath = null;
+                activeMediaPaths = [];
                 break;
             case 'themeChanged':
                 if (msg.theme === 'dark') document.body.classList.add('dark');

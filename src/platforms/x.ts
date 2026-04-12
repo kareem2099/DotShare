@@ -7,8 +7,9 @@ import { TokenManager } from '../services/TokenManager';
 import { AUTH_SERVER_URL } from '../services/TokenManager';
 
 export interface TweetData {
-    text: string;
+    text: string | string[];  // string[] = pre-split thread chunks from UI
     media?: string[];
+    posts?: Array<{ text: string; media?: string[] }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -138,43 +139,61 @@ export async function shareToX(
             'Content-Type': 'application/json',
         };
 
-        // ── Upload media ──────────────────────────────────────────────────────
-        const mediaIds: string[] = [];
-
-        if (tweetData.media && tweetData.media.length > 0) {
-            // Limit to 4 files since X allows max 4 media attachments per tweet
-            const mediaToUpload = tweetData.media.slice(0, 4);
-            for (const filePath of mediaToUpload) {
-                if (!fs.existsSync(filePath)) {
-                    Logger.info(`X media file not found, skipping: ${filePath}`);
-                    continue;
-                }
-                const mediaId = await uploadMediaToX(filePath, accessToken);
-                mediaIds.push(mediaId);
-            }
+        // Handle both structured threads and single posts
+        const threadPosts = tweetData.posts || [];
+        if (threadPosts.length === 0) {
+            // Convert single post to thread structure for unified processing
+            const texts = Array.isArray(tweetData.text)
+                ? tweetData.text.filter(t => t.trim())
+                : createThreadChunks(tweetData.text);
+            
+            texts.forEach((txt, idx) => {
+                threadPosts.push({
+                    text: txt,
+                    media: idx === 0 ? tweetData.media : undefined // Attach media to first tweet only for auto-split
+                });
+            });
         }
 
-        // ── Thread Splitting Logic ────────────────────────────────────────────
-        const tweets = createThreadChunks(tweetData.text);
         let firstTweetId = '';
         let previousTweetId = '';
 
         // Loop through tweets and post them as a Thread
-        for (let i = 0; i < tweets.length; i++) {
+        for (let i = 0; i < threadPosts.length; i++) {
+            const currentPost = threadPosts[i];
+            
+            // 1. Upload media for THIS tweet
+            const mediaIds: string[] = [];
+            if (currentPost.media && currentPost.media.length > 0) {
+                const mediaToUpload = currentPost.media.slice(0, 4);
+                for (const filePath of mediaToUpload) {
+                    if (fs.existsSync(filePath)) {
+                        try {
+                            const mediaId = await uploadMediaToX(filePath, accessToken);
+                            mediaIds.push(mediaId);
+                        } catch (uploadErr) {
+                            Logger.error(`X: failed to upload media for ${filePath}:`, uploadErr);
+                        }
+                    }
+                }
+            }
+
+            // 2. Prepare tweet payload
             const tweetPayload: any = {
-                text: tweets[i],
+                text: currentPost.text,
             };
 
-            // Link tweet to the previous one if this isn't the first
+            // 3. Attach media IDs if they exist
+            if (mediaIds.length > 0) {
+                tweetPayload.media = { media_ids: mediaIds };
+            }
+
+            // 4. Link tweet to the previous one
             if (previousTweetId) {
                 tweetPayload.reply = { in_reply_to_tweet_id: previousTweetId };
             }
 
-            // Add media only to the first tweet
-            if (i === 0 && mediaIds.length > 0) {
-                tweetPayload.media = { media_ids: mediaIds };
-            }
-
+            // 5. Submit tweet
             const response = await axios.post(
                 'https://api.twitter.com/2/tweets',
                 tweetPayload,
@@ -186,10 +205,10 @@ export async function shareToX(
             if (i === 0) firstTweetId = tweetId;
             previousTweetId = tweetId;
 
-            Logger.info(`X: tweet ${i + 1}/${tweets.length} posted successfully (id: ${tweetId})`);
+            Logger.info(`X: tweet ${i + 1}/${threadPosts.length} posted successfully (id: ${tweetId})`);
         }
 
-        return firstTweetId; // Return the ID of the main tweet for user interaction
+        return firstTweetId;
 
     } catch (error: unknown) {
         const msg = axios.isAxiosError(error)

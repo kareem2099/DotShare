@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-04-12 — "The Media Expansion"
+
+### Added
+- **Multi-Image Media Grid**: Users can now attach up to 4 images per single post, matching platform-native behaviour for both Bluesky and X/Twitter.
+  - Dynamic CSS-grid thumbnail preview rendered inside the composer on file selection.
+  - Per-thumbnail ✕ remove buttons for granular selection management.
+  - "Remove All" bulk action button to clear the entire media selection in one click.
+  - `renderMainMediaGrid()` — central re-render function acting as the single source of truth; rebuilds the grid DOM from `activeMediaPaths[]` on every state change.
+- **True Multi-Image Bluesky Posts**: Fixed `bluesky.ts` embed builder — now uploads every selected image as a separate Blob, collects all `ref` objects, and attaches them as a proper `app.bsky.embed.images` array in one post request (previously only `media[0]` was used).
+- **True Multi-Image X / Twitter Posts**: Updated `x.ts` media upload flow — calls `uploadMedia()` sequentially for each image and passes all resulting `media_id` values together in the final tweet payload.
+- **Thread Multi-Image Support**: Each post in the Thread Composer now independently supports up to 4 images. Per-post `mediaFilePaths[]` arrays are tracked separately and serialised correctly in the `shareThread` payload.
+- **Smart File Size Warning**: Files over 2 MB trigger an inline toast warning at selection time (before upload), informing users that automatic optimisation will occur at post time.
+- **Just-In-Time Compression**: Image compression is applied in `MediaService.ts` at share time (backend), preserving quality as long as possible and keeping the frontend snappy.
+- **Secure Webview URI Thumbnails**: `MessageHandler.ts` now converts local filesystem paths into `vscode-resource://` safe URIs via `webview.asWebviewUri()`, enabling real `<img src>` thumbnail previews within VS Code's sandboxed webview CSP.
+
+### Fixed
+- **`activeMediaPath` typo** (TS error `2552`): Renamed all stale references to the correct `activeMediaPaths` array — the share payload was sending `undefined` before this fix.
+- **Media state reset**: `activeMediaPaths` is now correctly cleared to `[]` after a successful post and when the user discards the composer.
+- **Thread post re-indexing**: Removing a thread post now correctly splices the `threadPosts` array and calls `reIndexThreads()` to prevent stale `data-*` index references causing media attachment bugs.
+
+---
+
 ## [3.1.0] - 2026-04-07 — "The Polish Pass"
+
 
 ### Added
 - **WebView Toast Engine**: Replaced intrusive VS Code popups with custom, non-intrusive notifications (progress bars, auto-dismiss, contextual colors).

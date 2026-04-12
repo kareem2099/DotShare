@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
+import { MediaService } from '../services/MediaService';
 import { PostData } from '../types';
 import { ScheduledPostsStorage, generateScheduledPostId } from '../core/scheduled-posts';
 import { Logger } from '../utils/Logger';
@@ -34,7 +35,8 @@ export class PostHandler {
         private view: vscode.WebviewView,
         private context: vscode.ExtensionContext,
         private historyService: HistoryService,
-        private analyticsService: AnalyticsService
+        private analyticsService: AnalyticsService,
+        private mediaService: MediaService
     ) {}
 
     public async handleMessage(message: Message): Promise<void> {
@@ -713,6 +715,7 @@ export class PostHandler {
     }
 
     private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        let processedMedia: string[] = [];
         try {
             const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
             const password   = (await this.context.secrets.get('blueskyPassword')   || '').trim();
@@ -721,7 +724,16 @@ export class PostHandler {
                 throw new Error('BlueSky credentials not configured. Go to Settings to add them.');
             }
 
-            await shareToBlueSky(identifier, password, post);
+            // Automate image compression for BlueSky (2MB limit)
+            const media = post.media || [];
+            const compressedPaths: string[] = [];
+            for (const filePath of media) {
+                const processedPath = await this.mediaService.compressImageIfNecessary(filePath);
+                compressedPaths.push(processedPath);
+                if (processedPath !== filePath) processedMedia.push(processedPath);
+            }
+
+            await shareToBlueSky(identifier, password, { ...post, media: compressedPaths });
 
             this.sendSuccess('Successfully posted to Bluesky!');
             if (postId) this.historyService.recordShare(postId, 'bluesky', true);
@@ -730,6 +742,10 @@ export class PostHandler {
             if (postId) this.historyService.recordShare(postId, 'bluesky', false, errorMessage);
             throw new Error(`Error sharing to Bluesky: ${errorMessage}`);
         } finally {
+            // Cleanup compressed temp files
+            for (const path of processedMedia) {
+                try { if (fs.existsSync(path)) fs.unlinkSync(path); } catch (e) {}
+            }
             this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
@@ -823,6 +839,11 @@ export class PostHandler {
         postId?: string,
         metadata?: { redditMetadata?: Record<string, unknown> }
     ): Promise<void> {
+        // Ensure all media paths are merged into the post object
+        if (mediaFilePaths.length > 0) {
+            post.media = Array.from(new Set([...(post.media || []), ...mediaFilePaths]));
+        }
+
         let successCount = 0;
         const errors: string[] = [];
 
@@ -925,7 +946,7 @@ export class PostHandler {
 
     private async handleShareThread(message: Message): Promise<void> {
         const platform = message.platform as string;
-        const posts    = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string }>;
+        const posts    = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string; mediaFilePaths?: string[] }>;
 
         // Use platform-config to validate thread support
         const platformConfig = PLATFORM_CONFIGS[platform];
@@ -947,28 +968,40 @@ export class PostHandler {
             type: 'info'
         });
 
-        let tempMediaPath: string | undefined;
+        const tempMediaPaths: string[] = [];
 
         try {
-            // Process media — convert Base64 to temp file for first post only
-            let firstPostMedia: string[] | undefined;
-            if (posts[0]?.mediaBase64 && posts[0]?.mediaType) {
-                const ext = posts[0].mediaType.split('/')[1] || 'png';
-                const tempFileName = `thread_media_${Date.now()}.${ext}`;
-                tempMediaPath = path.join(os.tmpdir(), tempFileName);
+            // Process each post in the thread to handle its specific media
+            const processedPosts: Array<{ text: string; media?: string[] }> = [];
 
-                const buffer = Buffer.from(posts[0].mediaBase64, 'base64');
-                fs.writeFileSync(tempMediaPath, buffer);
-                firstPostMedia = [tempMediaPath];
+            for (let i = 0; i < posts.length; i++) {
+                const currentPost = posts[i];
+                let postMedia: string[] | undefined;
+
+                if (currentPost.mediaFilePaths?.length) {
+                    const validPaths = (currentPost.mediaFilePaths as string[]).filter(p => fs.existsSync(p));
+                    if (validPaths.length > 0) postMedia = validPaths;
+                } else if (currentPost.mediaBase64 && currentPost.mediaType) {
+                    const ext = currentPost.mediaType.split('/')[1] || 'png';
+                    const tempFileName = `thread_media_${i}_${Date.now()}.${ext}`;
+                    const tempPath = path.join(os.tmpdir(), tempFileName);
+                    const buffer = Buffer.from(currentPost.mediaBase64, 'base64');
+                    fs.writeFileSync(tempPath, buffer);
+                    tempMediaPaths.push(tempPath);
+                    postMedia = [tempPath];
+                }
+
+                processedPosts.push({
+                    text: currentPost.text,
+                    media: postMedia
+                });
             }
-
-            // Combine posts with manual separator
-            const combinedText = posts.map(p => p.text).filter(t => t).join('\n\n===\n\n');
 
             if (platform === 'x') {
                 const xAccessToken  = await this.context.secrets.get('xAccessToken')  || '';
                 const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
-                await shareToX(xAccessToken, xAccessSecret, { text: combinedText, media: firstPostMedia });
+                // Pass structured posts to x platform handler
+                await shareToX(xAccessToken, xAccessSecret, { text: '', posts: processedPosts });
 
             } else if (platform === 'bluesky') {
                 const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
@@ -979,7 +1012,22 @@ export class PostHandler {
                     this.view.webview.postMessage({ command: 'shareComplete' });
                     return;
                 }
-                await shareToBlueSky(identifier, password, { text: combinedText, media: firstPostMedia });
+
+                // Compress media for all posts in the thread for BlueSky
+                for (const p of processedPosts) {
+                    if (p.media && p.media.length > 0) {
+                        for (let j = 0; j < p.media.length; j++) {
+                            const originalPath = p.media[j];
+                            const processedPath = await this.mediaService.compressImageIfNecessary(originalPath);
+                            if (processedPath !== originalPath) {
+                                p.media[j] = processedPath;
+                                tempMediaPaths.push(processedPath);
+                            }
+                        }
+                    }
+                }
+
+                await shareToBlueSky(identifier, password, { text: '', posts: processedPosts });
             }
 
             this.sendSuccess(`Thread shared to ${platformConfig.name}!`);
@@ -990,10 +1038,10 @@ export class PostHandler {
             this.sendError(`Thread sharing failed: ${errorMessage}`);
             this.view.webview.postMessage({ command: 'shareComplete' });
         } finally {
-            // Cleanup temp file
-            if (tempMediaPath) {
+            // Cleanup all temp files
+            for (const tempPath of tempMediaPaths) {
                 try {
-                    if (fs.existsSync(tempMediaPath)) fs.unlinkSync(tempMediaPath);
+                    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
                 } catch (e) {
                     Logger.info('Failed to clean up temp media file:', e);
                 }

@@ -152,7 +152,7 @@ export class PostExecutor {
                 media:      postData.media,
                 subreddit:  cleanSubreddit,
                 title:      postData.text.substring(0, 300),
-                isSelfPost: true
+                postType: 'self'
             }
         );
 

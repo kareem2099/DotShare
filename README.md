@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-The_Polish_Pass-ffcc00?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-The_Media_Expansion-ff6b35?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -52,14 +52,14 @@ Leverage cutting-edge AI to transform code updates into engaging narratives:
 Share seamlessly across your entire professional network:
 
 | Platform | Type | Features | Status |
-|----------|------|----------|--------|
+|----------|------|----------|---------|
 | 🔗 **LinkedIn** | Social | Profile posts, rich media | ✅ Full Support |
 | 📱 **Telegram** | Social | Channels, groups, scheduling | ✅ Full Support |
-| 𝕏 **X (Twitter)** | Social | Tweets, threads, X Premium (25K chars) | ✅ Full Support |
+| 𝕏 **X (Twitter)** | Social | Tweets, threads, X Premium (25K chars), **up to 4 images** | ✅ Full Support |
 | 📘 **Facebook** | Social | Profiles, pages | ✅ Full Support |
 | 💬 **Discord** | Social | Webhooks, embeds | ✅ Full Support |
 | 🟠 **Reddit** | Social | Subreddits, profiles (r/, u/) | ✅ Full Support |
-| 🦋 **BlueSky** | Social | Threads, facets, media | ✅ Full Support |
+| 🦋 **BlueSky** | Social | Threads, facets, **up to 4 images**, JIT compression | ✅ Full Support |
 | 👨‍💻 **Dev.to** | Blog | Articles, series, drafts | ✅ **New in v3.0** |
 | Ⓜ️ **Medium** | Blog | Articles, draft/publish/unlisted | ✅ **New in v3.0** |
 
@@ -73,12 +73,22 @@ DotShare is no longer just a social poster — it's a full **publishing suite**:
 - **Draft vs. Publish Toggle**: Per-platform — draft to Dev.to, publish live to Medium, simultaneously
 - **Platform-First Navigation**: Click a platform icon → workspace adapts automatically
 
+### 🖼️ Multi-Image Media Grid *(New in v3.2)*
+
+Attach up to **4 images per post**, just like native platform clients:
+
+- **Live Thumbnail Previews** — See exactly what you're posting before you hit share
+- **Individual Remove Buttons** — Remove a single image without clearing everything
+- **"Remove All" Bulk Action** — One click resets the entire media selection
+- **Smart File Size Warning** — Files over 2 MB get an inline warning; compression is handled automatically at post time
+- **Secure Webview URIs** — Thumbnails load instantly using VS Code's sandboxed `vscode-resource://` protocol
+
 ### 🧵 Thread Composer
 
 Build and share threads natively:
 - Multi-post thread builder for X and Bluesky
 - Per-post character counters with platform limits
-- Media attachment per post
+- **Up to 4 images per thread post** *(New in v3.2)*
 - X Premium mode (25,000 chars)
 
 ### ⏰ Automation & Scheduling

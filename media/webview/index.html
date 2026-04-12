@@ -89,14 +89,15 @@
             <span style="margin-left:2px;">to share</span>
           </div>
           <!-- Media preview -->
-          <div id="media-preview" style="display:none; margin-top:12px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span>📄</span>
-              <span id="media-name" style="font-size:12px;flex:1;"></span>
-              <span id="media-size" style="font-size:11px;color:var(--vscode-descriptionForeground);"></span>
-              <button class="btn btn-ghost btn-sm" id="btn-remove-media">✕</button>
+          <div id="media-preview" style="display:none;">
+            <div id="main-media-grid" class="media-grid"></div>
+            <div class="media-grid-status">
+              <span id="media-count-info"></span>
+              <div class="spacer"></div>
+              <button class="btn btn-ghost btn-sm" id="btn-remove-all-media" title="Remove all media">Remove All ✕</button>
             </div>
           </div>
+
         </div>
 
         <!-- Share To card — Pro teaser -->
