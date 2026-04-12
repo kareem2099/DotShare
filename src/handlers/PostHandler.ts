@@ -715,7 +715,6 @@ export class PostHandler {
     }
 
     private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
-        let processedMedia: string[] = [];
         try {
             const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
             const password   = (await this.context.secrets.get('blueskyPassword')   || '').trim();
@@ -724,16 +723,7 @@ export class PostHandler {
                 throw new Error('BlueSky credentials not configured. Go to Settings to add them.');
             }
 
-            // Automate image compression for BlueSky (2MB limit)
-            const media = post.media || [];
-            const compressedPaths: string[] = [];
-            for (const filePath of media) {
-                const processedPath = await this.mediaService.compressImageIfNecessary(filePath);
-                compressedPaths.push(processedPath);
-                if (processedPath !== filePath) processedMedia.push(processedPath);
-            }
-
-            await shareToBlueSky(identifier, password, { ...post, media: compressedPaths });
+            await shareToBlueSky(identifier, password, post);
 
             this.sendSuccess('Successfully posted to Bluesky!');
             if (postId) this.historyService.recordShare(postId, 'bluesky', true);
@@ -742,10 +732,6 @@ export class PostHandler {
             if (postId) this.historyService.recordShare(postId, 'bluesky', false, errorMessage);
             throw new Error(`Error sharing to Bluesky: ${errorMessage}`);
         } finally {
-            // Cleanup compressed temp files
-            for (const path of processedMedia) {
-                try { if (fs.existsSync(path)) fs.unlinkSync(path); } catch (e) {}
-            }
             this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
@@ -1013,20 +999,7 @@ export class PostHandler {
                     return;
                 }
 
-                // Compress media for all posts in the thread for BlueSky
-                for (const p of processedPosts) {
-                    if (p.media && p.media.length > 0) {
-                        for (let j = 0; j < p.media.length; j++) {
-                            const originalPath = p.media[j];
-                            const processedPath = await this.mediaService.compressImageIfNecessary(originalPath);
-                            if (processedPath !== originalPath) {
-                                p.media[j] = processedPath;
-                                tempMediaPaths.push(processedPath);
-                            }
-                        }
-                    }
-                }
-
+                // Images come compressed and optimized from the frontend (Webview Canvas)
                 await shareToBlueSky(identifier, password, { text: '', posts: processedPosts });
             }
 

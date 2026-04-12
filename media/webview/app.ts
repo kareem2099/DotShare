@@ -117,6 +117,76 @@ function toast(msg: string, type: 'success' | 'error' | 'warning' | 'info' = 'in
     }
 }
 
+/**
+ * Optimizes and compresses an image using HTML5 Canvas.
+ * Resizes if dimensions > 2000px and reduces quality to 0.8 JPEG.
+ */
+async function processAndCompressImage(file: File): Promise<{ base64Data: string, size: number, type: string, name: string }> {
+    // Skip compression for non-images or animated GIFs
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({
+                base64Data: (reader.result as string).split(',')[1],
+                size: file.size,
+                type: file.type,
+                name: file.name
+            });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(img.src);
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            const MAX_DIM = 2000;
+            if (width > MAX_DIM || height > MAX_DIM) {
+                if (width > height) {
+                    height *= MAX_DIM / width;
+                    width = MAX_DIM;
+                } else {
+                    width *= MAX_DIM / height;
+                    height = MAX_DIM;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error('Could not get canvas context'));
+                return;
+            }
+
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Compress to JPEG with 0.8 quality
+            const mimeType = 'image/jpeg';
+            const dataUrl = canvas.toDataURL(mimeType, 0.8);
+            const base64Data = dataUrl.split(',')[1];
+            
+            // Approximate size from base64 (3/4 of string length)
+            const compressedSize = Math.floor(base64Data.length * 0.75);
+
+            // Change extension to .jpg if it was something else (e.g. .png)
+            let finalName = file.name;
+            if (!finalName.toLowerCase().endsWith('.jpg') && !finalName.toLowerCase().endsWith('.jpeg')) {
+                finalName = finalName.replace(/\.[^/.]+$/, "") + ".jpg";
+            }
+            
+            resolve({ base64Data, size: compressedSize, type: mimeType, name: finalName });
+        };
+        img.onerror = () => reject(new Error('Failed to load image for compression'));
+    });
+}
+
 // ── Keyboard Shortcuts ─────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
     // Ctrl+Enter for Share
@@ -693,21 +763,31 @@ function wireThreadPostEvents(index: number): void {
             toast(`⚠️ Only ${remaining} more image(s) allowed. Extra files were skipped.`, 'warning', 5000);
         }
 
-        filesToProcess.forEach(file => {
-            // Warning for large files (> 2MB)
-            if (file.size > 2 * 1024 * 1024) {
-                toast(`\u26A0\uFE0F ${file.name} is quite large (${(file.size / 1024 / 1024).toFixed(1)}MB). It will be automatically optimized for Bluesky.`, "warning", 5000);
+        filesToProcess.forEach(async file => {
+            const isLarge = file.size > 2 * 1024 * 1024;
+            if (isLarge && !file.type.match(/video|gif/i)) {
+                toast(`✨ Optimizing ${file.name}...`, "info", 3000);
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                const base64 = (reader.result as string).split(',')[1];
+            try {
+                const { base64Data, size, type, name } = await processAndCompressImage(file);
                 send('uploadFile', {
-                    file: { name: file.name, size: file.size, type: file.type, base64Data: base64 },
+                    file: { name, size, type, base64Data },
                     threadIndex: index
                 });
-            };
-            reader.readAsDataURL(file);
+            } catch (err) {
+                console.error('Compression error:', err);
+                // Fallback to original
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = (reader.result as string).split(',')[1];
+                    send('uploadFile', {
+                        file: { name: file.name, size: file.size, type: file.type, base64Data: base64 },
+                        threadIndex: index
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
         });
 
         // Update UI preview state (will be finalized when fileUploaded messages arrive)
@@ -871,30 +951,29 @@ fileInput?.addEventListener('change', () => {
         // Process up to 4 files
         const filesToProcess = Array.from(files).slice(0, 4);
 
-        filesToProcess.forEach(file => {
-            // Warning for large files (> 2MB)
-            if (file.size > 2 * 1024 * 1024) {
-                toast(`\u26A0\uFE0F ${file.name} is quite large (${(file.size / 1024 / 1024).toFixed(1)}MB). It will be automatically optimized for Bluesky.`, "warning", 5000);
+        filesToProcess.forEach(async file => {
+            const isLarge = file.size > 2 * 1024 * 1024;
+            if (isLarge && !file.type.match(/video|gif/i)) {
+                toast(`✨ Optimizing ${file.name}...`, "info", 3000);
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                try {
+            try {
+                const { base64Data, size, type, name } = await processAndCompressImage(file);
+                send('uploadFile', {
+                    file: { name, size, type, base64Data }
+                });
+            } catch (err) {
+                console.error('Compression error:', err);
+                // Fallback to original
+                const reader = new FileReader();
+                reader.onload = () => {
                     const base64 = (reader.result as string).split(',')[1];
-                    send('uploadFile', { file: { name: file.name, size: file.size, type: file.type, base64Data: base64 } });
-                    // Logical update for grid will happen when fileUploaded/mediaSelected arrive, 
-                    // but for local file input we can sometimes preview immediately if desired.
-                    // However, standard flow is: upload -> extension -> message back -> render.
-                } catch (uploadError) {
-                    console.error('File upload error:', uploadError);
-                    toast('Failed to upload file', 'error');
-                }
-            };
-            reader.onerror = () => {
-                console.error('File read error:', reader.error);
-                toast('Failed to read file', 'error');
-            };
-            reader.readAsDataURL(file);
+                    send('uploadFile', {
+                        file: { name: file.name, size: file.size, type: file.type, base64Data: base64 }
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
         });
 
         // Show preview
