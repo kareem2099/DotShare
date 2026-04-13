@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.0] - 2026-04-12 — "The Media Expansion"
+## [3.2.2] - 2026-04-13
+### Fixed
+- **Character Limit Validation**: Fixed a bug where thread posts did not turn red when exceeding platforms' character limits and the "Share" button remained enabled. Corrected missing validation logic in the thread composer's character counter.
+
+## [3.2.1] - 2026-04-12
+### Added
+- **Frontend Image Compression**: Migrated image compression logic from the backend to the frontend using HTML5 Canvas. This eliminates the heavy `sharp` dependency and improves processing speed.
+
+## [3.2.0] - 2026-04-12 — "The Media Expansion" (2026-04-12)
 
 ### Added
 - **Multi-Image Media Grid**: Users can now attach up to 4 images per single post, matching platform-native behaviour for both Bluesky and X/Twitter.

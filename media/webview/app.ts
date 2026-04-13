@@ -618,7 +618,18 @@ function updateThreadCharCounter(index: number): void {
     const el = document.querySelector<HTMLElement>(`[data-thread-counter="${index}"]`);
     const ta = document.querySelector<HTMLTextAreaElement>(`[data-thread-textarea="${index}"]`);
     if (el && ta) {
-        el.textContent = `${ta.value.length} / ${window.__PLATFORM_DATA__?.maxChars || 280}`;
+        const len = ta.value.length;
+        const maxChars = window.__PLATFORM_DATA__?.maxChars || 280;
+        el.textContent = `${len} / ${maxChars}`;
+
+        // Reset and apply classes
+        el.classList.remove('warn', 'error');
+        const warnThreshold = Math.floor(maxChars * 0.8);
+        if (len > maxChars) {
+            el.classList.add('error');
+        } else if (len > warnThreshold) {
+            el.classList.add('warn');
+        }
     }
 }
 
@@ -626,7 +637,12 @@ function updateThreadShareBtn(): void {
     const btnShareThread = get<HTMLButtonElement>('btn-share-thread');
     if (!btnShareThread) return;
     const hasAnyContent = threadPosts.some(p => p.text.trim().length > 0 || (p.mediaFilePaths && p.mediaFilePaths.length > 0));
-    btnShareThread.disabled = !hasAnyContent;
+
+    // Disable if any post exceeds max chars for the platform
+    const maxChars = window.__PLATFORM_DATA__?.maxChars || 280;
+    const isTooLong = threadPosts.some(p => p.text.length > maxChars);
+
+    btnShareThread.disabled = !hasAnyContent || isTooLong;
 }
 
 /**
