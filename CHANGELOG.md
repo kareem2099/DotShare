@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.3] - 2026-04-16 — "Aegis"
+### Added
+- **Aegis 1.4.0 Integration**: Full integration with the DotShare Auth v1.4.0 "Aegis" protocol for proactive token lifecycle management.
+- **Visual Token Intelligence**: Added Aegis Status Badges (Stable 🛡️ / Warning ⚠️) to the platform cards in the sidebar. Users can now see their exact token health at a glance.
+- **Proactive Refresh Button**: A new "Refresh Connection" button appears when a token is nearing expiry (e.g., Facebook's 60-day window or X's rotation), allowing manual renewal before a failure occurs.
+- **Absolute Expiry Tooltips**: Hovering over the platform badge now shows the exact date and time the connection will expire.
+- **Unified Auth Broker Pattern**: Refactored `TokenManager.ts` to use a unified response handler for all OAuth platforms, improving reliability and reducing code duplication.
+
+### Fixed
+- **X (Twitter) Rotation Warnings**: Added UI-level detection for X rotation failures. The extension now explicitly asks the user to reconnect if a secret rotation fails during a refresh.
+- **Reddit Token Permanence**: Fixed Reddit auth flow to always request `duration=permanent`, ensuring refresh tokens are correctly issued.
+
 ## [3.2.2] - 2026-04-13
 ### Fixed
 - **Character Limit Validation**: Fixed a bug where thread posts did not turn red when exceeding platforms' character limits and the "Share" button remained enabled. Corrected missing validation logic in the thread composer's character counter.

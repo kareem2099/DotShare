@@ -353,6 +353,17 @@ function initEventListeners(): void {
         });
     });
 
+    // ③-B OAuth Refresh
+    document.querySelectorAll<HTMLElement>('[id^="oauthRefresh_"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const platform = btn.getAttribute('data-platform');
+            if (platform) {
+                send({ command: 'forceRefresh', platform });
+                showStatus(`Refreshing ${platform} connection…`, 'info');
+            }
+        });
+    });
+
     // ④ OAuth advanced toggle (show/hide manual token input)
     document.querySelectorAll<HTMLElement>('[id^="oauthAdvancedToggle_"]').forEach(toggle => {
         toggle.addEventListener('click', () => {
@@ -500,6 +511,13 @@ window.addEventListener('message', (event: MessageEvent) => {
 
             // Translations
             if (msg.translations) applyTranslations(msg.translations);
+
+            // AEGIS 1.4.0: Proactive Refresh Badges & Expiry Dates
+            ['linkedin', 'x', 'facebook', 'reddit'].forEach(plt => {
+                const soon = msg[`${plt}ShouldRefreshSoon`];
+                const expiresAt = msg[`${plt}ExpiresAt`];
+                updateAegisStatus(plt, soon, expiresAt);
+            });
             break;
         }
 
@@ -585,6 +603,46 @@ window.addEventListener('message', (event: MessageEvent) => {
             break;
     }
 });
+
+/** AEGIS 1.4.0: Visual intelligence for token health */
+function updateAegisStatus(platform: string, shouldRefreshSoon: boolean, expiresAt: string | number | undefined): void {
+    const badge = getEl(`aegisBadge_${platform}`);
+    const text = getEl(`expiryText_${platform}`);
+    const refreshBtn = getEl(`oauthRefresh_${platform}`);
+    const connectBtn = getEl(`oauthConnect_${platform}`);
+    const disconnectBtn = getEl(`oauthDisconnect_${platform}`);
+
+    const isConnected = !!(disconnectBtn && disconnectBtn.style.display !== 'none');
+
+    if (!badge || !text || !refreshBtn || !isConnected) {
+        if (badge) badge.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'none';
+        return;
+    }
+
+    // 1. Refresh Button Visibility
+    refreshBtn.style.display = shouldRefreshSoon ? 'inline-block' : 'none';
+
+    // 2. Badge Visibility
+    badge.style.display = (shouldRefreshSoon || expiresAt) ? 'inline-flex' : 'none';
+
+    // 3. Expiry Formatting
+    if (expiresAt) {
+        const date = new Date(Number(expiresAt));
+        const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        text.textContent = `Expires on ${dateStr}`;
+        badge.title = `Your ${platform} session expires on ${date.toLocaleString()}. Click Refresh to renew early.`;
+    } else {
+        text.textContent = 'Token health: Stable';
+        badge.title = 'Token health: Stable';
+    }
+
+    // 4. Highlight badge if soon
+    badge.style.borderColor = shouldRefreshSoon ? 'rgba(245, 158, 11, 0.6)' : 'rgba(16, 185, 129, 0.3)';
+    badge.style.color = shouldRefreshSoon ? 'var(--warning)' : 'var(--success)';
+    const icon = badge.querySelector('.warning-icon');
+    if (icon) icon.textContent = shouldRefreshSoon ? '⚠️' : '🛡️';
+}
 
 // ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

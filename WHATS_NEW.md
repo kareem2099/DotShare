@@ -2,7 +2,22 @@
 
 ---
 
-## 🆕 v3.2.0 — "The Media Expansion"
+## 🛡️ v3.2.3 — "Aegis"
+
+*Released: April 16, 2026*
+
+### 🛡️ Aegis: Proactive Token Intelligence
+
+DotShare now shields you from silent authentication failures with the new **Aegis** protocol integration.
+
+- **Visual Health Badges** — Look for the new status badges on each platform card. A 🛡️ Stable (green) badge means your connection is healthy, while a ⚠️ Warning (orange) badge indicates your token is nearing expiry.
+- **Smart Refresh Buttons** — When a platform is nearing expiry (like Facebook’s 60-day window or a scheduled X rotation), a **"Refresh Connection"** button will appear. Renew your session with one click before it breaks.
+- **Absolute Expiry Tracking** — Hover over any platform badge to see the exact date and time your connection will expire.
+- **X (Twitter) Rotation Guard** — Improved detection for X rotation failures. The extension will now proactively warn you if a background refresh fails, preventing mysterious post errors.
+
+---
+
+## 🆕 v3.2.0 — "The Media Expansion" (2026-04-12)
 
 *Released: April 2026*
 

@@ -136,6 +136,22 @@ export class MessageHandler {
                     break;
                 }
 
+                case 'forceRefresh': {
+                    const platform = message.platform as 'x' | 'reddit' | 'facebook';
+                    Logger.info(`MessageHandler: Manual refresh requested for ${platform}`);
+                    const success = await TokenManager.forceRefresh(platform);
+                    if (success) {
+                        this.sendSuccess(`${platform.toUpperCase()} connection refreshed!`);
+                        // Reload config to update UI status
+                        const { ConfigHandler } = await import('./ConfigHandler');
+                        const cfgHandler = new ConfigHandler(this.view, this.context);
+                        await cfgHandler.handleMessage({ command: 'loadConfiguration' });
+                    } else {
+                        this.sendError(`${platform.toUpperCase()} refresh failed. Please try reconnecting.`);
+                    }
+                    break;
+                }
+
                 case 'changeLanguage': {
                     const language = message.language as string || 'en';
                     const validLanguages = ['en', 'ar', 'ru'];

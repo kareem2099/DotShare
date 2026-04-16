@@ -78,6 +78,9 @@ export async function activate(context: vscode.ExtensionContext) {
             const accessToken = params.get('access_token');
             const refreshToken = params.get('refresh_token');
             const expiresIn = params.get('expires_in');
+            const expiresAt = params.get('expires_at');
+            const shouldRefreshSoon = params.get('should_refresh_soon') === 'true';
+            const warning = params.get('warning');
 
             if (!platform || !accessToken) {
                 vscode.window.showErrorMessage('DotShare: Invalid auth callback — missing platform or token.');
@@ -94,15 +97,27 @@ export async function activate(context: vscode.ExtensionContext) {
                             'x',
                             accessToken,
                             refreshToken ?? undefined,
-                            expiresIn ? Number(expiresIn) : undefined
+                            expiresIn ? Number(expiresIn) : undefined,
+                            expiresAt ? Number(expiresAt) : undefined,
+                            shouldRefreshSoon
                         );
+                        if (warning === 'refresh_token_missing_reauth_required') {
+                            vscode.window.showWarningMessage(
+                                'DotShare: X refresh token was lost during rotation due to an auth server interruption. Your current session will work, but you must reconnect soon to avoid losing access.',
+                                'Reconnect Now'
+                            ).then(sel => {
+                                if (sel === 'Reconnect Now') vscode.commands.executeCommand('dotshare.openFullWebview', 'settings', { platform: 'x' });
+                            });
+                        }
                         break;
                     case 'facebook':
                         await TokenManager.storeToken(
                             'facebook',
                             accessToken,
                             undefined,
-                            expiresIn ? Number(expiresIn) : undefined
+                            expiresIn ? Number(expiresIn) : undefined,
+                            expiresAt ? Number(expiresAt) : undefined,
+                            shouldRefreshSoon
                         );
                         break;
                     case 'reddit':
@@ -110,7 +125,9 @@ export async function activate(context: vscode.ExtensionContext) {
                             'reddit',
                             accessToken,
                             refreshToken ?? undefined,
-                            expiresIn ? Number(expiresIn) : undefined
+                            expiresIn ? Number(expiresIn) : undefined,
+                            expiresAt ? Number(expiresAt) : undefined,
+                            shouldRefreshSoon
                         );
                         break;
                     default:

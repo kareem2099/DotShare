@@ -411,6 +411,42 @@ header {
     background: rgba(218, 54, 51, 0.2);
 }
 
+.oauth-refresh-btn {
+    padding: 6px 10px;
+    background: transparent;
+    color: var(--button-bg);
+    border: 1px solid var(--button-bg);
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.oauth-refresh-btn:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.aegis-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 4px 10px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--warning);
+}
+
+.expiry-text {
+    font-weight: 500;
+}
+
+.warning-icon {
+    font-size: 12px;
+}
+
 /* ── OAuth Advanced Toggle ────────────────────────────────── */
 .oauth-advanced-toggle {
     margin-top: 10px;

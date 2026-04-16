@@ -10,6 +10,15 @@ const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 type RefreshablePlatform = 'x' | 'reddit' | 'facebook';
 
+interface TokenResponse {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+    expires_at?: number;         // Aegis 1.4.0: Unix timestamp in seconds
+    should_refresh_soon?: boolean; // Aegis 1.4.0: Flag for proactive refresh
+    warning?: string;             // Aegis 1.4.0: Optional warnings (e.g. rotation loss)
+}
+
 export class TokenManager {
     private static _context: vscode.ExtensionContext;
 
@@ -23,7 +32,9 @@ export class TokenManager {
         platform: RefreshablePlatform,
         accessToken: string,
         refreshToken?: string,
-        expiresIn?: number
+        expiresIn?: number,
+        expiresAtSec?: number,
+        shouldRefreshSoon?: boolean
     ): Promise<void> {
         switch (platform) {
             case 'x':
@@ -39,20 +50,31 @@ export class TokenManager {
                 break;
         }
 
-        // Store expires_at as timestamp
-        if (expiresIn) {
-            const expiresAt = Date.now() + expiresIn * 1000;
-            await this._context.secrets.store(
-                `${platform}_expires_at`,
-                String(expiresAt)
-            );
-            Logger.info(`TokenManager: stored ${platform} token, expires at ${new Date(expiresAt).toISOString()}`);
+        // AEGIS 1.4.0: Prefer absolute expires_at if provided
+        let expiresAtMs: number | undefined;
+        if (expiresAtSec) {
+            expiresAtMs = expiresAtSec * 1000;
+        } else if (expiresIn) {
+            expiresAtMs = Date.now() + expiresIn * 1000;
+        }
+
+        if (expiresAtMs) {
+            await this._context.secrets.store(`${platform}_expires_at`, String(expiresAtMs));
+            Logger.info(`TokenManager: stored ${platform} token, expires at ${new Date(expiresAtMs).toISOString()}`);
+        }
+
+        if (shouldRefreshSoon !== undefined) {
+          await this._context.globalState.update(`${platform}_should_refresh_soon`, shouldRefreshSoon);
         }
     }
 
     // ── Check if token needs refresh ──────────────────────────────────────────
 
     static async isExpiringSoon(platform: RefreshablePlatform): Promise<boolean> {
+        // Proactive flag from Aegis 1.4.0
+        const serverFlag = this._context.globalState.get<boolean>(`${platform}_should_refresh_soon`);
+        if (serverFlag) return true;
+
         const expiresAtStr = await this._context.secrets.get(`${platform}_expires_at`);
         if (!expiresAtStr) return false; // No expiry info → assume valid
 
@@ -114,78 +136,78 @@ export class TokenManager {
         const refreshToken = await this._context.secrets.get('xRefreshToken');
         if (!refreshToken) throw new Error('No X refresh token stored');
 
-        const res = await this.post<{ access_token: string; refresh_token?: string; expires_in?: number }>(
+        const res = await this.post<TokenResponse>(
             `${AUTH_SERVER_URL}/api/auth/x/refresh`,
             { refreshToken }
         );
-        const { access_token, refresh_token, expires_in } = res.data;
-
-        await this._context.secrets.store('xAccessToken', access_token);
-
-        // X rotates refresh token on every use
-        if (refresh_token) {
-            await this._context.secrets.store('xRefreshToken', refresh_token);
-        }
-
-        if (expires_in) {
-            await this._context.secrets.store(
-                'x_expires_at',
-                String(Date.now() + expires_in * 1000)
-            );
-        }
-
-        Logger.info('TokenManager: X token refreshed ✅');
+        
+        await this.handleEnrichedResponse('x', res.data);
     }
 
     private static async refreshReddit(): Promise<void> {
         const refreshToken = await this._context.secrets.get('redditRefreshToken');
         if (!refreshToken) throw new Error('No Reddit refresh token stored');
 
-        const res = await this.post<{ access_token: string; refresh_token?: string; expires_in?: number }>(
+        const res = await this.post<TokenResponse>(
             `${AUTH_SERVER_URL}/api/auth/reddit/refresh`,
             { refreshToken }
         );
-        const { access_token, refresh_token, expires_in } = res.data;
-
-        await this._context.secrets.store('redditAccessToken', access_token);
         
-        // Reddit may rotate refresh tokens
-        if (refresh_token) {
-            await this._context.secrets.store('redditRefreshToken', refresh_token);
-        }
-
-        if (expires_in) {
-            const expiresAt = Date.now() + expires_in * 1000;
-            await this._context.secrets.store(
-                'reddit_expires_at',
-                String(expiresAt)
-            );
-            Logger.info(`TokenManager: Reddit token refreshed, expires at ${new Date(expiresAt).toISOString()} ✅`);
-        } else {
-            Logger.info('TokenManager: Reddit token refreshed ✅');
-        }
+        await this.handleEnrichedResponse('reddit', res.data);
     }
 
     private static async extendFacebook(): Promise<void> {
         const accessToken = await this._context.secrets.get('facebookToken');
         if (!accessToken) throw new Error('No Facebook token stored');
 
-        const res = await this.post<{ access_token: string; expires_in?: number }>(
+        const res = await this.post<TokenResponse>(
             `${AUTH_SERVER_URL}/api/auth/facebook/extend`,
             { accessToken }
         );
-        const { access_token, expires_in } = res.data;
+        
+        await this.handleEnrichedResponse('facebook', res.data);
+    }
 
-        await this._context.secrets.store('facebookToken', access_token);
+    /** AEGIS 1.4.0: Unified handler for enriched responses */
+    private static async handleEnrichedResponse(platform: RefreshablePlatform, data: TokenResponse): Promise<void> {
+        const { access_token, refresh_token, expires_in, expires_at, should_refresh_soon, warning } = data;
 
-        if (expires_in) {
-            await this._context.secrets.store(
-                'facebook_expires_at',
-                String(Date.now() + expires_in * 1000)
-            );
+        // 1. Store Access Token
+        const secretKey = platform === 'facebook' ? 'facebookToken' : `${platform}AccessToken`;
+        await this._context.secrets.store(secretKey, access_token);
+
+        // 2. Store Refresh Token (if provided/rotated)
+        if (refresh_token) {
+            await this._context.secrets.store(`${platform}RefreshToken`, refresh_token);
         }
 
-        Logger.info('TokenManager: Facebook token extended ✅ (60 days)');
+        // 3. Handle Expiry (Prefer server-provided expires_at)
+        let expiresAtMs: number | undefined;
+        if (expires_at) {
+            expiresAtMs = expires_at * 1000;
+        } else if (expires_in) {
+            expiresAtMs = Date.now() + expires_in * 1000;
+        }
+
+        if (expiresAtMs) {
+            await this._context.secrets.store(`${platform}_expires_at`, String(expiresAtMs));
+            Logger.info(`TokenManager: ${platform} token updated, expires at ${new Date(expiresAtMs).toISOString()} ✅`);
+        }
+
+        // 4. Proactive Flag
+        if (should_refresh_soon !== undefined) {
+             await this._context.globalState.update(`${platform}_should_refresh_soon`, should_refresh_soon);
+        } else {
+             await this._context.globalState.update(`${platform}_should_refresh_soon`, false);
+        }
+
+        // 5. Warnings (specifically X rotation failure)
+        if (warning === 'refresh_token_missing_reauth_required') {
+            vscode.window.showWarningMessage(
+                `DotShare: ${platform.toUpperCase()} session is valid but refresh token was lost. Please reconnect soon.`,
+                'Reconnect'
+            );
+        }
     }
 
     // ── Manual refresh trigger (from UI "Reconnect" button) ───────────────────
@@ -204,6 +226,7 @@ export class TokenManager {
 
     static async clearToken(platform: RefreshablePlatform): Promise<void> {
         await this._context.secrets.delete(`${platform}_expires_at`);
+        await this._context.globalState.update(`${platform}_should_refresh_soon`, undefined);
         switch (platform) {
             case 'x':
                 await this._context.secrets.delete('xAccessToken');

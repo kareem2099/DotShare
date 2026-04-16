@@ -242,7 +242,14 @@ export class ConfigHandler {
             mediumAccessToken: savedMediumAccessToken,
             theme: currentTheme,
             language: currentLanguage,
-            translations: translations
+            translations: translations,
+            // AEGIS 1.4.0: Proactive refresh flags & expiry timestamps
+            xShouldRefreshSoon: this.context.globalState.get<boolean>('x_should_refresh_soon'),
+            redditShouldRefreshSoon: this.context.globalState.get<boolean>('reddit_should_refresh_soon'),
+            facebookShouldRefreshSoon: this.context.globalState.get<boolean>('facebook_should_refresh_soon'),
+            xExpiresAt: await this.context.secrets.get('x_expires_at'),
+            redditExpiresAt: await this.context.secrets.get('reddit_expires_at'),
+            facebookExpiresAt: await this.context.secrets.get('facebook_expires_at'),
         });
     }
 
