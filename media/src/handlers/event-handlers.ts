@@ -323,7 +323,11 @@ export function setupOAuthButtons() {
         // Connect Button
         const btn = document.getElementById(`oauthConnect_${platform}`) as HTMLButtonElement | null;
         if (btn) {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', (e) => {
+                if (platform === 'reddit') {
+                    e.preventDefault();
+                    return;
+                }
                 btn.disabled = true;
                 btn.innerHTML = '<span class="oauth-icon">⏳</span><span>Opening browser…</span>';
 
@@ -417,7 +421,15 @@ export function showOAuthStatus(config: {
         } else {
             // Disconnected State
             btn.classList.remove('oauth-connect-btn--connected');
-            btn.disabled = false;
+            
+            if (platform === 'reddit') {
+                btn.disabled = true;
+                btn.title = 'Due to Vercel leaks, we are waiting until they restore access. Sorry for the delay. You can use your own credentials to connect.';
+            } else {
+                btn.disabled = false;
+                btn.title = '';
+            }
+            
             btn.innerHTML = `<span class="oauth-icon">🔗</span><span class="oauth-btn-text">${label}</span>`;
             
             if (disconnectBtn) disconnectBtn.style.display = 'none';

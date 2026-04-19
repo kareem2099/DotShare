@@ -73,6 +73,10 @@ export class MessageHandler {
                         this.sendError(`DotShare: Unknown OAuth platform "${platform}"`);
                         return;
                     }
+                    if (platform === 'reddit') {
+                        vscode.window.showErrorMessage('Due to Vercel leaks, we are waiting until they restore access. Sorry for the delay. You can use your own credentials to connect.');
+                        return;
+                    }
                     const authUrl = `${AUTH_SERVER_URL}/auth/${platform}`;
                     Logger.info(`DotShare: Opening OAuth for ${platform} → ${authUrl}`);
                     vscode.env.openExternal(vscode.Uri.parse(authUrl));
