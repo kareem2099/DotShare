@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.4] - 2026-04-19
+### Fixed
+- **Temporary Reddit Disablement**: Temporarily disabled Reddit OAuth functionality due to third-party authorization issues to ensure security. Reddit connection features will be restored soon.
+- **Type Safety**: Improved type safety and fixed unreachable code evaluation warnings in backend API handlers.
+
 ## [3.2.3] - 2026-04-16 — "Aegis"
 ### Added
 - **Aegis 1.4.0 Integration**: Full integration with the DotShare Auth v1.4.0 "Aegis" protocol for proactive token lifecycle management.
