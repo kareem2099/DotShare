@@ -644,10 +644,10 @@ function updateAegisStatus(platform: string, shouldRefreshSoon: boolean, expires
     if (icon) icon.textContent = shouldRefreshSoon ? '⚠️' : '🛡️';
 }
 
-// ── Bootstrap ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     try {
         initEventListeners();
+
         send({ command: 'loadConfiguration' });
         console.log('[DotShare Sidebar] Initialized');
     } catch (e) {

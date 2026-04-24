@@ -9,122 +9,15 @@ import { Logger } from '../utils/Logger';
 import { getPlatformConfig, PlatformConfig } from '../platforms/platform-config';
 
 /**
- * DotShareWebView — Opens as a full editor tab for Post or Analytics.
- * 
- * The sidebar (DotShareProvider) stays as the main hub.
- * This WebView is opened when the user clicks "Create Post" or "Analytics"
- * from a platform card in the sidebar.
+ * DotShareWebView — Opens platform-specific post panels (threads / social / blogs).
+ * Uses platform-post.html as the single HTML template.
  */
 export class DotShareWebView {
     public static readonly viewType = 'dotshare.mainPanel';
-    private static _panel: vscode.WebviewPanel | undefined;
     private static _context: vscode.ExtensionContext | undefined;
     private static _messageHandler?: MessageHandler;
 
     private constructor(private readonly _context: vscode.ExtensionContext) {}
-
-    public static createOrShow(context: vscode.ExtensionContext, page = 'post', options?: Record<string, unknown>): void {
-        DotShareWebView._context = context;
-
-        // If panel already exists, reveal it and navigate to the page
-        if (DotShareWebView._panel) {
-            DotShareWebView._panel.reveal(vscode.ViewColumn.One);
-            DotShareWebView._panel.webview.postMessage({ command: 'navigate', page, options });
-            return;
-        }
-
-        // Create the panel
-        const panel = vscode.window.createWebviewPanel(
-            DotShareWebView.viewType,
-            `DotShare — ${page === 'post' ? 'Create Post' : 'Analytics'}`,
-            vscode.ViewColumn.One,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-                localResourceRoots: [context.extensionUri],
-            }
-        );
-
-        DotShareWebView._panel = panel;
-
-        // Set HTML
-        panel.webview.html = DotShareWebView._buildHtml(panel.webview, context.extensionUri);
-
-        // Wire up services
-        const historyService   = new HistoryService(context.globalState);
-        const analyticsService = new AnalyticsService();
-        const mediaService     = new MediaService(context);
-
-        // Create a shim for MessageHandler (it expects WebviewView, not WebviewPanel)
-        const shim = {
-            webview: panel.webview,
-            show: () => panel.reveal(),
-            get visible() { return panel.visible; },
-        } as unknown as vscode.WebviewView;
-
-        DotShareWebView._messageHandler = new MessageHandler(shim, context, historyService, analyticsService, mediaService);
-
-        // Receive messages from the WebView
-        const messageHandlerRef = DotShareWebView._messageHandler;
-        panel.webview.onDidReceiveMessage(
-            async (data) => {
-                if (!messageHandlerRef) {
-                    Logger.error('[DotShareWebView] Message handler not initialized');
-                    return;
-                }
-                try {
-                    await messageHandlerRef.handleMessage(data);
-                } catch (error: unknown) {
-                    const msg = error instanceof Error ? error.message : String(error);
-                    Logger.error('[DotShareWebView] Message handler error:', msg);
-                    panel.webview.postMessage({
-                        command: 'status',
-                        status: `Error: ${msg}`,
-                        type: 'error'
-                    });
-                }
-            },
-            undefined,
-            context.subscriptions
-        );
-
-        // Load initial data (fire and forget with error handling)
-        DotShareWebView._messageHandler.handleMessage({ command: 'loadConfiguration' }).catch((error: unknown) => {
-            const msg = error instanceof Error ? error.message : String(error);
-            Logger.error('[DotShareWebView] Error loading configuration:', msg);
-        });
-        DotShareWebView._messageHandler.handleMessage({ command: 'loadPostHistory' }).catch((error: unknown) => {
-            const msg = error instanceof Error ? error.message : String(error);
-            Logger.error('[DotShareWebView] Error loading post history:', msg);
-        });
-
-        // Navigate to the requested page
-        setTimeout(() => {
-            panel.webview.postMessage({ command: 'navigate', page, options });
-        }, 200);
-
-        // Cleanup on close
-        panel.onDidDispose(
-            () => {
-                DotShareWebView._panel = undefined;
-                DotShareWebView._messageHandler = undefined;
-                Logger.info('[DotShareWebView] Panel disposed.');
-            },
-            undefined,
-            context.subscriptions
-        );
-
-        Logger.info(`[DotShareWebView] Panel created for page: ${page}`);
-    }
-
-    /**
-     * Post a message to the active panel (for URI handler, scheduler, etc.)
-     */
-    public static postMessage(message: Record<string, unknown>): void {
-        if (DotShareWebView._panel) {
-            DotShareWebView._panel.webview.postMessage(message);
-        }
-    }
 
     /**
      * Tells the handler to refresh and push the latest configuration to the WebView
@@ -134,6 +27,15 @@ export class DotShareWebView {
             DotShareWebView._messageHandler.handleMessage({ command: 'loadConfiguration' });
         }
     }
+
+    /**
+     * Post a message to the active platform post panel.
+     */
+    public static postMessage(message: Record<string, unknown>): void {
+        // No-op: platform post panels are independent; targeted via MessageHandler
+        void message;
+    }
+
 
     /**
      * Platform-specific post panel (threads / social / blogs from platform-config).
@@ -147,10 +49,38 @@ export class DotShareWebView {
 
         DotShareWebView._context = context;
 
+        const viewColumn = vscode.ViewColumn.One;
+
+        if (config.workspaceType === 'blogs') {
+            // Keep Webview in Column One, and open the Markdown file Beside it.
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                const fsPath = workspaceFolders[0].uri.fsPath;
+                const mdFilePath = path.join(fsPath, `dotshare-${platformKey}.md`);
+                
+                if (!fs.existsSync(mdFilePath)) {
+                    const boilerplate = `---
+title: add ur title
+tags: [add, tags, max, 4]
+published: false
+description: add ur description
+---
+Start writing your article here...
+`;
+                    fs.writeFileSync(mdFilePath, boilerplate, 'utf8');
+                }
+
+                vscode.workspace.openTextDocument(mdFilePath).then(doc => {
+                    // Open the markdown file in the split to the right
+                    vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+                });
+            }
+        }
+
         const panel = vscode.window.createWebviewPanel(
             `dotshare.platformPost.${platformKey}`,
             `${config.icon} Post to ${config.name}`,
-            vscode.ViewColumn.One,
+            viewColumn,
             {
                 enableScripts: true,
                 retainContextWhenHidden: true,
@@ -315,43 +245,6 @@ export class DotShareWebView {
         }
     }
 
-    /**
-     * Build the HTML for the webview.
-     */
-    private static _buildHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
-        const indexPath = path.join(extensionUri.fsPath, 'media', 'webview', 'index.html');
-
-        const styleUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview', 'style.css'));
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview', 'app.js'));
-
-        const nonce = getNonce();
-        const csp = [
-            `default-src 'none'`,
-            `style-src ${webview.cspSource} 'unsafe-inline'`,
-            `script-src 'nonce-${nonce}'`,
-            `img-src ${webview.cspSource} data: blob: https:`,
-            `font-src ${webview.cspSource}`,
-            `connect-src ${webview.cspSource} https: http:`,
-        ].join('; ');
-
-        try {
-            let html = fs.readFileSync(indexPath, 'utf-8');
-            html = html.replace(/\{\{CSP\}\}/g,       csp);
-            html = html.replace(/\{\{NONCE\}\}/g,      nonce);
-            html = html.replace(/\{\{STYLE_URI\}\}/g,  styleUri.toString());
-            html = html.replace(/\{\{SCRIPT_URI\}\}/g, scriptUri.toString());
-            return html;
-        } catch (err) {
-            Logger.error('[DotShareWebView] Failed to read index.html:', err);
-            return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>DotShare Error</title></head>
-<body style="font-family:monospace;padding:2rem;color:#f88;">
-  <h2>DotShare failed to load</h2>
-  <pre>${String(err)}</pre>
-  <p>Make sure <code>media/webview/index.html</code> exists.</p>
-</body></html>`;
-        }
-    }
 }
 
 function getNonce(): string {

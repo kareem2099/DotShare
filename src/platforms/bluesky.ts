@@ -128,7 +128,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
             }
 
             // 2. Prepare post record
-            const record: any = {
+            const record: Record<string, unknown> = {
                 text: currentPost.text,
                 createdAt: new Date().toISOString(),
                 $type: 'app.bsky.feed.post'

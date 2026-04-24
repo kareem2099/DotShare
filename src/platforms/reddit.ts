@@ -306,7 +306,7 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
                 id: asset.asset_id,
                 url: finalUrl
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             Logger.error(`Failed to upload media ${mediaFile}:`, error.message);
             if (error.response?.data) {
                 Logger.error('S3 Error Response:', error.response.data.toString());
@@ -330,7 +330,8 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
 /**
  * Sends a direct message (DM) to a Reddit user
  */
-async function sendRedditDM(username: string, subject: string, body: string, accessToken: string): Promise<string> {
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+async function _sendRedditDM(username: string, subject: string, body: string, accessToken: string): Promise<string> {
     try {
         const data = new URLSearchParams();
         data.append('api_type', 'json');

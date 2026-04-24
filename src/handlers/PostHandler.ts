@@ -24,6 +24,9 @@ import { shareToDevTo } from '../platforms/devto';
 import { shareToMedium } from '../platforms/medium';
 import { parseFrontMatter } from '../utils/frontmatter-parser';
 import { generatePost as generateClaudePost } from '../ai/claude';
+import { DraftsService } from '../services/DraftsService';
+import { fetchDevToArticles, updateDevToArticle } from '../platforms/devto';
+import { Draft, BlogPost } from '../types';
 
 interface Message {
     command: string;
@@ -36,7 +39,8 @@ export class PostHandler {
         private context: vscode.ExtensionContext,
         private historyService: HistoryService,
         private analyticsService: AnalyticsService,
-        private mediaService: MediaService
+        private mediaService: MediaService,
+        private draftsService: DraftsService
     ) {}
 
     public async handleMessage(message: Message): Promise<void> {
@@ -123,9 +127,35 @@ export class PostHandler {
                 case 'openSupportLink':
                     vscode.env.openExternal(vscode.Uri.parse('https://www.buymeacoffee.com/freerave'));
                     break;
+                
+                // Drafts Commands
+                case 'saveLocalDraft':
+                    await this.handleSaveLocalDraft(message);
+                    break;
+                case 'updateLocalDraft':
+                    await this.handleUpdateLocalDraft(message);
+                    break;
+                case 'listLocalDrafts':
+                    await this.handleListLocalDrafts();
+                    break;
+                case 'deleteLocalDraft':
+                    await this.handleDeleteLocalDraft(message);
+                    break;
+                case 'loadLocalDraft':
+                    await this.handleLoadLocalDraft(message);
+                    break;
+                case 'fetchDevToDrafts':
+                    await this.handleFetchDevToDrafts();
+                    break;
+                case 'updateDevToArticle':
+                    await this.handleUpdateDevToArticle(message);
+                    break;
+                case 'resetBlogMarkdown':
+                    await this.handleResetBlogMarkdown();
+                    break;
 
                 default:
-                    Logger.info('PostHandler: Unhandled command:', cmd);
+                    Logger.info('[PostHandler] Unhandled command:', cmd);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -369,7 +399,7 @@ export class PostHandler {
         const scheduledDate = new Date(scheduledTimeLocal);
         const postData = { text: msg.postText.trim(), media: msg.mediaFilePaths || [] };
 
-        Logger.debug('Schedule post input', {
+        Logger.debug('[PostHandler] Schedule post input', {
             userInput: msg.scheduledTime,
             localTimeString: scheduledTimeLocal,
             parsedDate: scheduledDate,
@@ -538,12 +568,12 @@ export class PostHandler {
                     await this.shareToMediumWithUpdate(postData, blogMessage, undefined);
                     successCount++;
                 } else {
-                    Logger.info(`Unknown blog platform: ${platform}`);
+                    Logger.info(`[PostHandler] Unknown blog platform: ${platform}`);
                 }
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 errors.push(`${platform}: ${errorMessage}`);
-                Logger.error(`Error publishing to ${platform}:`, error);
+                Logger.error(`[PostHandler] Error publishing to ${platform}:`, error);
             }
         }
 
@@ -631,7 +661,7 @@ export class PostHandler {
 
     private async shareToDiscordWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         // TODO: implement Discord webhook sharing
-        Logger.info('Discord sharing not yet implemented', { post, postId });
+        Logger.info('[PostHandler] Discord sharing not yet implemented', { post, postId });
         this.sendError('Discord sharing coming soon!');
     }
 
@@ -665,9 +695,6 @@ export class PostHandler {
                 redditPostType?: string;
                 redditSpoiler?: boolean;
             };
-
-            const accessToken  = msg.redditAccessToken  || await this.context.secrets.get('redditAccessToken')  || '';
-            const refreshToken = msg.redditRefreshToken || await this.context.secrets.get('redditRefreshToken') || undefined;
 
             const redditPostData = {
                 text:       msg.post || post.text,
@@ -755,7 +782,7 @@ export class PostHandler {
                 throw new Error('Dev.to API Key not configured. Go to Settings to add it.');
             }
 
-            await shareToDevTo(devtoApiKey, {
+            const result = await shareToDevTo(devtoApiKey, {
                 text:         msg.post || post.text,
                 media:        msg.mediaFilePaths || post.media,
                 title:        msg.title,
@@ -767,8 +794,8 @@ export class PostHandler {
                 series:       msg.series
             });
 
-            this.sendSuccess('Successfully posted to Dev.to!');
-            if (postId) this.historyService.recordShare(postId, 'devto', true);
+            this.sendSuccess(`Successfully posted to Dev.to! URL: ${result.url}`);
+            if (postId) this.historyService.recordShare(postId, 'devto', true, undefined, result.id.toString());
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (postId) this.historyService.recordShare(postId, 'devto', false, errorMessage);
@@ -894,14 +921,14 @@ export class PostHandler {
                         break;
                     }
                     default:
-                        Logger.info(`Unknown platform: ${platform}`);
+                        Logger.info(`[PostHandler] Unknown platform: ${platform}`);
                         continue;
                 }
                 successCount++;
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 errors.push(`${platform}: ${errorMessage}`);
-                Logger.error(`Error sharing to ${platform}:`, error);
+                Logger.error(`[PostHandler] Error sharing to ${platform}:`, error);
                 if (postId) {
                     this.historyService.recordShare(
                         postId,
@@ -1016,9 +1043,242 @@ export class PostHandler {
                 try {
                     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
                 } catch (e) {
-                    Logger.info('Failed to clean up temp media file:', e);
+                    Logger.info('[PostHandler] Failed to clean up temp media file:', e);
                 }
             }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Drafts Management
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private async handleSaveLocalDraft(message: Message): Promise<void> {
+        const draft = message.draft as Omit<Draft, 'id' | 'timestamp'>;
+        if (!draft) {
+            this.sendError('Draft data is required.');
+            return;
+        }
+
+        // Guard: never save a remote draft as a new local copy
+        if ((draft as Draft).isRemote) {
+            this.sendError('Cannot save a remote draft locally. Use "Update" instead.');
+            return;
+        }
+
+        // Upsert: if draftId is passed, update instead of creating a new draft
+        const existingId = message.draftId as string | undefined;
+        if (existingId) {
+            const updated = this.draftsService.updateDraft(existingId, draft);
+            if (updated) {
+                this.sendInfo('Draft updated!');
+                this.view.webview.postMessage({ command: 'draftLoaded', draft: updated });
+            } else {
+                this.sendError('Draft not found for update.');
+            }
+        } else {
+            const saved = this.draftsService.saveDraft(draft);
+            this.sendInfo('Draft saved locally!');
+            this.view.webview.postMessage({ command: 'draftLoaded', draft: saved });
+        }
+
+        await this.handleListLocalDrafts();
+    }
+
+    private async handleUpdateLocalDraft(message: Message): Promise<void> {
+        const draftId = message.draftId as string;
+        const updates = message.draft as Partial<Draft>;
+
+        if (!draftId || !updates) {
+            this.sendError('Draft ID and update data are required.');
+            return;
+        }
+
+        const updated = this.draftsService.updateDraft(draftId, updates);
+        if (updated) {
+            this.sendInfo('Draft updated!');
+            this.view.webview.postMessage({ command: 'draftLoaded', draft: updated });
+            await this.handleListLocalDrafts();
+        } else {
+            this.sendError('Draft not found.');
+        }
+    }
+
+    private async handleListLocalDrafts(): Promise<void> {
+        const drafts = this.draftsService.getDrafts();
+        this.view.webview.postMessage({ command: 'draftsLoaded', drafts });
+    }
+
+    private async handleDeleteLocalDraft(message: Message): Promise<void> {
+        const draftId = message.draftId as string;
+        if (!draftId) {
+            this.sendError('Draft ID is required.');
+            return;
+        }
+
+        const existing = this.draftsService.getDraft(draftId);
+        if (!existing) {
+            this.sendError('Draft not found.');
+            return;
+        }
+
+        this.draftsService.deleteDraft(draftId);
+        this.sendInfo('Draft deleted.');
+        await this.handleListLocalDrafts();
+    }
+
+    private async handleLoadLocalDraft(message: Message): Promise<void> {
+        const draftId = message.draftId as string;
+        if (!draftId) return;
+        const draft = this.draftsService.getDraft(draftId);
+        if (draft) {
+            this.view.webview.postMessage({ command: 'draftLoaded', draft });
+            this.sendInfo('Draft loaded!');
+
+            // If it's an article draft, try to inject it into the active/visible Markdown editor
+            if (draft.type === 'article') {
+                const mdEditor = vscode.window.visibleTextEditors.find(e => e.document.languageId === 'markdown');
+                if (mdEditor) {
+                    let fm = '---\n';
+                    const data = draft.data as BlogPost;
+                    fm += `title: ${draft.title || data.title || 'Untitled'}\n`;
+                    if (data.tags && data.tags.length > 0) {
+                        fm += `tags: [${data.tags.join(', ')}]\n`;
+                    }
+                    fm += `published: ${data.status === 'published' ? 'true' : 'false'}\n`;
+                    if (data.description) fm += `description: ${data.description}\n`;
+                    if (data.coverImage) fm += `cover_image: ${data.coverImage}\n`;
+                    if (data.canonicalUrl) fm += `canonical_url: ${data.canonicalUrl}\n`;
+                    if (data.series) fm += `series: ${data.series}\n`;
+                    fm += '---\n';
+                    const postData = draft.data as { text?: string };
+                    fm += data.bodyMarkdown || postData.text || '';
+
+                    const doc = mdEditor.document;
+                    const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+                    
+                    mdEditor.edit(editBuilder => {
+                        editBuilder.replace(fullRange, fm);
+                    });
+                }
+            }
+        } else {
+            this.sendError('Draft not found.');
+        }
+    }
+
+    private async handleFetchDevToDrafts(): Promise<void> {
+        const devtoApiKey = await this.context.secrets.get('devtoApiKey') || '';
+        if (!devtoApiKey) {
+            this.sendError('Dev.to API Key not configured.');
+            return;
+        }
+        
+        try {
+            const articles = await fetchDevToArticles(devtoApiKey);
+            const draftsArr = articles.map(a => {
+                const mapped: Draft = {
+                    id: `devto_${a.id}`,
+                    type: 'article',
+                    timestamp: a.published_at || new Date().toISOString(),
+                    platforms: ['devto'],
+                    title: a.title,
+                    isRemote: true,
+                    remoteId: a.id?.toString(),
+                    data: {
+                        title: a.title,
+                        bodyMarkdown: a.body_markdown || '',
+                        tags: a.tags || [],
+                        status: a.published ? 'published' : 'draft',
+                        platformId: 'devto',
+                        url: a.url,
+                        canonicalUrl: a.canonical_url,
+                        coverImage: a.cover_image,
+                        description: a.description
+                    } as BlogPost
+                };
+                return mapped;
+            });
+            
+            this.view.webview.postMessage({ 
+                command: 'remoteDraftsLoaded', 
+                platform: 'devto', 
+                drafts: draftsArr 
+            });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(`Error fetching Dev.to drafts: ${errorMessage}`);
+        }
+    }
+
+    private async handleUpdateDevToArticle(message: Message): Promise<void> {
+        const devtoApiKey = await this.context.secrets.get('devtoApiKey') || '';
+        if (!devtoApiKey) {
+            this.sendError('Dev.to API Key not configured.');
+            return;
+        }
+        
+        const remoteId = message.remoteId as string;
+        const data = message.data as Partial<BlogPost>;
+        
+        if (!remoteId || !data) return;
+        
+        try {
+            const result = await updateDevToArticle(devtoApiKey, parseInt(remoteId, 10), {
+                text:         data.bodyMarkdown ?? '',
+                title:        data.title,
+                tags:         data.tags,
+                published:    data.status === 'published',
+                description:  data.description,
+                coverImage:   data.coverImage,
+                canonicalUrl: data.canonicalUrl,
+                series:       data.series
+            });
+            
+            this.sendSuccess(`Successfully updated article on Dev.to! URL: ${result.url}`);
+            await this.handleFetchDevToDrafts();
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.sendError(`Error updating Dev.to article: ${errorMessage}`);
+        }
+    }
+
+    private async handleResetBlogMarkdown(): Promise<void> {
+        const mdEditor = vscode.window.visibleTextEditors.find(e => e.document.languageId === 'markdown');
+        if (mdEditor) {
+            const doc = mdEditor.document;
+            const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+            
+            const boilerplate = `---
+title: add ur title
+tags: [add, tags, max, 4]
+published: false
+description: add ur description
+---
+Start writing your article here...
+`;
+            
+            mdEditor.edit(editBuilder => {
+                editBuilder.replace(fullRange, boilerplate);
+            });
+            this.sendSuccess('Markdown boilerplate reset!');
+            
+            // Push empty state to frontend
+            this.view.webview.postMessage({
+                command: 'updateBlogFrontmatter',
+                frontmatter: {
+                    title: 'add ur title',
+                    tags: ['add', 'tags', 'max', '4'],
+                    published: false,
+                    description: 'add ur description'
+                }
+            });
+            this.view.webview.postMessage({
+                command: 'updatePost',
+                post: 'Start writing your article here...'
+            });
+        } else {
+            this.sendError('No active markdown file found to reset.');
         }
     }
 
@@ -1028,6 +1288,10 @@ export class PostHandler {
 
     private sendSuccess(message: string): void {
         this.view.webview.postMessage({ command: 'status', status: message, type: 'success' });
+    }
+
+    private sendInfo(message: string): void {
+        this.view.webview.postMessage({ command: 'status', status: message, type: 'info' });
     }
 
     private sendError(message: string): void {

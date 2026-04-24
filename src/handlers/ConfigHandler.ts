@@ -89,7 +89,7 @@ export class ConfigHandler {
                     break;
 
                 default:
-                    Logger.info('ConfigHandler: Unhandled command:', cmd);
+                    Logger.info('[ConfigHandler] Unhandled command:', cmd);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -214,7 +214,7 @@ export class ConfigHandler {
                 translations = JSON.parse(fs.readFileSync(filePath, 'utf8'));
             }
         } catch (e) {
-            Logger.warn(`Failed to load translations for ${currentLanguage}`, e);
+            Logger.warn(`[ConfigHandler] Failed to load translations for ${currentLanguage}`, e);
         }
 
         this.view.webview.postMessage({

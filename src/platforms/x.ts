@@ -179,7 +179,7 @@ export async function shareToX(
             }
 
             // 2. Prepare tweet payload
-            const tweetPayload: any = {
+            const tweetPayload: Record<string, unknown> = {
                 text: currentPost.text,
             };
 

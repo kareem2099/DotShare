@@ -241,6 +241,11 @@ export interface Message {
     frontmatter?: FrontMatter;
     body?: string;
     raw?: string;
+
+    // v3.1 — Drafts
+    drafts?: Draft[];
+    draft?: Draft;
+    draftId?: string;
 }
 
 // ---------------------------------------------------------
@@ -332,7 +337,20 @@ export interface ApiConfiguration {
 
 export type BlogPlatform = 'devto' | 'medium';
 export type DraftStatus = 'draft' | 'published' | 'unlisted';
-export type WebViewPage = 'post' | 'publish' | 'analytics' | 'settings';
+export type WebViewPage = 'post' | 'publish' | 'analytics' | 'settings' | 'drafts';
+
+export type DraftType = 'social' | 'article';
+
+export interface Draft {
+    id: string;
+    type: DraftType;
+    timestamp: string;
+    platforms: SocialPlatform[];
+    data: PostData | BlogPost;
+    title?: string; // Descriptive title for the draft
+    isRemote?: boolean;
+    remoteId?: string;
+}
 
 /** YAML frontmatter parsed from .md files */
 export interface FrontMatter {
@@ -355,6 +373,7 @@ export interface BlogPost {
     canonicalUrl?: string;
     description?: string;
     coverImage?: string;
+    series?: string;
     status: DraftStatus;
     platformId: BlogPlatform;
     publishedAt?: string;

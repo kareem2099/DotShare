@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "publisher": "freerave",
   "funding": [
     {
@@ -144,21 +144,21 @@
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "@typescript-eslint/parser": "^5.57.1",
-    "esbuild": "^0.25.11",
+    "esbuild": "^0.28.0",
     "eslint": "^8.28.0",
     "glob": "^8.0.3",
     "jest": "^29.5.0",
-    "ts-jest": "^29.1.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
+    "@anthropic-ai/sdk": "^0.90.0",
     "@google/generative-ai": "^0.24.1",
-    "axios": "^1.6.0",
+    "axios": "^1.15.2",
     "commander": "^11.1.0",
     "form-data": "^4.0.0",
     "open": "^8.4.2",
-    "openai": "^6.0.1",
+    "openai": "^6.34.0",
     "snoowrap": "^1.23.0"
   },
   "keywords": [

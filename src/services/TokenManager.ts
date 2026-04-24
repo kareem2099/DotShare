@@ -60,7 +60,7 @@ export class TokenManager {
 
         if (expiresAtMs) {
             await this._context.secrets.store(`${platform}_expires_at`, String(expiresAtMs));
-            Logger.info(`TokenManager: stored ${platform} token, expires at ${new Date(expiresAtMs).toISOString()}`);
+            Logger.info(`[TokenManager] stored ${platform} token, expires at ${new Date(expiresAtMs).toISOString()}`);
         }
 
         if (shouldRefreshSoon !== undefined) {
@@ -91,11 +91,11 @@ export class TokenManager {
         const expiring = await this.isExpiringSoon(platform);
 
         if (expiring) {
-            Logger.info(`TokenManager: ${platform} token expiring soon, refreshing...`);
+            Logger.info(`[TokenManager] ${platform} token expiring soon, refreshing...`);
             try {
                 await this.refresh(platform);
             } catch (error) {
-                Logger.warn(`TokenManager: ${platform} refresh failed, using existing token`, error);
+                Logger.warn(`[TokenManager] ${platform} refresh failed, using existing token`, error);
             }
         }
 
@@ -191,7 +191,7 @@ export class TokenManager {
 
         if (expiresAtMs) {
             await this._context.secrets.store(`${platform}_expires_at`, String(expiresAtMs));
-            Logger.info(`TokenManager: ${platform} token updated, expires at ${new Date(expiresAtMs).toISOString()} ✅`);
+            Logger.info(`[TokenManager] ${platform} token updated, expires at ${new Date(expiresAtMs).toISOString()} ✅`);
         }
 
         // 4. Proactive Flag
@@ -217,7 +217,7 @@ export class TokenManager {
             await this.refresh(platform);
             return true;
         } catch (error) {
-            Logger.error(`TokenManager: force refresh failed for ${platform}`, error);
+            Logger.error(`[TokenManager] force refresh failed for ${platform}`, error);
             return false;
         }
     }
@@ -240,6 +240,6 @@ export class TokenManager {
                 await this._context.secrets.delete('facebookToken');
                 break;
         }
-        Logger.info(`TokenManager: ${platform} token cleared`);
+        Logger.info(`[TokenManager] ${platform} token cleared`);
     }
 }

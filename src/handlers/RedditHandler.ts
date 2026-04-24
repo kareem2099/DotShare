@@ -40,7 +40,7 @@ export class RedditHandler {
                     break;
 
                 default:
-                    Logger.info('RedditHandler: Unhandled command:', cmd);
+                    Logger.info('[RedditHandler] Unhandled command:', cmd);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);

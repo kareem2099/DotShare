@@ -33,7 +33,7 @@ export class StorageManager {
                 fs.mkdirSync(storagePath, { recursive: true });
             }
         } catch (error) {
-            Logger.warn('Could not create storage directory, using temp:', error);
+            Logger.warn('[StorageManager] Could not create storage directory, using temp:', error);
             // Final fallback to temp directory
             storagePath = path.join(os.tmpdir(), 'dotshare-scheduled');
             try {
@@ -41,7 +41,7 @@ export class StorageManager {
                     fs.mkdirSync(storagePath, { recursive: true });
                 }
             } catch (tempError) {
-                Logger.error('Even temp directory creation failed:', tempError);
+                Logger.error('[StorageManager] Even temp directory creation failed:', tempError);
                 // Last resort - use system temp
                 storagePath = os.tmpdir();
             }
@@ -144,7 +144,7 @@ export class StorageManager {
             try {
                 apiKey = await this._context.secrets.get(`${savedModel.provider}ApiKey`) || '';
             } catch (error) {
-                Logger.warn('Failed to retrieve API key from secrets:', error);
+                Logger.warn('[StorageManager] Failed to retrieve API key from secrets:', error);
             }
         }
 
@@ -320,7 +320,7 @@ export class StorageManager {
 
             return JSON.parse(dataString);
         } catch (error) {
-            Logger.error('Error loading saved APIs:', error);
+            Logger.error('[StorageManager] Error loading saved APIs:', error);
             return [];
         }
     }
@@ -376,7 +376,7 @@ export class StorageManager {
 
             await this._context.secrets.store(savedApisKey, JSON.stringify(savedApis));
         } catch (error) {
-            Logger.error('Error saving API configuration:', error);
+            Logger.error('[StorageManager] Error saving API configuration:', error);
             throw error;
         }
     }
@@ -388,7 +388,7 @@ export class StorageManager {
             const savedApis = await this.loadSavedApis(platform);
             return savedApis.find((config: SavedApiConfiguration) => config.id === apiId) || null;
         } catch (error) {
-            Logger.error('Error loading API configuration:', error);
+            Logger.error('[StorageManager] Error loading API configuration:', error);
             return null;
         }
     }
@@ -405,14 +405,14 @@ export class StorageManager {
 
             await this._context.secrets.store(savedApisKey, JSON.stringify(updatedApis));
         } catch (error) {
-            Logger.error('Error deleting API configuration:', error);
+            Logger.error('[StorageManager] Error deleting API configuration:', error);
             throw error;
         }
     }
 
     public async clearAllCredentials(): Promise<void> {
         try {
-            Logger.info('🗑️ Clearing all credentials and saved APIs from secure storage...');
+            Logger.info('[StorageManager] 🗑️ Clearing all credentials and saved APIs from secure storage...');
             
             // 1. Clear individual platform secrets and model API keys
             const secretKeys = [
@@ -445,9 +445,9 @@ export class StorageManager {
             // Optional: Unset the selected model so they are completely "logged out"
             this._context.globalState.update('selectedModel', undefined);
             
-            Logger.info('✅ All credentials cleared successfully.');
+            Logger.info('[StorageManager] ✅ All credentials cleared successfully.');
         } catch (error) {
-            Logger.error('Failed to clear all credentials:', error);
+            Logger.error('[StorageManager] Failed to clear all credentials:', error);
             throw error;
         }
     }
@@ -504,7 +504,7 @@ export class StorageManager {
                 const existingSecret = await this._context.secrets.get(key);
 
                 if (!existingSecret) {
-                    Logger.info(`📦 Migrating ${platform} data to secure storage...`);
+                    Logger.info(`[StorageManager] 📦 Migrating ${platform} data to secure storage...`);
 
                     // Migrate data to encrypted secrets
                     await this._context.secrets.store(key, JSON.stringify(legacyData));

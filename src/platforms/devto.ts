@@ -98,7 +98,7 @@ function isHttpUrl(ref: string): boolean {
  *
  * @param apiKey     - Dev.to API key (from Settings → Extensions)
  * @param articleData - Article content and metadata
- * @returns The URL of the published article
+ * @returns An object containing the URL and ID of the article
  */
 export async function shareToDevTo(
     apiKey: string,
@@ -116,7 +116,7 @@ export async function shareToDevTo(
         /** Dev.to series name (must already exist on your account). */
         series?: string;
     }
-): Promise<string> {
+): Promise<{ url: string; id: number }> {
     try {
         // 1. Extract title and body from markdown
         const { title, body } = extractTitleFromMarkdown(articleData.text);
@@ -180,9 +180,10 @@ export async function shareToDevTo(
         );
 
         const articleUrl = response.data.url;
-        Logger.info(`Dev.to: article published successfully - ${articleUrl}`);
+        const articleId = response.data.id;
+        Logger.info(`Dev.to: article published successfully - ${articleUrl} (ID: ${articleId})`);
 
-        return articleUrl;
+        return { url: articleUrl, id: articleId };
 
     } catch (error: unknown) {
         const msg = axios.isAxiosError(error)
@@ -206,5 +207,90 @@ export async function validateDevToCredentials(apiKey: string): Promise<boolean>
         return true;
     } catch {
         return false;
+    }
+}
+
+/**
+ * Update an existing article on Dev.to.
+ */
+export async function updateDevToArticle(
+    apiKey: string,
+    articleId: number,
+    articleData: {
+        text: string;
+        title?: string;
+        tags?: string[];
+        description?: string;
+        coverImage?: string;
+        published?: boolean;
+        canonicalUrl?: string;
+        series?: string;
+    }
+): Promise<{ url: string; id: number }> {
+    try {
+        const { title, body } = extractTitleFromMarkdown(articleData.text);
+        const tags = extractTags(articleData.text);
+
+        const payload: DevToArticlePayload = {
+            article: {
+                title:         articleData.title || title,
+                body_markdown: body,
+                tags:          articleData.tags || tags,
+                published:     articleData.published ?? true,
+                ...(articleData.description   && { description:   articleData.description }),
+                ...(articleData.coverImage    && { main_image:    articleData.coverImage }),
+                ...(articleData.canonicalUrl  && { canonical_url: articleData.canonicalUrl }),
+                ...(articleData.series?.trim() && { series:       articleData.series.trim() }),
+            },
+        };
+
+        const response = await axios.put(
+            `https://dev.to/api/articles/${articleId}`,
+            payload,
+            {
+                headers: {
+                    'api-key':      apiKey,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        return { url: response.data.url, id: response.data.id };
+    } catch (error: unknown) {
+        const msg = axios.isAxiosError(error)
+            ? (error.response?.data?.error || error.response?.data?.message || error.message)
+            : error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to update Dev.to article: ${msg}`);
+    }
+}
+
+/**
+ * Fetch current user's articles (including drafts).
+ */
+interface DevToArticleResponse {
+    id: number;
+    title: string;
+    body_markdown?: string;
+    tags?: string[];
+    published?: boolean;
+    published_at?: string;
+    url?: string;
+    canonical_url?: string;
+    cover_image?: string;
+    description?: string;
+}
+
+export async function fetchDevToArticles(apiKey: string): Promise<DevToArticleResponse[]> {
+    try {
+        const response = await axios.get(
+            'https://dev.to/api/articles/me/all?per_page=100',
+            { headers: { 'api-key': apiKey } }
+        );
+        return response.data;
+    } catch (error: unknown) {
+        const msg = axios.isAxiosError(error)
+            ? (error.response?.data?.error || error.response?.data?.message || error.message)
+            : error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch Dev.to articles: ${msg}`);
     }
 }

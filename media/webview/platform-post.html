@@ -69,6 +69,7 @@
         <div class="action-bar">
           <button class="btn btn-secondary btn-sm" id="btn-generate-ai-threads">🧠 Generate with AI</button>
           <div class="spacer"></div>
+          <button class="btn btn-secondary btn-sm btn-save-draft" style="margin-right:8px;" title="Save as Draft">💾 Save Draft</button>
           <button class="btn btn-primary" id="btn-share-thread" disabled>🚀 Share Thread</button>
         </div>
         <div class="shortcut-hint" style="margin-top:6px; justify-content: flex-end;">
@@ -150,6 +151,7 @@
             <input type="file" id="media-file-input" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
               style="display:none;" />
             <div class="spacer"></div>
+            <button class="btn btn-secondary btn-sm btn-save-draft" style="margin-right:8px;" title="Save as Draft">💾 Save Draft</button>
             <button class="btn btn-primary" id="btn-share" disabled>🚀 Share Now</button>
           </div>
           <div class="shortcut-hint" style="margin-top:6px; justify-content: flex-end;">
@@ -175,9 +177,11 @@
           <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px;">{{BLOG_INTRO_TEXT}}
           </p>
 
-          <button class="btn btn-secondary" id="btn-read-md-file">📖 Read Current Markdown File</button>
-          <span class="shortcut-hint" style="margin-left:8px;"><span class="kbd">Ctrl</span><span>+</span><span
-              class="kbd">L</span></span>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <button class="btn btn-secondary" id="btn-read-md-file" style="flex:none;">📖 Read Current Markdown File</button>
+            <span class="shortcut-hint" style="margin-left:0px;"><span class="kbd">Ctrl</span><span>+</span><span class="kbd">L</span></span>
+            <button class="btn btn-ghost btn-sm" id="btn-reset-blog-md" style="margin-left:auto; white-space:nowrap;" title="Resets the open markdown file back to the default boilerplate.">🧹 Reset Boilerplate</button>
+          </div>
 
           <div id="blog-preview" style="display:none; margin-top:16px;">
             <div class="input-group">
@@ -214,8 +218,36 @@
 
         <div class="action-bar" id="blog-actions" style="display:none;">
           <div class="spacer"></div>
+          <button class="btn btn-secondary btn-sm btn-save-draft" style="margin-right:8px;" title="Save as Draft">💾 Save Draft</button>
           <button type="button" class="btn btn-primary" id="btn-publish-blog"
             disabled>{{BLOG_PUBLISH_BUTTON_TEXT}}</button>
+        </div>
+      </div>
+
+      <!-- ═══ DRAFTS SECTION ═══ -->
+      <div class="drafts-section" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vscode-editorGroup-border);">
+        <h3 style="font-size: 14px; margin-bottom: 4px;">📝 Saved Drafts</h3>
+        <p style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-bottom: 12px;">Drafts for {{PLATFORM_NAME}}</p>
+        
+        <div id="drafts-loading" class="empty-state">
+          Loading drafts...
+        </div>
+
+        <div id="drafts-empty" class="empty-state" style="display:none;">
+          <div class="empty-icon">📝</div>
+          <div style="font-weight:600;margin-bottom:8px;">No local drafts yet</div>
+          <p style="font-size:12px;color:var(--vscode-descriptionForeground);">Drafts you save for this platform will appear here.</p>
+        </div>
+
+        <div id="drafts-list" class="drafts-grid" style="display:none;">
+          <!-- Rendered by JS -->
+        </div>
+
+        <!-- Div for remote drafts if applicable -->
+        <div id="remote-drafts-container" style="display:none; margin-top:16px;">
+            <h3 style="font-size: 14px; margin-bottom: 8px;">🌐 Remote Drafts</h3>
+            <button class="btn btn-secondary btn-sm" id="btn-fetch-remote-drafts" style="margin-bottom: 12px;">Fetch Remote Drafts</button>
+            <div id="remote-drafts-list" class="drafts-grid" style="display:none;"></div>
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import { RedditHandler } from './RedditHandler';
 import { PostHandler } from './PostHandler';
 import { Logger } from '../utils/Logger';
 import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
+import { DraftsService } from '../services/DraftsService';
 
 interface Message {
     command: string;
@@ -20,6 +21,7 @@ export class MessageHandler {
     private configHandler: ConfigHandler;
     private redditHandler: RedditHandler;
     private postHandler: PostHandler;
+    private draftsService: DraftsService;
 
     constructor(
         private view: vscode.WebviewView,
@@ -29,21 +31,24 @@ export class MessageHandler {
         private mediaService: MediaService
     ) {
         // Initialize sub-handlers
+        this.draftsService = new DraftsService(context.globalState);
         this.configHandler = new ConfigHandler(view, context);
         this.redditHandler = new RedditHandler(view, context, historyService);
-        this.postHandler = new PostHandler(view, context, historyService, analyticsService, mediaService);
+        this.postHandler = new PostHandler(view, context, historyService, analyticsService, mediaService, this.draftsService);
     }
 
     public async handleMessage(message: unknown) {
         if (!this.isValidMessage(message)) {
-            Logger.error('Invalid message format');
+            Logger.error('[MessageHandler] Invalid message format');
             return;
         }
         const cmd = message.command;
 
         // Smart routing based on command patterns - check specific commands first
-        if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' || cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost' || cmd === 'readMarkdownFile' || cmd === 'loadScheduledPosts') {
-            // Posting and content operations
+        if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' || 
+            cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost' || 
+            cmd === 'readMarkdownFile' || cmd === 'resetBlogMarkdown' || cmd === 'loadScheduledPosts' || cmd.includes('Draft')) {
+            // Posting and content operations including Drafts
             await this.postHandler.handleMessage(message);
         }
         else if (cmd.includes('Reddit') || cmd === 'generateRedditTokens' || cmd === 'getRedditFlairs' ||
@@ -78,7 +83,7 @@ export class MessageHandler {
                         return;
                     }
                     const authUrl = `${AUTH_SERVER_URL}/auth/${platform}`;
-                    Logger.info(`DotShare: Opening OAuth for ${platform} → ${authUrl}`);
+                    Logger.info(`[MessageHandler] DotShare: Opening OAuth for ${platform} → ${authUrl}`);
                     vscode.env.openExternal(vscode.Uri.parse(authUrl));
                     break;
                 }
@@ -142,7 +147,7 @@ export class MessageHandler {
 
                 case 'forceRefresh': {
                     const platform = message.platform as 'x' | 'reddit' | 'facebook';
-                    Logger.info(`MessageHandler: Manual refresh requested for ${platform}`);
+                    Logger.info(`[MessageHandler] Manual refresh requested for ${platform}`);
                     const success = await TokenManager.forceRefresh(platform);
                     if (success) {
                         this.sendSuccess(`${platform.toUpperCase()} connection refreshed!`);
@@ -172,7 +177,7 @@ export class MessageHandler {
                             translations = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                         }
                     } catch (e) {
-                        Logger.warn(`Failed to load translations for ${language}`, e);
+                        Logger.warn(`[MessageHandler] Failed to load translations for ${language}`, e);
                     }
 
                     this.view.webview.postMessage({ command: 'languageChanged', language, translations });
@@ -183,7 +188,7 @@ export class MessageHandler {
 
 
                 default:
-                    Logger.info('MessageHandler: Unhandled command:', cmd);
+                    Logger.info('[MessageHandler] Unhandled command:', cmd);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -226,7 +231,7 @@ export class MessageHandler {
                             fileSize: fileSize
                         });
                     } catch (error: unknown) {
-                        Logger.warn(`Could not get stats for ${uri.fsPath}:`, error);
+                        Logger.warn(`[MessageHandler] Could not get stats for ${uri.fsPath}:`, error);
                     }
                 }
 
@@ -260,7 +265,7 @@ export class MessageHandler {
             try {
                 await vscode.workspace.fs.createDirectory(mediaDir);
             } catch (error: unknown) {
-                Logger.warn('Could not create media directory:', error);
+                Logger.warn('[MessageHandler] Could not create media directory:', error);
             }
 
             const binaryString = atob(file.base64Data);

@@ -1,5 +1,4 @@
 import { generatePost, getAvailableModels } from '../claude';
-import * as vscode from 'vscode';
 
 // Mock the dependencies
 jest.mock('vscode');

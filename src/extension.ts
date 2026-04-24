@@ -14,7 +14,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // ── Data / Storage ────────────────────────────────────────
     const storageManager = new StorageManager(context);
-    storageManager.migrateLegacyData().catch((e) => Logger.error('Migration failed', e));
+    storageManager.migrateLegacyData().catch((e) => Logger.error('[Extension] Migration failed', e));
 
     // ── 1. Sidebar Provider ───────────────────────────────────
     const provider = new DotShareProvider(context.extensionUri, context);
@@ -24,13 +24,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // ── 2. Command that opens the main WebView ────────────────
     context.subscriptions.push(
-        vscode.commands.registerCommand('dotshare.openFullWebview', (page = 'post', options?: any) => {
-            const platform = options?.platform as string | undefined;
-            if (page === 'post' && platform) {
-                DotShareWebView.createPlatformPost(context, platform);
-            } else {
-                DotShareWebView.createOrShow(context, page, options);
-            }
+        vscode.commands.registerCommand('dotshare.openFullWebview', (_page?: string, options?: { platform?: string }) => {
+            const platform = options?.platform;
+            DotShareWebView.createPlatformPost(context, platform || 'linkedin');
         })
     );
 
@@ -56,7 +52,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // ── 4. Analytics ──────────────────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.showAnalytics', () => {
-            DotShareWebView.createOrShow(context, 'analytics');
+            vscode.window.showInformationMessage('DotShare: Analytics are available in the sidebar Drafts & Platforms panel.');
         })
     );
 
@@ -148,10 +144,10 @@ export async function activate(context: vscode.ExtensionContext) {
                     }
                 });
 
-                Logger.info(`OAuth callback: ${platform} token saved`);
+                Logger.info(`[Extension] OAuth callback: ${platform} token saved`);
 
             } catch (error) {
-                Logger.error('URI Handler error', error);
+                Logger.error('[Extension] URI Handler error', error);
                 vscode.window.showErrorMessage('DotShare: Failed to save token. Please try again.');
             }
         }
@@ -181,7 +177,7 @@ export async function activate(context: vscode.ExtensionContext) {
     scheduler.start();
     context.subscriptions.push({ dispose: () => scheduler.stop() });
 
-    Logger.info('DotShare v3.0 activated ✅');
+    Logger.info('[Extension] DotShare v3.0 activated ✅');
 }
 
 async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext): Promise<void> {
@@ -193,10 +189,10 @@ async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext): Pr
             await context.globalState.update('dotshareVersion', currentVersion);
         }
     } catch (error) {
-        Logger.error('checkVersionAndShowWhatsNew failed', error);
+        Logger.error('[Extension] checkVersionAndShowWhatsNew failed', error);
     }
 }
 
 export function deactivate(): void {
-    Logger.info('DotShare deactivated');
+    Logger.info('[Extension] DotShare deactivated');
 }

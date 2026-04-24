@@ -7,6 +7,26 @@ import * as path from 'path';
 // Check if we're running in VS Code environment
 const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
 
+interface LinkedInMediaAsset {
+    status: string;
+    description: { text: string };
+    media: string;
+    title: { text: string };
+}
+
+interface LinkedInShareContent {
+    shareCommentary: { text: string };
+    shareMediaCategory: string;
+    media?: LinkedInMediaAsset[];
+}
+
+interface LinkedInPostBody {
+    author: string;
+    lifecycleState: string;
+    specificContent: { 'com.linkedin.ugc.ShareContent': LinkedInShareContent };
+    visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': string };
+}
+
 export async function shareToLinkedIn(post: PostData, accessToken?: string, callbacks?: {
     onSuccess?: (message: string) => void;
     onError?: (message: string) => void;
@@ -37,7 +57,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         const personUrn = `urn:li:person:${profileRes.data.sub}`;
 
         // 2. Process and Upload Media directly to LinkedIn
-        const mediaAssets: any[] = [];
+        const mediaAssets: LinkedInMediaAsset[] = [];
         
         if (post.media && post.media.length > 0) {
             for (const filePath of post.media) {
@@ -87,7 +107,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         }
 
         // 3. Create the Post on LinkedIn
-        const postBody: any = {
+        const postBody: LinkedInPostBody = {
             author: personUrn,
             lifecycleState: 'PUBLISHED',
             specificContent: {
@@ -114,7 +134,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         }
 
         // Final API call to publish the post
-        const shareRes = await axios.post('https://api.linkedin.com/v2/ugcPosts', postBody, {
+        await axios.post('https://api.linkedin.com/v2/ugcPosts', postBody, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
@@ -130,11 +150,12 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
             vscode.window.showInformationMessage(successMessage);
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         // Handle Errors elegantly
         let errorMessage = 'Failed to post to LinkedIn';
-        if (error.response?.data?.message || error.response?.data?.error?.message) {
-            errorMessage += `: ${error.response.data.message || error.response.data.error.message}`;
+        const axiosErr = axios.isAxiosError(error) ? error : null;
+        if (axiosErr?.response?.data?.message || axiosErr?.response?.data?.error?.message) {
+            errorMessage += `: ${axiosErr.response?.data?.message || axiosErr.response?.data?.error?.message}`;
         } else if (error instanceof Error) {
             errorMessage += `: ${error.message}`;
         }

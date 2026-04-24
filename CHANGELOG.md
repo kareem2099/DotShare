@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.5] - 2026-04-24 — "Nexus"
+### Added
+- **Universal Drafts System**: Expanded the drafts architecture to support all platforms (LinkedIn, X, Bluesky, Facebook, Telegram, Reddit) in addition to Dev.to and Medium.
+- **Deep Draft Integration**: Drafts are now accessible directly within the Social Composer, allowing you to save and resume progress across any social platform seamlessly.
+- **Enhanced Drafting UI**: Improved the drafting experience with clear platform badges, better metadata preservation, and a more responsive grid layout.
+- **Two-Way Markdown Sync**: Click "Load" on any Draft to immediately rewrite the currently open `.md` editor file with the draft's exact YAML frontmatter and body, ensuring the Webview and Editor are always 100% in sync.
+- **Full Meta-Data Draft Preservation**: Saving Local/Remote drafts from the Blogging Workspace now correctly captures and preserves Title, Tags, Description, Cover Image, Canonical URL, and Series metadata, not just the body text.
+- **Blog Reset Boilerplate Button**: Added a new "🧹 Reset Boilerplate" ghost button in the blog publisher view. With one click, it wipes the UI and the active markdown editor back to the clean, default frontmatter block, avoiding manual deletion.
+- **Split-Editor Workflow Optimization**: Pressing "Create Post" for Dev.to or Medium now automatically creates/opens the required platform `.md` file in a Side-by-Side Split Editor, ensuring the Webview never obscures the active writing file.
+
+### Changed
+- **Major Codebase Cleanup**: Removed over 500 lines of legacy CSS and unused JavaScript components, significantly reducing the extension's memory footprint.
+- **Webview Optimization**: Refactored the internal messaging and state management for a snappier, more reliable UI response time.
+
+### Fixed
+- **Escape HTML Reference Fix**: Resolved a critical `ReferenceError: escapeHtml is not defined` bug that caused Local Drafts to fail to render if they contained non-escaped character sequences.
+
 ## [3.2.4] - 2026-04-19
 ### Fixed
 - **Temporary Reddit Disablement**: Temporarily disabled Reddit OAuth functionality due to third-party authorization issues to ensure security. Reddit connection features will be restored soon.

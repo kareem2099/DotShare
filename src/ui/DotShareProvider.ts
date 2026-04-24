@@ -58,7 +58,7 @@ export class DotShareProvider implements vscode.WebviewViewProvider {
 
         // Receive Message
         webviewView.webview.onDidReceiveMessage(async (data) => {
-            await this._messageHandler!.handleMessage(data);
+            if (this._messageHandler) await this._messageHandler.handleMessage(data);
         });
 
         // Load initial data
