@@ -23,6 +23,7 @@ import { shareToBlueSky } from '../platforms/bluesky';
 import { shareToDevTo } from '../platforms/devto';
 import { shareToMedium } from '../platforms/medium';
 import { parseFrontMatter } from '../utils/frontmatter-parser';
+import { validateDevTo, validateMedium, formatValidationSummary } from '../utils/blog-validator';
 import { generatePost as generateClaudePost } from '../ai/claude';
 import { DraftsService } from '../services/DraftsService';
 import { fetchDevToArticles, updateDevToArticle } from '../platforms/devto';
@@ -499,9 +500,9 @@ export class PostHandler {
 
         if (parsed.hasFrontmatter && parsed.frontmatter) {
             this.view.webview.postMessage({ command: 'updateBlogFrontmatter', frontmatter: parsed.frontmatter });
-            this.sendSuccess('Markdown file loaded with frontmatter!');
+            this.view.webview.postMessage({ command: 'status', status: 'Markdown file loaded with frontmatter!', type: 'info' });
         } else {
-            this.sendSuccess('Markdown file loaded successfully!');
+            this.view.webview.postMessage({ command: 'status', status: 'Markdown file loaded successfully!', type: 'info' });
         }
 
         this.view.webview.postMessage({ command: 'revealBlogPublisher' });
@@ -572,21 +573,21 @@ export class PostHandler {
                 }
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                errors.push(`${platform}: ${errorMessage}`);
+                errors.push(errorMessage);
                 Logger.error(`[PostHandler] Error publishing to ${platform}:`, error);
             }
         }
 
-        if (successCount === platforms.length) {
-            this.sendSuccess(`Successfully published to all ${successCount} blog platform(s)!`);
-        } else if (successCount > 0) {
+        // blogShareComplete is fired per-platform on success (with URL).
+        // Only send a status message when there are failures to report.
+        if (successCount === 0 && errors.length > 0) {
+            this.sendError(errors.join(' | '));
+        } else if (errors.length > 0) {
             this.view.webview.postMessage({
                 command: 'status',
-                status: `Published to ${successCount}/${platforms.length} platforms. Errors: ${errors.join(', ')}`,
+                status: `Published to ${successCount}/${platforms.length} platforms. Failed: ${errors.join(', ')}`,
                 type: 'warning'
             });
-        } else {
-            this.sendError(`Failed to publish to any platform. ${errors.join(', ')}`);
         }
     }
 
@@ -782,11 +783,35 @@ export class PostHandler {
                 throw new Error('Dev.to API Key not configured. Go to Settings to add it.');
             }
 
+            // ── Pre-publish validation ────────────────────────────────────────
+            const bodyText = msg.post || post.text;
+            const validation = validateDevTo({
+                title:       msg.title,
+                body:        bodyText,
+                tags:        msg.tags,
+                description: msg.description,
+            });
+
+            // Surface each warning as an individual info toast
+            for (const issue of validation.issues.filter(i => i.severity === 'warning')) {
+                this.view.webview.postMessage({ command: 'status', status: issue.message, type: 'warning' });
+            }
+
+            // Block on errors — throw so handleShareBlog correctly records failure
+            if (!validation.valid) {
+                const errors = validation.issues
+                    .filter(i => i.severity === 'error')
+                    .map(i => i.message)
+                    .join(' | ');
+                throw new Error(errors);
+            }
+            // ─────────────────────────────────────────────────────────────────
+
             const result = await shareToDevTo(devtoApiKey, {
-                text:         msg.post || post.text,
+                text:         bodyText,
                 media:        msg.mediaFilePaths || post.media,
                 title:        msg.title,
-                tags:         msg.tags,
+                tags:         validation.sanitizedTags ?? msg.tags,
                 description:  msg.description,
                 coverImage:   msg.coverImage,
                 published:    msg.published,
@@ -794,14 +819,12 @@ export class PostHandler {
                 series:       msg.series
             });
 
-            this.sendSuccess(`Successfully posted to Dev.to! URL: ${result.url}`);
             if (postId) this.historyService.recordShare(postId, 'devto', true, undefined, result.id.toString());
+            this.view.webview.postMessage({ command: 'blogShareComplete', url: result.url, platform: 'devto' });
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (postId) this.historyService.recordShare(postId, 'devto', false, errorMessage);
             throw new Error(`Error sharing to Dev.to: ${errorMessage}`);
-        } finally {
-            this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
 
@@ -821,23 +844,44 @@ export class PostHandler {
                 throw new Error('Medium Access Token not configured. Go to Settings to add it.');
             }
 
+            // ── Pre-publish validation ────────────────────────────────────────
+            const bodyText = msg.post || post.text;
+            const validation = validateMedium({
+                title: msg.title,
+                body:  bodyText,
+                tags:  msg.tags,
+            });
+
+            // Surface each warning as an individual info toast
+            for (const issue of validation.issues.filter(i => i.severity === 'warning')) {
+                this.view.webview.postMessage({ command: 'status', status: issue.message, type: 'warning' });
+            }
+
+            // Block on errors — throw so handleShareBlog correctly records failure
+            if (!validation.valid) {
+                const errors = validation.issues
+                    .filter(i => i.severity === 'error')
+                    .map(i => i.message)
+                    .join(' | ');
+                throw new Error(errors);
+            }
+            // ─────────────────────────────────────────────────────────────────
+
             await shareToMedium(mediumAccessToken, {
-                text:          msg.post || post.text,
+                text:          bodyText,
                 media:         msg.mediaFilePaths || post.media,
                 title:         msg.title,
-                tags:          msg.tags,
+                tags:          validation.sanitizedTags ?? msg.tags,
                 publishStatus: msg.publishStatus as 'public' | 'draft' | 'unlisted' | 'published' | undefined,
                 canonicalUrl:  msg.canonicalUrl
             });
 
-            this.sendSuccess('Successfully posted to Medium!');
             if (postId) this.historyService.recordShare(postId, 'medium', true);
+            this.view.webview.postMessage({ command: 'blogShareComplete', platform: 'medium' });
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (postId) this.historyService.recordShare(postId, 'medium', false, errorMessage);
             throw new Error(`Error sharing to Medium: ${errorMessage}`);
-        } finally {
-            this.view.webview.postMessage({ command: 'shareComplete' });
         }
     }
 
@@ -1176,7 +1220,7 @@ export class PostHandler {
         
         try {
             const articles = await fetchDevToArticles(devtoApiKey);
-            const draftsArr = articles.map(a => {
+            const draftsArr = articles.filter(a => !a.published).map(a => {
                 const mapped: Draft = {
                     id: `devto_${a.id}`,
                     type: 'article',

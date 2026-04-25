@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.6] - 2026-04-25 — "Patch"
+
+### Fixed
+- **Markdown File Load — Fields Empty Bug**: Fixed `handleReadMarkdownFile` incorrectly calling `sendSuccess()` which triggered `resetAllComposers()` and erased all just-populated fields (title, tags, description, body). Now uses `status` type `'info'` so the reset is not triggered.
+- **Remote Drafts — Showing All Articles**: `handleFetchDevToDrafts` was returning all articles (published + drafts). Now filters to `published === false` only, showing drafts exclusively.
+- **Blog Publish — Error and Success Toast Simultaneously**: When pre-publish validation failed, `shareToDevToWithUpdate` / `shareToMediumWithUpdate` used `return` (silent) instead of `throw`, causing `handleShareBlog` to count it as a success and fire a success toast alongside the error toast. Now throws so `handleShareBlog` correctly records the failure.
+- **Blog Publish Button Stuck After Validation Error**: The `finally { shareComplete }` block fired even after validation failures, triggering `resetAllComposers()` which wiped article content and left the button in a broken state. Replaced `shareComplete` with a new `blogShareComplete` message that only resets publish buttons — article content is preserved.
+
+### Added
+- **Pre-Publish Blog Validator** (`src/utils/blog-validator.ts`): New validation layer that runs before every Dev.to and Medium publish:
+  - **Errors (block publish)**: missing title, title > 128 chars (Dev.to) / > 100 chars (Medium), empty body, boilerplate body placeholder.
+  - **Warnings (non-blocking toasts)**: article < 50 words, missing description (SEO), no tags, tags > 4 (Dev.to) / > 5 (Medium), duplicate tags, invalid tag characters, tags > 30 chars.
+  - Tags are **auto-sanitized** (lowercase, dedup, invalid char strip, length trim, count clamp) before the API call.
+- **`blogShareComplete` WebView Message**: New message type for blog platforms that resets only the publish buttons on success — preserves article body/title/tags/description so the user can review what was published. Includes the published article URL in the success toast (8s display).
+
 ## [3.2.5] - 2026-04-24 — "Nexus"
 ### Added
 - **Universal Drafts System**: Expanded the drafts architecture to support all platforms (LinkedIn, X, Bluesky, Facebook, Telegram, Reddit) in addition to Dev.to and Medium.

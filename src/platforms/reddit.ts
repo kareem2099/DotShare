@@ -307,8 +307,9 @@ export async function uploadRedditMedia(accessToken: string, mediaFiles: string[
                 url: finalUrl
             });
         } catch (error: unknown) {
-            Logger.error(`Failed to upload media ${mediaFile}:`, error.message);
-            if (error.response?.data) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            Logger.error(`Failed to upload media ${mediaFile}:`, errorMessage);
+            if (axios.isAxiosError(error) && error.response?.data) {
                 Logger.error('S3 Error Response:', error.response.data.toString());
             }
         }

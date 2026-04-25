@@ -677,6 +677,21 @@ window.addEventListener('message', (event: MessageEvent) => {
                 activeDraftId = undefined;
                 break;
 
+            case 'blogShareComplete': {
+                // Only reset publish buttons — preserve article content so user can see what they published
+                resetBlogPublishUi();
+                setComposerLocked(false);
+                setBtnLoading('btn-read-md-file', false);
+                const platform = String(msg.platform || '');
+                const url = msg.url ? String(msg.url) : '';
+                const platformLabel = platform === 'devto' ? 'Dev.to' : platform === 'medium' ? 'Medium' : platform;
+                const successMsg = url
+                    ? `Successfully published to ${platformLabel}! 🎉 ${url}`
+                    : `Successfully published to ${platformLabel}! 🎉`;
+                toast(successMsg, 'success', 8000);
+                break;
+            }
+
             case 'fileUploaded':
             case 'mediaSelected': {
                 if (!msg.mediaPath) break;
