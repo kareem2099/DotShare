@@ -152,7 +152,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
+    "@anthropic-ai/sdk": "^0.91.1",
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.15.2",
     "commander": "^11.1.0",
