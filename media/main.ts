@@ -455,6 +455,36 @@ function initEventListeners(): void {
         send({ command: 'openFullWebview', action: 'analytics' });
     });
 
+    // ==========================================
+    // 👤 Profile Modal Logic
+    // ==========================================
+    const profileBtn = getEl('profileBtn');
+    const profileModal = getEl('profileModal');
+    const closeProfileModal = getEl('closeProfileModal');
+    const logoutBtn = getEl('logoutBtn');
+
+    if (profileBtn) {
+        profileBtn.addEventListener('click', () => {
+            if (profileModal) profileModal.style.display = 'flex';
+            const nameEl = getEl('profileName');
+            if (nameEl) nameEl.textContent = 'Loading...';
+            send({ command: 'fetchProfile' });
+        });
+    }
+
+    if (closeProfileModal) {
+        closeProfileModal.addEventListener('click', () => {
+            if (profileModal) profileModal.style.display = 'none';
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            send({ command: 'logout' });
+            if (profileModal) profileModal.style.display = 'none';
+        });
+    }
+
     // Check auth server health on startup
     checkAuthServerHealth();
     
@@ -601,6 +631,49 @@ window.addEventListener('message', (event: MessageEvent) => {
                 showStatus(`${msg.platform} connected successfully!`, 'success');
             }
             break;
+
+        case "SET_PROFILE": {
+            const data = msg.data;
+            if (!data) break;
+
+            const nameEl = getEl('profileName');
+            const emailEl = getEl('profileEmail');
+            const postsEl = getEl('profilePostsUsed');
+            const imagesEl = getEl('profileImagesUsed');
+            const tierEl = getEl('profileTier');
+            const providerEl = getEl('profileProvider');
+            const iconEl = getEl('profileIcon');
+
+            if (nameEl) nameEl.textContent = data.name || 'Unknown';
+            if (emailEl) emailEl.textContent = data.email || 'No Email';
+            if (postsEl) postsEl.textContent = data.posts_used || '0';
+            if (imagesEl) imagesEl.textContent = data.images_used || '0';
+
+            if (tierEl) {
+                tierEl.textContent = data.tier || 'Free';
+                // 🌟 السطر ده هو اللي بيفعل أنيميشن الدهب في الـ CSS
+                tierEl.setAttribute('data-tier', (data.tier || 'free').toLowerCase());
+            }
+
+            if (providerEl) {
+                providerEl.textContent = data.provider || 'email';
+            }
+
+            if (iconEl) {
+                if (data.provider === 'github') iconEl.textContent = '🐙';
+                else if (data.provider === 'google') iconEl.textContent = '🔵';
+                else iconEl.textContent = '✉️';
+            }
+            break;
+        }
+
+        case "LOGOUT_SUCCESS": {
+            const modal = getEl('profileModal');
+            if (modal) modal.style.display = 'none';
+            showStatus("Logged out successfully", "success");
+            break;
+        }
+
     }
 });
 

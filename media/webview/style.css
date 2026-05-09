@@ -26,12 +26,89 @@ a:hover {
 }
 
 /* ── App Shell ────────────────────────────────────────────── */
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
 #app {
   display: block;
   overflow-y: auto;
-  height: 100vh;
+  height: 100%;
+  flex: 1;
 }
 
+/* ── Inner Sidebar (Navigation Rail) ──────────────────────── */
+.inner-sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  width: 60px;
+  background: var(--vscode-activityBar-background);
+  border-right: 1px solid var(--vscode-panel-border);
+  padding: 12px 0;
+  overflow-y: auto;
+}
+
+.nav-top,
+.nav-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.inner-sidebar .tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.15s;
+}
+
+.inner-sidebar .tab-btn:hover {
+  opacity: 0.9;
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.inner-sidebar .tab-btn.active {
+  opacity: 1;
+  background: var(--vscode-button-background);
+  border-left-color: var(--vscode-focusBorder);
+  color: var(--vscode-button-foreground);
+}
+
+/* ── Content Area ─────────────────────────────────────────── */
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* ── Tab Views ────────────────────────────────────────────── */
+.tab-view {
+  display: none;
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tab-view.active-view {
+  display: block;
+}
 
 /* ── Left Nav ─────────────────────────────────────────────── */
 
@@ -114,6 +191,40 @@ a:hover {
 
 .btn-ghost:hover:not(:disabled) {
   background: var(--vscode-toolbar-hoverBackground);
+}
+
+.btn-outline {
+  background: transparent !important;
+  border: 1px solid var(--vscode-button-background) !important;
+  color: var(--vscode-button-background) !important;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--vscode-button-background) !important;
+  color: var(--vscode-button-foreground) !important;
+}
+
+.btn-glow {
+  box-shadow: 0 0 10px rgba(0, 122, 204, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+  transform: rotate(45deg);
+  transition: 0.5s;
+  pointer-events: none;
+}
+
+.btn-glow:hover::after {
+  left: 100%;
 }
 
 /* ── Action Bar ───────────────────────────────────────────── */
@@ -1476,4 +1587,65 @@ details[open]>summary::before {
 .empty-icon {
     font-size: 28px;
     margin-bottom: 8px;
+}
+/* ── Premium Enhancements ─────────────────────────────────── */
+.premium-modal {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, var(--vscode-editor-background), var(--vscode-sideBar-background));
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 20px;
+}
+
+.premium-input {
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.premium-input:focus {
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.header-icon {
+  margin-right: 8px;
+  font-size: 18px;
+}
+
+.schedule-notice {
+  margin-top: 20px;
+  padding: 12px;
+  background: rgba(0, 122, 204, 0.05);
+  border-left: 3px solid var(--vscode-focusBorder);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notice-icon {
+  font-size: 20px;
+}
+
+.notice-text {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+.notice-text strong {
+  color: var(--vscode-foreground);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content {
+  animation: fadeIn 0.3s ease-out;
 }

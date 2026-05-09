@@ -11,6 +11,7 @@ import { PostHandler } from './PostHandler';
 import { Logger } from '../utils/Logger';
 import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
 import { DraftsService } from '../services/DraftsService';
+import { DotShareAuth } from '../services/DotShareAuth';
 
 interface Message {
     command: string;
@@ -45,8 +46,8 @@ export class MessageHandler {
         const cmd = message.command;
 
         // Smart routing based on command patterns - check specific commands first
-        if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' || 
-            cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost' || 
+        if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' ||
+            cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost' ||
             cmd === 'readMarkdownFile' || cmd === 'resetBlogMarkdown' || cmd === 'loadScheduledPosts' || cmd.includes('Draft')) {
             // Posting and content operations including Drafts
             await this.postHandler.handleMessage(message);
@@ -82,7 +83,8 @@ export class MessageHandler {
                         vscode.window.showErrorMessage('Due to Vercel leaks, we are waiting until they restore access. Sorry for the delay. You can use your own credentials to connect.');
                         return;
                     }
-                    const authUrl = `${AUTH_SERVER_URL}/auth/${platform}`;
+                    const scheme = vscode.env.uriScheme;
+                    const authUrl = `${AUTH_SERVER_URL}/auth/${platform}?scheme=${scheme}`;
                     Logger.info(`[MessageHandler] DotShare: Opening OAuth for ${platform} → ${authUrl}`);
                     vscode.env.openExternal(vscode.Uri.parse(authUrl));
                     break;
@@ -185,7 +187,17 @@ export class MessageHandler {
                     break;
                 }
 
+                case 'logout': {
+                    // 🔴 Emergency logout - show confirmation dialog
+                    Logger.info('[MessageHandler] Logout requested from Sidebar');
+                    vscode.commands.executeCommand('dotshare.confirmLogout');
+                    break;
+                }
 
+                case 'fetchProfile': {
+                    await this.handleFetchProfile();
+                    break;
+                }
 
                 default:
                     Logger.info('[MessageHandler] Unhandled command:', cmd);
@@ -193,6 +205,43 @@ export class MessageHandler {
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.sendError(`Error: ${errorMessage}`);
+        }
+    }
+
+    private async handleFetchProfile(): Promise<void> {
+        try {
+            const token = await DotShareAuth.getToken(this.context);
+            if (!token) {
+                Logger.info("[MessageHandler] No API token found, skipping profile fetch.");
+                vscode.window.showInformationMessage("Please log in first to view your profile.");
+                this.view.webview.postMessage({ command: 'LOGOUT_SUCCESS' });
+                return;
+            }
+
+            const baseUrl = DotShareAuth.getApiBaseUrl();
+            const axios = require('axios');
+            const response = await axios.get(`${baseUrl}/v1/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                validateStatus: () => true // Prevent axios from throwing on 4xx/5xx
+            });
+
+            if (response.status >= 200 && response.status < 300) {
+                this.view.webview.postMessage({ command: 'SET_PROFILE', data: response.data });
+            } else if (response.status === 401) {
+                Logger.warn("[MessageHandler] Token invalid or expired (401). Auto-logging out.");
+                await DotShareAuth.logout(this.context);
+                vscode.window.showErrorMessage("Session expired. Please log in again.");
+                this.view.webview.postMessage({ command: 'LOGOUT_SUCCESS' });
+            } else {
+                Logger.warn(`[MessageHandler] Failed to fetch profile: ${response.status}`);
+                vscode.window.showErrorMessage(`Failed to load profile (Status: ${response.status}).`);
+            }
+        } catch (error: any) {
+            Logger.error('[MessageHandler] Error fetching profile:', error);
+            vscode.window.showErrorMessage(`Error loading profile: ${error?.message || 'Network error'}`);
         }
     }
 

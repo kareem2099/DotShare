@@ -11,28 +11,57 @@
 
 <body>
 
-  <div id="app" class="platform-post-app">
+  <div class="app-container">
+    <!-- ═══════════════════════════════════════════
+       INNER SIDEBAR (Navigation Rail)
+    ════════════════════════════════════════════ -->
+    <nav class="inner-sidebar">
+      <div class="nav-top">
+        <button class="tab-btn active" data-target="view-compose" title="Compose Post">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        </button>
+        <button class="tab-btn" data-target="view-drafts" title="Saved Drafts">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        </button>
+        <button class="tab-btn" data-target="view-scheduled" title="Scheduled Posts">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        </button>
+        <button class="tab-btn" data-target="view-analytics" title="Analytics">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        </button>
+      </div>
+      <div class="nav-bottom">
+        <button class="tab-btn" title="Settings">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+      </div>
+    </nav>
 
     <!-- ═══════════════════════════════════════════
-       HEADER
+       MAIN CONTENT AREA
     ════════════════════════════════════════════ -->
-    <header class="platform-header">
-      <div class="platform-header-left">
-        <span class="platform-icon">{{PLATFORM_ICON}}</span>
-        <div class="platform-header-text">
-          <h1 class="platform-title">Post to {{PLATFORM_NAME}}</h1>
-          <p class="platform-subtitle">Compose and share your content</p>
-        </div>
-      </div>
-      <div class="platform-header-right">
-        <button class="btn btn-ghost btn-sm" id="btn-ai-model">🧠 <span id="ai-model-label">Choose AI</span></button>
-      </div>
-    </header>
+    <main class="content-area">
 
-    <!-- ═══════════════════════════════════════════
-       WORKSPACE CONTENT (Dynamic based on platform)
-    ════════════════════════════════════════════ -->
-    <main class="platform-content">
+      <!-- ═══════════════════════════════════════════
+         VIEW: COMPOSE (Active by default)
+      ════════════════════════════════════════════ -->
+      <div id="view-compose" class="tab-view active-view">
+        <div id="app" class="platform-post-app">
+          
+          <header class="platform-header">
+            <div class="platform-header-left">
+              <span class="platform-icon">{{PLATFORM_ICON}}</span>
+              <div class="platform-header-text">
+                <h1 class="platform-title">Post to {{PLATFORM_NAME}}</h1>
+                <p class="platform-subtitle">Compose and share your content</p>
+              </div>
+            </div>
+            <div class="platform-header-right">
+              <button class="btn btn-ghost btn-sm" id="btn-ai-model">🧠 <span id="ai-model-label">Choose AI</span></button>
+            </div>
+          </header>
+
+          <main class="platform-content">
 
       <!-- ═══ THREADS WORKSPACE (X / Bluesky) ═══ -->
       <div class="workspace{{THREADS_ACTIVE}}" id="workspace-threads" data-workspace="threads">
@@ -70,6 +99,7 @@
           <button class="btn btn-secondary btn-sm" id="btn-generate-ai-threads">🧠 Generate with AI</button>
           <div class="spacer"></div>
           <button class="btn btn-secondary btn-sm btn-save-draft" style="margin-right:8px;" title="Save as Draft">💾 Save Draft</button>
+          <button class="btn btn-primary btn-outline" id="btn-schedule-thread" disabled>📅 Schedule Thread</button>
           <button class="btn btn-primary" id="btn-share-thread" disabled>🚀 Share Thread</button>
         </div>
         <div class="shortcut-hint" style="margin-top:6px; justify-content: flex-end;">
@@ -152,6 +182,7 @@
               style="display:none;" />
             <div class="spacer"></div>
             <button class="btn btn-secondary btn-sm btn-save-draft" style="margin-right:8px;" title="Save as Draft">💾 Save Draft</button>
+            <button class="btn btn-primary btn-outline" id="btn-schedule" disabled>📅 Schedule</button>
             <button class="btn btn-primary" id="btn-share" disabled>🚀 Share Now</button>
           </div>
           <div class="shortcut-hint" style="margin-top:6px; justify-content: flex-end;">
@@ -219,35 +250,80 @@
         <div class="action-bar" id="blog-actions" style="display:none;">
           <div class="spacer"></div>
           <button class="btn btn-secondary btn-sm btn-save-draft" style="margin-right:8px;" title="Save as Draft">💾 Save Draft</button>
+          <button type="button" class="btn btn-primary btn-outline" id="btn-schedule-blog" disabled>📅 Schedule Article</button>
           <button type="button" class="btn btn-primary" id="btn-publish-blog"
             disabled>{{BLOG_PUBLISH_BUTTON_TEXT}}</button>
         </div>
       </div>
 
-      <!-- ═══ DRAFTS SECTION ═══ -->
-      <div class="drafts-section" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vscode-editorGroup-border);">
-        <h3 style="font-size: 14px; margin-bottom: 4px;">📝 Saved Drafts</h3>
-        <p style="font-size: 12px; color: var(--vscode-descriptionForeground); margin-bottom: 12px;">Drafts for {{PLATFORM_NAME}}</p>
+          </main>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
+         VIEW: DRAFTS
+      ════════════════════════════════════════════ -->
+      <div id="view-drafts" class="tab-view" style="display: none;">
+        <header class="platform-header" style="margin-bottom: 20px;">
+          <div class="platform-header-text">
+            <h1 class="platform-title">Saved Drafts</h1>
+            <p class="platform-subtitle">Manage drafts for {{PLATFORM_NAME}}</p>
+          </div>
+        </header>
         
-        <div id="drafts-loading" class="empty-state">
-          Loading drafts...
-        </div>
+        <div class="drafts-section">
+          <div id="drafts-loading" class="empty-state">Loading drafts...</div>
+          <div id="drafts-empty" class="empty-state" style="display:none;">
+            <div class="empty-icon">📝</div>
+            <div style="font-weight:600;margin-bottom:8px;">No local drafts yet</div>
+            <p style="font-size:12px;color:var(--vscode-descriptionForeground);">Drafts you save for this platform will appear here.</p>
+          </div>
+          <div id="drafts-list" class="drafts-grid" style="display:none;">
+            <!-- Rendered by JS -->
+          </div>
 
-        <div id="drafts-empty" class="empty-state" style="display:none;">
-          <div class="empty-icon">📝</div>
-          <div style="font-weight:600;margin-bottom:8px;">No local drafts yet</div>
-          <p style="font-size:12px;color:var(--vscode-descriptionForeground);">Drafts you save for this platform will appear here.</p>
-        </div>
-
-        <div id="drafts-list" class="drafts-grid" style="display:none;">
-          <!-- Rendered by JS -->
-        </div>
-
-        <!-- Div for remote drafts if applicable -->
-        <div id="remote-drafts-container" style="display:none; margin-top:16px;">
+          <!-- Div for remote drafts if applicable -->
+          <div id="remote-drafts-container" style="display:none; margin-top:16px;">
             <h3 style="font-size: 14px; margin-bottom: 8px;">🌐 Remote Drafts</h3>
             <button class="btn btn-secondary btn-sm" id="btn-fetch-remote-drafts" style="margin-bottom: 12px;">Fetch Remote Drafts</button>
             <div id="remote-drafts-list" class="drafts-grid" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
+         VIEW: SCHEDULED POSTS
+      ════════════════════════════════════════════ -->
+      <div id="view-scheduled" class="tab-view" style="display: none;">
+        <header class="platform-header" style="margin-bottom: 20px;">
+          <div class="platform-header-text">
+            <h1 class="platform-title">Scheduled Posts</h1>
+            <p class="platform-subtitle">Posts waiting in the Cloud</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-schedule">🔄 Refresh</button>
+        </header>
+        
+        <div class="card" id="scheduled-posts-container">
+          <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <div style="font-weight:600;margin-bottom:8px;">No scheduled posts</div>
+            <p style="font-size:12px;color:var(--vscode-descriptionForeground);">Schedule a post to see it here.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
+         VIEW: ANALYTICS
+      ════════════════════════════════════════════ -->
+      <div id="view-analytics" class="tab-view" style="display: none;">
+        <header class="platform-header" style="margin-bottom: 20px;">
+          <div class="platform-header-text">
+            <h1 class="platform-title">Analytics</h1>
+            <p class="platform-subtitle">Performance for {{PLATFORM_NAME}}</p>
+          </div>
+        </header>
+        <div class="card">
+          <p style="text-align:center; padding: 40px; color: var(--vscode-descriptionForeground);">Coming soon...</p>
         </div>
       </div>
 
@@ -311,6 +387,33 @@
         </div>
       </div>
       <div class="modal-footer"><button id="applyModelBtn" class="btn btn-primary">Apply Selection</button></div>
+    </div>
+  </div>
+
+  <!-- Schedule Modal -->
+  <div id="scheduleModal" class="modal" style="display:none;">
+    <div class="modal-content premium-modal">
+      <div class="modal-header">
+        <h3><span class="header-icon">📅</span> Schedule Post</h3>
+        <span id="closeScheduleModal" class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p class="modal-subtitle">Pick a date and time for your post to go live.</p>
+        
+        <div class="input-group">
+          <label for="scheduleDate">Post Date & Time</label>
+          <input type="datetime-local" id="scheduleDate" class="premium-input" />
+        </div>
+
+        <div class="schedule-notice">
+            <span class="notice-icon">☁️</span>
+            <span class="notice-text">This post will be handled by <strong>DotSuite Cloud</strong>. You don't need to keep VS Code open.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelScheduleBtn" class="btn btn-ghost">Cancel</button>
+        <button id="confirmScheduleBtn" class="btn btn-primary btn-glow">Confirm Schedule</button>
+      </div>
     </div>
   </div>
 

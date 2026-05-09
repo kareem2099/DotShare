@@ -83,6 +83,16 @@
         "command": "dotshare.whatsNew",
         "title": "DotShare: What's New",
         "icon": "$(light-bulb)"
+      },
+      {
+        "command": "dotshare.logout",
+        "title": "DotShare: Logout / Clear Token 🧹",
+        "category": "DotShare"
+      },
+      {
+        "command": "dotshare.confirmLogout",
+        "title": "DotShare: Confirm Logout",
+        "category": "DotShare"
       }
     ],
     "uriHandlers": [
@@ -128,7 +138,7 @@
     "scheduler": "node bin/dotshare-scheduler.js",
     "cli": "node bin/dotshare-cli.js",
     "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src media bin --ext ts,js",
+    "lint": "eslint src media --ext ts,js",
     "test": "node ./out/test/runTest.js",
     "test:ai": "jest src/ai/__tests__",
     "test:all": "jest",

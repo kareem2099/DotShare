@@ -3,9 +3,10 @@ import { DotShareProvider } from './ui/DotShareProvider';
 import { DotShareWebView } from './ui/DotShareWebView';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
-import { Scheduler } from './core/scheduler';
+
 import { Logger } from './utils/Logger';
 import { TokenManager } from './services/TokenManager';
+import { DotShareAuth } from './services/DotShareAuth';
 
 export async function activate(context: vscode.ExtensionContext) {
     Logger.init(context);
@@ -62,11 +63,129 @@ export async function activate(context: vscode.ExtensionContext) {
             WhatsNewProvider.show(context);
         })
     );
+
+    // ── SaaS Auth Commands ────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.login', async () => {
+            const token = await vscode.window.showInputBox({
+                prompt: 'Enter your DotSuite API Token',
+                password: true,
+                ignoreFocusOut: true
+            });
+            if (token) {
+                await DotShareAuth.storeToken(context, token);
+                const verification = await DotShareAuth.verifyToken(context);
+                if (verification.valid) {
+                    const tierInfo = await DotShareAuth.fetchTierInfo(context);
+                    vscode.window.showInformationMessage(`DotShare: Successfully logged in to DotSuite Cloud! Tier: ${tierInfo?.tier || 'Unknown'}`);
+                } else if (verification.reason === 'server_error') {
+                    vscode.window.showWarningMessage('DotShare: Token saved, but the server is currently unreachable. Verify your connection and try again.');
+                } else {
+                    vscode.window.showErrorMessage('DotShare: Invalid API token or backend unreachable.');
+                    await DotShareAuth.logout(context);
+                }
+            }
+        }),
+        vscode.commands.registerCommand('dotshare.logout', async () => {
+            // 🔴 Clear token
+            await DotShareAuth.logout(context);
+            
+            // 🔄 Reload webviews to show login screen
+            provider.reloadConfiguration();
+            DotShareWebView.reloadConfiguration();
+            
+            // ✅ Success message
+            vscode.window.showInformationMessage('✓ DotShare: Successfully logged out. Token cleared! 🧹');
+        }),
+        vscode.commands.registerCommand('dotshare.confirmLogout', async () => {
+            // Show confirmation to user
+            const choice = await vscode.window.showWarningMessage(
+                '⚠️ DotShare: Are you sure you want to logout and clear your token?\n\nYou will need to login again.',
+                { modal: true },
+                'Yes, Logout',
+                'Cancel'
+            );
+            
+            if (choice === 'Yes, Logout') {
+                // Execute actual logout
+                vscode.commands.executeCommand('dotshare.logout');
+            }
+        })
+    );
     await checkVersionAndShowWhatsNew(context);
 
-    // ── URI Handler (OAuth callback) ──────────────────────────
+    // ── URI Handler (OAuth callback & Magic Link Login) ─────────────
     const uriHandler = vscode.window.registerUriHandler({
         async handleUri(uri: vscode.Uri) {
+            Logger.info(`[Extension] Received URI: ${uri.toString()}`);
+            Logger.info(`[Extension] Path: ${uri.path}`);
+            Logger.info(`[Extension] Query: ${uri.query}`);
+            
+            if (uri.path === '/login') {
+                const params = new URLSearchParams(uri.query);
+                const token = params.get('token');
+                
+                Logger.info(`[Extension] Extracted token: ${token}`);
+                Logger.info(`[Extension] Token type: ${typeof token}`);
+                if (token) {
+                    Logger.info(`[Extension] Token length: ${token.length}`);
+                    Logger.info(`[Extension] First 20 chars: ${token.substring(0, 20)}`);
+                    Logger.info(`[Extension] Starts with ds_prod_: ${token.startsWith('ds_prod_')}`);
+                }
+                
+                if (token) {
+                    try {
+                        // 1. Store the token (validates format first)
+                        await DotShareAuth.storeToken(context, token);
+                        
+                        // 2. 🛡️ Security Check: confirm the token is real by pinging Rust backend
+                        const verification = await DotShareAuth.verifyToken(context);
+                        
+                        if (verification.valid) {
+                            const tierInfo = await DotShareAuth.fetchTierInfo(context);
+                            vscode.window.showInformationMessage(`✓ DotShare: Successfully connected to DotSuite Cloud! (Tier: ${tierInfo?.tier || 'Unknown'})`);
+                            vscode.commands.executeCommand('workbench.view.extension.dotshare-container');
+                            
+                            // Reload webviews to reflect new auth state
+                            const provider = new DotShareProvider(context.extensionUri, context);
+                            provider.reloadConfiguration();
+                            DotShareWebView.reloadConfiguration();
+                        } else if (verification.reason === 'server_error') {
+                            // 5xx or network error — the token may be fine, don't delete it
+                            Logger.warn('[Extension] Backend unreachable during token verification — keeping token, will retry on next use');
+                            vscode.window.showWarningMessage(
+                                '⚠️ DotShare: Could not reach the DotSuite server to verify your key. ' +
+                                'The key has been saved — your connection will be confirmed automatically once the server is back online.',
+                                'Retry Now'
+                            ).then(async (sel) => {
+                                if (sel === 'Retry Now') {
+                                    const retry = await DotShareAuth.verifyToken(context);
+                                    if (retry.valid) {
+                                        vscode.window.showInformationMessage('✓ DotShare: Connection verified successfully!');
+                                        vscode.commands.executeCommand('workbench.view.extension.dotshare-container');
+                                    } else if (retry.reason === 'unauthorized') {
+                                        vscode.window.showErrorMessage('❌ DotShare: Security Alert — Invalid token. Please generate a new key.');
+                                        await DotShareAuth.logout(context);
+                                    }
+                                }
+                            });
+                        } else {
+                            // 401/403 — the token is genuinely invalid; remove it immediately
+                            Logger.warn('[Extension] Token rejected by backend (401/403) — removing stored token');
+                            vscode.window.showErrorMessage('❌ DotShare: Security Alert — Invalid or fake API token received from link. Please try generating a new key.');
+                            await DotShareAuth.logout(context);
+                        }
+                    } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        vscode.window.showErrorMessage(`❌ DotShare: Failed to process authentication: ${errorMessage}`);
+                        await DotShareAuth.logout(context);
+                    }
+                } else {
+                    vscode.window.showErrorMessage('DotShare: Invalid login callback — missing token.');
+                }
+                return;
+            }
+
             if (uri.path !== '/auth') return;
 
             const params = new URLSearchParams(uri.query);
@@ -153,29 +272,6 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
     context.subscriptions.push(uriHandler);
-
-    // ── Scheduler ─────────────────────────────────────────────
-    const storagePath = context.globalStorageUri
-        ? context.globalStorageUri.fsPath
-        : context.extensionPath;
-
-    const credentialsGetter = async () => ({
-        linkedinToken: await context.secrets.get('linkedinToken') || '',
-        telegramBot: await context.secrets.get('telegramBot') || '',
-        telegramChat: await context.secrets.get('telegramChat') || '',
-        xAccessToken: await TokenManager.getValidToken('x'),
-        xAccessSecret: await context.secrets.get('xAccessSecret') || '',
-        facebookToken: await TokenManager.getValidToken('facebook'),
-        discordWebhook: await context.secrets.get('discordWebhook') || '',
-        redditAccessToken: await TokenManager.getValidToken('reddit'),
-        redditRefreshToken: await context.secrets.get('redditRefreshToken') || '',
-        blueskyIdentifier: await context.secrets.get('blueskyIdentifier') || '',
-        blueskyPassword: await context.secrets.get('blueskyPassword') || '',
-    });
-
-    const scheduler = new Scheduler(storagePath, undefined, credentialsGetter);
-    scheduler.start();
-    context.subscriptions.push({ dispose: () => scheduler.stop() });
 
     Logger.info('[Extension] DotShare v3.0 activated ✅');
 }

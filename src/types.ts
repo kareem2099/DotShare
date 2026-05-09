@@ -65,29 +65,12 @@ export interface AnalyticsSummary {
 
 export interface ScheduledPost {
     id: string;
-    scheduledTime: string;
-    postData: PostData;
-    aiProvider: AIProvider;
-    aiModel: string;
+    scheduled_at: string;
+    text_preview: string;
     platforms: SocialPlatform[];
-    status: PostStatus;
-    schedulingType: 'server' | 'client';
-    created: string;
-    errorMessage?: string;
-    postedTime?: string;
-    attempts?: number;
-    lastAttempt?: string;
-    platformResults?: {
-        linkedin?: { success: boolean; postId?: string; errorMessage?: string; };
-        telegram?: { success: boolean; messageId?: string; errorMessage?: string; };
-        x?: { success: boolean; postId?: string; errorMessage?: string; };
-        facebook?: { success: boolean; postId?: string; errorMessage?: string; };
-        discord?: { success: boolean; messageId?: string; errorMessage?: string; };
-        reddit?: { success: boolean; postId?: string; errorMessage?: string; score?: number; comments?: number; permalink?: string; };
-        bluesky?: { success: boolean; postId?: string; errorMessage?: string; };
-        devto?:   { success: boolean; url?: string; errorMessage?: string; };
-        medium?:  { success: boolean; url?: string; errorMessage?: string; };
-    };
+    status: string;
+    has_media: boolean;
+    tier: 'free' | 'basic' | 'pro' | 'max';
 }
 
 // ---------------------------------------------------------
@@ -453,4 +436,18 @@ export interface WebViewState {
     publishTargets: PublishTarget[];
     selectedPlatforms: SocialPlatform[];
     lastUpdated: string;
+}
+
+// ==========================================================
+// v4.0 — SaaS Billing & Quota Types
+// ==========================================================
+
+export interface TierInfo {
+    tier: 'free' | 'basic' | 'pro' | 'max';
+    is_paid: boolean;
+    posts_used: number;
+    posts_quota: number;
+    images_used: number;
+    images_quota: number;
+    subscription_ends_at: string | null;
 }

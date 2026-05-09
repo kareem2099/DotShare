@@ -22,9 +22,11 @@
                     <option value="ar">العربية</option>
                     <option value="ru">Русский</option>
                 </select>
-                <button id="themeToggle" class="theme-toggle">
+                <button id="profileBtn" class="profile-toggle" title="User Profile">
+                    <span class="icon">👤</span>
+                </button>
+                <button id="themeToggle" class="theme-toggle" title="Toggle Theme">
                     <span class="icon">🌙</span>
-                    <span class="text">Dark Mode</span>
                 </button>
             </div>
         </div>
@@ -425,7 +427,46 @@
         </div>
     </div>
 
-
+    <!-- 👤 Profile Modal -->
+    <div id="profileModal" class="modal" style="display: none;">
+        <div class="modal-content profile-modal-content">
+            <div class="modal-header">
+                <h3><span data-key="profile">User Profile</span></h3>
+                <span id="closeProfileModal" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body profile-body">
+                <div class="profile-info">
+                    <div class="profile-avatar">
+                        <span id="profileIcon">👤</span>
+                    </div>
+                    <div class="profile-details">
+                        <h4 id="profileName">Loading...</h4>
+                        <p id="profileEmail">Loading...</p>
+                        <div class="profile-badges">
+                            <span id="profileTier" class="tier-badge">Free</span>
+                            <span id="profileProvider" class="provider-badge"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="profile-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="profilePostsUsed">0</span>
+                        <span class="stat-label" data-key="postsUsed">Posts Used</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="profileImagesUsed">0</span>
+                        <span class="stat-label" data-key="imagesUsed">Images Used</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer profile-footer">
+                <button id="logoutBtn" class="logout-btn" title="Logout and clear token">
+                    <span class="logout-icon">🧹</span>
+                    <span class="logout-text" data-key="logout">Logout</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div id="savedApisModal" class="modal" style="display: none;">
         <div class="modal-content">

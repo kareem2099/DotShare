@@ -6,9 +6,12 @@ import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { MediaService } from '../services/MediaService';
 import { PostData } from '../types';
-import { ScheduledPostsStorage, generateScheduledPostId } from '../core/scheduled-posts';
+
 import { Logger } from '../utils/Logger';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
+import { SchedulerClient } from '../services/SchedulerClient';
+import { DotShareAuth } from '../services/DotShareAuth';
+
 
 // Imports for posting functions
 import { generatePost as generateGeminiPost } from '../ai/gemini';
@@ -96,6 +99,16 @@ export class PostHandler {
                 case 'shareThread':
                     await this.handleShareThread(message);
                     break;
+                    
+                case 'scheduleBlog':
+                    // Rust backend scheduler doesn't yet support blog metadata (title, tags, etc).
+                    this.sendSuccess('☁️ Blog scheduling (Dev.to / Medium) will be available in the next DotSuite Cloud update!');
+                    break;
+
+                case 'scheduleThread':
+                    // Rust backend doesn't yet support multi-post thread scheduling.
+                    this.sendSuccess('☁️ Thread scheduling will be available in the next DotSuite Cloud update!');
+                    break;
 
                 case 'readMarkdownFile':
                     await this.handleReadMarkdownFile();
@@ -121,8 +134,8 @@ export class PostHandler {
                     await this.handleSchedulePost(message);
                     break;
 
-                case 'editScheduledPost':
-                    await this.handleEditScheduledPost(message);
+                case 'cancelScheduledPost':
+                    await this.handleCancelScheduledPost(message);
                     break;
 
                 case 'openSupportLink':
@@ -332,61 +345,37 @@ export class PostHandler {
     // ─────────────────────────────────────────────────────────────────────────
 
     private async handleLoadScheduledPosts(): Promise<void> {
-        const storagePath = this.context.globalStorageUri?.fsPath ?? this.context.extensionPath;
-        const scheduledStorage = new ScheduledPostsStorage(storagePath);
-        const allScheduledPosts = scheduledStorage.loadScheduledPosts();
-        this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: allScheduledPosts });
+        const pendingPosts = await SchedulerClient.getPendingPosts(this.context);
+        this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: pendingPosts });
     }
 
-    private async handleEditScheduledPost(message: Message): Promise<void> {
-        const msg = message as unknown as {
-            scheduledPostId: string;
-            scheduledTime: string;
-            selectedPlatforms: string[];
-            postText?: string;
-        };
-
-        if (!msg.scheduledPostId || !msg.scheduledTime || !msg.selectedPlatforms?.length) {
-            this.sendError('Invalid edit data: missing post ID, time or platforms');
+    private async handleCancelScheduledPost(message: Message): Promise<void> {
+        const msg = message as unknown as { scheduledPostId: string };
+        
+        if (!msg.scheduledPostId) {
+            this.sendError('Invalid cancel request: missing post ID');
             return;
         }
 
-        const scheduledTimeLocal = msg.scheduledTime.length === 16 ? msg.scheduledTime + ':00' : msg.scheduledTime;
-        const scheduleDate = new Date(scheduledTimeLocal);
-
-        if (scheduleDate <= new Date()) {
-            this.sendError('Scheduled time must be in the future.');
-            return;
-        }
-
-        const storagePath = this.context.globalStorageUri?.fsPath ?? this.context.extensionPath;
-        const scheduledStorage = new ScheduledPostsStorage(storagePath);
-
-        try {
-            scheduledStorage.updateScheduledPost(msg.scheduledPostId, {
-                scheduledTime: scheduledTimeLocal,
-                platforms: msg.selectedPlatforms as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
-                postData: msg.postText ? { text: msg.postText, media: [] } : undefined
-            });
-
-            const allScheduledPosts = scheduledStorage.loadScheduledPosts();
-            this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: allScheduledPosts });
-            this.sendSuccess('Scheduled post updated successfully!');
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Failed to update scheduled post: ${errorMessage}`);
+        const success = await SchedulerClient.cancelPost(this.context, msg.scheduledPostId);
+        
+        if (success) {
+            this.sendSuccess('Scheduled post cancelled successfully!');
+            await this.handleLoadScheduledPosts();
+        } else {
+            this.sendError('Failed to cancel scheduled post. Please check your connection or login status.');
         }
     }
 
     private async handleSchedulePost(message: Message): Promise<void> {
         const msg = message as unknown as {
             scheduledTime: string;
-            selectedPlatforms: string[];
+            platforms: string[];
             postText: string;
             mediaFilePaths?: string[];
         };
 
-        if (!msg.scheduledTime || !msg.selectedPlatforms?.length) {
+        if (!msg.scheduledTime || !msg.platforms?.length) {
             this.sendError('Invalid schedule data: missing time or platforms');
             return;
         }
@@ -396,70 +385,49 @@ export class PostHandler {
             return;
         }
 
-        const scheduledTimeLocal = msg.scheduledTime.length === 16 ? msg.scheduledTime + ':00' : msg.scheduledTime;
-        const scheduledDate = new Date(scheduledTimeLocal);
+        // ── Auth Gate ─────────────────────────────────────────────────────────
+        const token = await DotShareAuth.getToken(this.context);
+        if (!token) {
+            // Inform the webview so it unlocks the composer
+            this.view.webview.postMessage({
+                command: 'status',
+                status: '🔑 You need to connect to DotSuite Cloud first. Opening login page…',
+                type: 'warning'
+            });
+
+            // Open the DotSuite web app login page with VS Code intent
+            const BASE_URL = process.env.NODE_ENV === 'production' ? 'https://dotsuite.vercel.app' : 'http://localhost:3000';
+            const scheme = vscode.env.uriScheme;
+            const DOTSUITE_LOGIN_URL = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
+            await vscode.env.openExternal(vscode.Uri.parse(DOTSUITE_LOGIN_URL));
+            
+            // Note: Scheduling will resume after the user logs in and the extension URI handler catches the token
+            return;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Expected format for the backend (ISO 8601 string)
+        let scheduledTimeLocal = msg.scheduledTime;
+        if (scheduledTimeLocal.length === 16) {
+            // Convert "YYYY-MM-DDTHH:mm" to ISO string if needed, 
+            // but JS Date handles it locally. We'll send ISO string to Rust.
+            scheduledTimeLocal = new Date(scheduledTimeLocal + ':00').toISOString();
+        }
+
         const postData = { text: msg.postText.trim(), media: msg.mediaFilePaths || [] };
 
-        Logger.debug('[PostHandler] Schedule post input', {
-            userInput: msg.scheduledTime,
-            localTimeString: scheduledTimeLocal,
-            parsedDate: scheduledDate,
-            unixTimestamp: Math.floor(scheduledDate.getTime() / 1000)
-        });
+        const result = await SchedulerClient.schedulePost(
+            this.context,
+            postData,
+            msg.platforms as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
+            scheduledTimeLocal
+        );
 
-        const storagePath = this.context.globalStorageUri?.fsPath ?? this.context.extensionPath;
-        const scheduledStorage = new ScheduledPostsStorage(storagePath);
-
-        // Telegram supports server-side scheduling, others are client-side
-        const nativePlatforms = msg.selectedPlatforms.filter(p => p === 'telegram');
-        const localPlatforms  = msg.selectedPlatforms.filter(p => p !== 'telegram');
-
-        try {
-            if (nativePlatforms.length > 0) {
-                await this.shareToTelegramWithUpdate(postData, undefined, undefined, undefined, scheduledDate);
-                scheduledStorage.addScheduledPost({
-                    id: generateScheduledPostId(),
-                    scheduledTime: scheduledTimeLocal,
-                    postData,
-                    aiProvider: 'gemini' as const,
-                    aiModel: 'gemini-2.5-flash',
-                    platforms: ['telegram'] as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
-                    status: 'server-scheduled' as const,
-                    schedulingType: 'server' as const,
-                    created: new Date().toISOString()
-                });
-            }
-
-            if (localPlatforms.length > 0) {
-                scheduledStorage.addScheduledPost({
-                    id: generateScheduledPostId(),
-                    scheduledTime: scheduledTimeLocal,
-                    postData,
-                    aiProvider: 'gemini' as const,
-                    aiModel: 'gemini-2.5-flash',
-                    platforms: localPlatforms as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
-                    status: 'queued' as const,
-                    schedulingType: 'client' as const,
-                    created: new Date().toISOString()
-                });
-            }
-
-            const allScheduledPosts = scheduledStorage.loadScheduledPosts();
-            this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: allScheduledPosts });
-
-            if (localPlatforms.length > 0) {
-                this.view.webview.postMessage({
-                    command: 'status',
-                    status: `Post scheduled locally! (Keep VS Code open for delivery). Want Cloud Scheduling (24/7)? Support us! ☕`,
-                    type: 'warning',
-                    showSupportAction: true
-                });
-            } else {
-                this.sendSuccess(`Post scheduled successfully for ${scheduledDate.toLocaleString()}`);
-            }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            this.sendError(`Failed to schedule post: ${errorMessage}`);
+        if (result.success) {
+            this.sendSuccess('Post scheduled successfully in the Cloud! ☁️');
+            await this.handleLoadScheduledPosts();
+        } else {
+            this.sendError(`Failed to schedule post: ${result.message || 'Unknown error'}`);
         }
     }
 

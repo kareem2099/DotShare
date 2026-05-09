@@ -200,13 +200,8 @@ export function schedulePost(): void {
         return;
     }
 
-    // Warn user about local vs server scheduling
-    const hasLocalPlatforms = selectedPlatforms.some(p => p !== 'telegram');
-
-    if (hasLocalPlatforms) {
-        const localPlatformsNames = selectedPlatforms.filter(p => p !== 'telegram').join(', ');
-        showStatus(`⚠️ Note: ${localPlatformsNames} scheduling requires VS Code to be open at the scheduled time. If closed, posts will be sent immediately next time you open it.`, 'warning');
-    }
+    // Show notice about Cloud Scheduling
+    showStatus(`☁️ Scheduling via DotSuite Cloud...`, 'success');
 
     // Get post content and media
     const postText = (document.getElementById('scheduledPostText') as HTMLTextAreaElement)?.value || '';
@@ -226,17 +221,10 @@ export function schedulePost(): void {
     showStatus('Post scheduled successfully!', 'success');
 }
 
-// Edit Schedule Modal functions
-export function editScheduledPost(): void {
-    // Would open edit modal for scheduled post
-}
-
-export function saveEditedScheduledPost(): void {
-    // Would save edited scheduled post
-}
-
-export function closeEditScheduledModalFunc(): void {
-    // Would close edit scheduled modal
+export function cancelScheduledPost(postId: string): void {
+    if (confirm('Are you sure you want to cancel this scheduled post?')) {
+        getVscode().postMessage({ command: 'cancelScheduledPost', scheduledPostId: postId });
+    }
 }
 
 // Reddit Post Modal functions

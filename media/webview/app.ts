@@ -123,7 +123,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let activeCommandPlatform: string | null = null;
+let activeCommandPlatform: string | null = (typeof window !== 'undefined' && window.__PLATFORM_DATA__?.platform) || null;
 let activeMediaPaths: string[] = [];
 
 // ── Max chars fallback map ────────────────────────────────────────────────────
@@ -138,7 +138,10 @@ const counter   = get('char-counter');
 const btnShare  = get<HTMLButtonElement>('btn-share');
 const btnGen    = get<HTMLButtonElement>('btn-generate-ai');
 const btnMedia  = get<HTMLButtonElement>('btn-attach-media');
+const btnSchedule = get<HTMLButtonElement>('btn-schedule');
 const fileInput = get<HTMLInputElement>('media-file-input');
+
+let scheduleMode: 'social' | 'blog' | 'thread' = 'social';
 
 function updateCharCounter(): void {
     if (!textarea || !counter) return;
@@ -154,9 +157,12 @@ function updateCharCounter(): void {
 
 function updateShareBtn(): void {
     if (!btnShare) return;
-    if (!textarea?.value.trim()) { btnShare.disabled = true; return; }
+    const hasText = !!textarea?.value.trim();
     const max = window.__PLATFORM_DATA__?.maxChars || (activeCommandPlatform && MAX_CHARS_MAP[activeCommandPlatform]) || null;
-    btnShare.disabled = max ? textarea.value.length > max : false;
+    const tooLong = max ? textarea!.value.length > max : false;
+    
+    btnShare.disabled = !hasText || tooLong;
+    if (btnSchedule) btnSchedule.disabled = !hasText || tooLong;
 }
 
 textarea?.addEventListener('input', () => { updateCharCounter(); updateShareBtn(); });
@@ -252,6 +258,137 @@ btnShare?.addEventListener('click', () => {
     send('share', payload);
 });
 
+// ── Schedule Button ───────────────────────────────────────────
+function openScheduleModal(mode: 'social' | 'blog' | 'thread') {
+    const modal = get('scheduleModal');
+    if (!modal) return;
+    
+    scheduleMode = mode;
+
+    // Update modal title
+    const titleEl = modal.querySelector<HTMLElement>('.modal-header h3');
+    if (titleEl) {
+        titleEl.innerHTML = mode === 'blog'
+            ? '<span class="header-icon">📅</span> Schedule Article'
+            : mode === 'thread'
+            ? '<span class="header-icon">📅</span> Schedule Thread'
+            : '<span class="header-icon">📅</span> Schedule Post';
+    }
+    
+    // Set default time to +1 hour
+    const dateInput = get<HTMLInputElement>('scheduleDate');
+    if (dateInput) {
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        now.setMinutes(0);
+        // Format to YYYY-MM-DDTHH:mm
+        const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        dateInput.value = localISO;
+    }
+    
+    modal.style.display = 'flex';
+}
+
+btnSchedule?.addEventListener('click', () => openScheduleModal('social'));
+get('btn-schedule-blog')?.addEventListener('click', () => openScheduleModal('blog'));
+
+get('closeScheduleModal')?.addEventListener('click', () => {
+    const modal = get('scheduleModal');
+    if (modal) modal.style.display = 'none';
+});
+
+get('cancelScheduleBtn')?.addEventListener('click', () => {
+    const modal = get('scheduleModal');
+    if (modal) modal.style.display = 'none';
+});
+
+get('confirmScheduleBtn')?.addEventListener('click', () => {
+    // Get content from the right source based on schedule mode
+    const activeText = scheduleMode === 'blog'
+        ? getBlogBodyText()
+        : textarea?.value.trim();
+
+    if (!activeText) {
+        toast(
+            scheduleMode === 'blog'
+                ? 'No article content. Read a Markdown file first.'
+                : 'Write something first.',
+            'warning'
+        );
+        return;
+    }
+    
+    const dateInput = get<HTMLInputElement>('scheduleDate');
+    const rawTime = dateInput?.value;
+    const scheduledTime = rawTime ? new Date(rawTime).toISOString() : null;
+    
+    if (!scheduledTime) {
+        toast('Please select a date and time.', 'warning');
+        return;
+    }
+
+    const scheduleDate = new Date(scheduledTime);
+    if (scheduleDate <= new Date()) {
+        toast('Scheduled time must be in the future.', 'warning');
+        return;
+    }
+
+    setComposerLocked(true);
+    const modal = get('scheduleModal');
+    if (modal) modal.style.display = 'none';
+    
+    if (scheduleMode === 'social') {
+        const currentPlat = activeCommandPlatform || window.__PLATFORM_DATA__?.platform;
+        const platforms = currentPlat ? [currentPlat] : [];
+        
+        if (platforms.length === 0) {
+            toast('No platform selected for scheduling.', 'error');
+            setComposerLocked(false);
+            return;
+        }
+
+        send('schedulePost', {
+            postText: activeText,
+            platforms,
+            scheduledTime: scheduledTime,
+            mediaFilePaths: activeMediaPaths
+        });
+    } else if (scheduleMode === 'thread') {
+        const valid = threadPosts.filter(p => p.text.trim() || p.mediaFilePaths.length > 0);
+        if (!valid.length) {
+            toast('Thread is empty.', 'warning');
+            setComposerLocked(false);
+            return;
+        }
+        send('scheduleThread', {
+            platform: activeCommandPlatform || (window as { __AUTO_THREAD_PLATFORM__?: string }).__AUTO_THREAD_PLATFORM__,
+            posts: valid.map(p => ({ text: p.text, mediaFilePaths: p.mediaFilePaths })),
+            scheduledTime: scheduledTime
+        });
+    } else if (scheduleMode === 'blog') {
+        const platform = getSingleBlogPlatform();
+        if (!platform) {
+            toast('No blog platform selected.', 'warning');
+            setComposerLocked(false);
+            return;
+        }
+
+        send('scheduleBlog', {
+            platform,
+            post: activeText,
+            title: get<HTMLInputElement>('blog-title')?.value.trim(),
+            tags: get<HTMLInputElement>('blog-tags')?.value.trim().split(',').map(t => t.trim()).filter(Boolean),
+            description: get<HTMLTextAreaElement>('blog-description')?.value.trim(),
+            coverImage: get<HTMLInputElement>('blog-cover-image')?.value.trim(),
+            canonicalUrl: get<HTMLInputElement>('blog-canonical-url')?.value.trim(),
+            series: get<HTMLInputElement>('blog-series')?.value.trim(),
+            scheduledTime: scheduledTime
+        });
+    }
+    
+    toast('Scheduling post...', 'info');
+});
+
 // ── AI Generate ───────────────────────────────────────────────────────────────
 btnGen?.addEventListener('click', () => {
     send('generatePost', { post: textarea?.value.trim() || '', platform: activeCommandPlatform || 'general' });
@@ -295,6 +432,7 @@ function resetAllComposers(): void {
     setBtnLoading('btn-generate-ai', false);
     setBtnLoading('btn-read-md-file', false);
     if (btnShare) { btnShare.disabled = true; btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now'; }
+    if (btnSchedule) btnSchedule.disabled = true;
     const tBtn = get<HTMLButtonElement>('btn-share-thread');
     if (tBtn) { tBtn.classList.remove('loading'); tBtn.disabled = false; tBtn.textContent = '🚀 Share Thread'; }
     resetBlogPublishUi();
@@ -338,7 +476,7 @@ function getSingleBlogPlatform(): 'devto' | 'medium' | null {
 
 function updateBlogPublishButtonsState(): void {
     const has = getBlogBodyText().length > 0;
-    (['btn-publish-blog-devto', 'btn-publish-blog-medium', 'btn-publish-blog'] as const).forEach(id => {
+    (['btn-publish-blog-devto', 'btn-publish-blog-medium', 'btn-publish-blog', 'btn-schedule-blog'] as const).forEach(id => {
         const b = get<HTMLButtonElement>(id);
         if (b) b.disabled = !has;
     });
@@ -452,6 +590,9 @@ function updateThreadShareBtn(): void {
     const hasContent = threadPosts.some(p => p.text.trim() || p.mediaFilePaths.length > 0);
     const tooLong = threadPosts.some(p => p.text.length > max);
     btnShareThread.disabled = !hasContent || tooLong;
+    // Keep schedule-thread button in sync
+    const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
+    if (btnSchedThread) btnSchedThread.disabled = !hasContent || tooLong;
 }
 
 function reIndexThreads(): void {
@@ -541,6 +682,8 @@ btnShareThread?.addEventListener('click', () => {
         posts: valid.map(p => ({ text: p.text, mediaFilePaths: p.mediaFilePaths }))
     });
 });
+
+get('btn-schedule-thread')?.addEventListener('click', () => openScheduleModal('thread'));
 
 // ── AI Model Modal ────────────────────────────────────────────────────────────
 get('btn-ai-model')?.addEventListener('click', () => { const m = get('modelModal'); if (m) m.style.display = 'flex'; });
@@ -802,6 +945,17 @@ window.addEventListener('message', (event: MessageEvent) => {
                 }
                 break;
             }
+
+            case 'updateScheduledPosts': {
+                console.log('[DotShare] Received scheduled posts:', msg.scheduledPosts);
+                renderScheduledPosts((msg.scheduledPosts as ScheduledPost[]) ?? []);
+                break;
+            }
+
+            case 'SET_PROFILE':
+                console.log('[DotShare] Profile loaded:', msg.data);
+                // Profile data can be used for other UI enhancements if needed
+                break;
         }
     } catch (e) {
         console.error('[DotShare] Message handler error:', e);
@@ -901,10 +1055,186 @@ function renderDrafts(drafts: DraftItem[], containerId: string, emptyId?: string
     });
 }
 
+// ── Render Scheduled Posts ────────────────────────────────────
+interface ScheduledPost {
+    id: string;
+    scheduled_at: string;
+    text_preview: string;
+    platforms: string[];
+    status: string;
+    tier: 'free' | 'basic' | 'pro' | 'max';
+}
+
+function getTierInterval(tier: string): number {
+    switch (tier.toLowerCase()) {
+        case 'free': return 60;
+        case 'basic': return 30;
+        case 'pro': return 15;
+        case 'max': return 0;
+        default: return 60;
+    }
+}
+
+function calculateApproxTime(scheduledAt: string, tier: string): Date {
+    const date = new Date(scheduledAt);
+    const interval = getTierInterval(tier);
+    if (interval === 0) return date;
+
+    const ms = date.getTime();
+    const intervalMs = interval * 60 * 1000;
+    
+    // The scheduler runs at 0, 15, 30, 45 or 0, 30 or 0
+    // So if scheduled for 10:05, it will run at the next interval point.
+    return new Date(Math.ceil(ms / intervalMs) * intervalMs);
+}
+
+function renderScheduledPosts(posts: ScheduledPost[]): void {
+    console.log('[DotShare] Rendering scheduled posts, count:', posts.length);
+    const container = get('scheduled-posts-container');
+    if (!container) {
+        console.error('[DotShare] scheduled-posts-container not found!');
+        return;
+    }
+
+    if (!posts || posts.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📅</div>
+                <div style="font-weight:600;margin-bottom:8px;">No scheduled posts</div>
+                <p style="font-size:12px;color:var(--vscode-descriptionForeground);">Schedule a post to see it here.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = posts.map(p => {
+        const intendedDate = new Date(p.scheduled_at);
+        const approxDate = calculateApproxTime(p.scheduled_at, p.tier);
+        
+        const dateStr = intendedDate.toLocaleString(undefined, { 
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+        });
+        const approxStr = approxDate.toLocaleTimeString(undefined, {
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        const text = escapeHtml(p.text_preview);
+        const platforms = p.platforms.join(', ');
+        const isMax = p.tier.toLowerCase() === 'max';
+        
+        return `
+            <div class="draft-card scheduled-card" style="margin-bottom: 12px; position: relative;" 
+                 data-time="${p.scheduled_at}" data-approx="${approxDate.toISOString()}">
+                <div class="draft-card-title">${text}</div>
+                <div class="draft-card-meta">
+                    <span class="draft-badge" style="background:var(--vscode-charts-orange)">${p.status}</span>
+                    <span class="draft-badge" style="background:var(--vscode-badge-background); color:var(--vscode-badge-foreground)">${p.tier}</span>
+                    ${platforms}
+                </div>
+                <div style="font-size: 11px; margin-top: 8px; color: var(--vscode-descriptionForeground); display: flex; flex-direction: column; gap: 2px;">
+                    <div>📅 Intended: ${dateStr}</div>
+                    <div style="font-weight: 600; color: var(--vscode-foreground);">
+                        🚀 Approx. Execution: ${isMax ? 'Exact Time' : approxStr}
+                    </div>
+                    <div class="countdown-timer" style="margin-top: 4px; font-weight: bold; color: var(--vscode-charts-blue);">
+                        Calculating...
+                    </div>
+                </div>
+                <div class="draft-card-actions" style="margin-top: 12px;">
+                    <button class="btn btn-ghost btn-sm" data-action="cancel-scheduled" data-id="${p.id}">🗑 Cancel</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Wire cancel buttons
+    container.querySelectorAll<HTMLButtonElement>('[data-action="cancel-scheduled"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            if (id) send('cancelScheduledPost', { scheduledPostId: id });
+        });
+    });
+
+    // Initial update
+    updateScheduledCountdowns();
+}
+
+function updateScheduledCountdowns() {
+    const cards = document.querySelectorAll<HTMLElement>('.scheduled-card');
+    cards.forEach(card => {
+        const approxStr = card.getAttribute('data-approx');
+        if (!approxStr) return;
+
+        const target = new Date(approxStr);
+        const diff = target.getTime() - Date.now();
+        const countdownEl = card.querySelector<HTMLElement>('.countdown-timer');
+        if (!countdownEl) return;
+
+        if (diff <= 0) {
+            countdownEl.textContent = '⏱️ Processing by Server...';
+            countdownEl.style.color = 'var(--vscode-charts-green)';
+        } else {
+            const hours = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            
+            let timeStr = '';
+            if (hours > 0) timeStr += `${hours}h `;
+            timeStr += `${mins}m ${secs}s`;
+            
+            countdownEl.textContent = `⏳ Execution in: ${timeStr}`;
+        }
+    });
+}
+
+// Start the countdown loop
+setInterval(updateScheduledCountdowns, 1000);
+
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 try {
     send('loadConfiguration');
+    
+    // Sidebar Tab Navigation
+    document.querySelectorAll<HTMLButtonElement>('.inner-sidebar .tab-btn[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            if (!targetId) return;
+
+            // Update buttons
+            document.querySelectorAll('.inner-sidebar .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update views
+            document.querySelectorAll('.tab-view').forEach(view => {
+                (view as HTMLElement).style.display = 'none';
+                view.classList.remove('active-view');
+            });
+
+            const targetView = get(targetId);
+            if (targetView) {
+                targetView.style.display = 'block';
+                targetView.classList.add('active-view');
+            }
+
+            // Optional: Auto-refresh data when switching tabs
+            if (targetId === 'view-drafts') {
+                send('listLocalDrafts');
+            } else if (targetId === 'view-scheduled') {
+                send('loadScheduledPosts');
+            }
+        });
+    });
+
+    // Wire refresh schedule button
+    get('btn-refresh-schedule')?.addEventListener('click', () => {
+        send('loadScheduledPosts');
+        toast('Refreshing scheduled posts...', 'info');
+    });
+
+    // Settings placeholder
+    document.querySelector('.nav-bottom .tab-btn')?.addEventListener('click', () => {
+        toast('Settings coming soon...', 'info');
+    });
     
     // Wire Fetch Remote Drafts button
     const fetchRemoteBtn = get<HTMLButtonElement>('btn-fetch-remote-drafts');

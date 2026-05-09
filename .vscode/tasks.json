@@ -6,22 +6,15 @@
       "script": "watch",
       "problemMatcher": {
         "owner": "esbuild",
-        "pattern": [
-          {
-            "regexp": "^✘ \\[ERROR\\] (.*)$",
-            "message": 1
-          },
-          {
-            "regexp": "^\\s+([^:]+):(\\d+):(\\d+):$",
-            "file": 1,
-            "line": 2,
-            "column": 3
-          }
-        ],
+        "severity": "error",
+        "pattern": {
+          "regexp": "^✘ \\[ERROR\\] (.*)$",
+          "message": 1
+        },
         "background": {
           "activeOnStart": true,
           "beginsPattern": "^\\[watch\\] build started",
-          "endsPattern": "^\\[watch\\] build finished"
+          "endsPattern": "^\\[watch\\] build finished|^\\[build\\] Build completed"
         }
       },
       "isBackground": true,
@@ -40,18 +33,11 @@
       "script": "compile",
       "problemMatcher": {
         "owner": "esbuild",
-        "pattern": [
-          {
-            "regexp": "^✘ \\[ERROR\\] (.*)$",
-            "message": 1
-          },
-          {
-            "regexp": "^\\s+([^:]+):(\\d+):(\\d+):$",
-            "file": 1,
-            "line": 2,
-            "column": 3
-          }
-        ]
+        "severity": "error",
+        "pattern": {
+          "regexp": "^✘ \\[ERROR\\] (.*)$",
+          "message": 1
+        }
       },
       "group": "build",
       "presentation": {

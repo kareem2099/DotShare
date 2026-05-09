@@ -5,7 +5,7 @@ import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { MediaService } from '../services/MediaService';
 import { MessageHandler } from '../handlers/MessageHandler';
-import { ScheduledPostsStorage } from '../core/scheduled-posts';
+
 
 export class DotShareProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'dotshareView';
@@ -14,8 +14,7 @@ export class DotShareProvider implements vscode.WebviewViewProvider {
     private _analyticsService: AnalyticsService;
     private _mediaService: MediaService;
     private _messageHandler?: MessageHandler;
-    // Keep scheduler logic here or move to a separate service later
-    private _scheduledPostsStorage!: ScheduledPostsStorage;
+
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -25,10 +24,6 @@ export class DotShareProvider implements vscode.WebviewViewProvider {
         this._analyticsService = new AnalyticsService();
         this._mediaService = new MediaService(_context);
 
-        const storagePath = _context.globalStorageUri
-            ? _context.globalStorageUri.fsPath
-            : path.join(_context.extensionPath, 'storage');
-        this._scheduledPostsStorage = new ScheduledPostsStorage(storagePath);
     }
 
     public resolveWebviewView(

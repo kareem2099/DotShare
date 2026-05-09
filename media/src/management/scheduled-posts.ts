@@ -1,5 +1,5 @@
 // Scheduled posts management functions - extracted from app.ts
-import { ScheduledPost } from '../../types';
+import { ScheduledPost } from '../../../src/types';
 import { showStatus, getScheduledStatusBadge, scheduledList, scheduledPosts, currentEditingPostId, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduleReddit, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat, setCurrentEditingPostId } from '../core/utils';
 import { translations } from '../core/translations';
 import { currentLang } from '../core/utils';
@@ -34,7 +34,7 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
 
         const statusBadge = getScheduledStatusBadge(post.status);
 
-        const platformIcons = post.platforms.map(p => p === 'linkedin' ? '💼' : '📱').join(' ');
+        const platformIcons = post.platforms.map((p: string) => p === 'linkedin' ? '💼' : '📱').join(' ');
 
         // Add scheduling type indicator
         const schedulingIcon = post.schedulingType === 'server' ? '☁️' : '💻';
@@ -54,8 +54,7 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
                     ${post.postData.media ? '<div class="scheduled-media">📎 Media attached</div>' : ''}
                 </div>
                 <div class="scheduled-actions">
-                    ${post.status === 'failed' ? `<button class="retry-scheduled-btn" data-post-id="${post.id}" title="Retry">🔄</button>` : `<button class="edit-scheduled-btn" data-post-id="${post.id}" title="Edit">✏️</button>`}
-                    <button class="delete-scheduled-btn" data-post-id="${post.id}" title="Delete">🗑️</button>
+                    <button class="cancel-scheduled-btn" data-post-id="${post.id}" title="Cancel Post">❌ Cancel</button>
                 </div>
             </div>
         `;
@@ -97,19 +96,13 @@ export function populateEditModal(post: ScheduledPost): void {
     editScheduledModal.style.display = 'flex';
 }
 
-export function deleteScheduledPost(postId: string): void {
-    // Use VS Code's native confirmation dialog
-    getVscode()?.postMessage({
-        command: 'confirmDeleteScheduledPost',
-        scheduledPostId: postId
-    });
-}
-
-export function retryScheduledPost(postId: string): void {
-    getVscode()?.postMessage({
-        command: 'retryScheduledPost',
-        scheduledPostId: postId
-    });
+export function cancelScheduledPost(postId: string): void {
+    if (confirm('Are you sure you want to cancel this scheduled post?')) {
+        getVscode()?.postMessage({
+            command: 'cancelScheduledPost',
+            scheduledPostId: postId
+        });
+    }
 }
 
 export function showScheduledPosts(): void {
@@ -118,88 +111,14 @@ export function showScheduledPosts(): void {
 }
 
 export function addScheduledPostEventListeners() {
-    // Edit buttons
-    document.querySelectorAll('.edit-scheduled-btn').forEach(btn => {
+    // Cancel buttons
+    document.querySelectorAll('.cancel-scheduled-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const postId = (e.target as HTMLElement).getAttribute('data-post-id');
             if (postId) {
-                editScheduledPost(postId);
-            }
-        });
-    });
-
-    // Delete buttons
-    document.querySelectorAll('.delete-scheduled-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const postId = (e.target as HTMLElement).getAttribute('data-post-id');
-            if (postId) {
-                deleteScheduledPost(postId);
-            }
-        });
-    });
-
-    // Retry buttons
-    document.querySelectorAll('.retry-scheduled-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const postId = (e.target as HTMLElement).getAttribute('data-post-id');
-            if (postId) {
-                retryScheduledPost(postId);
+                cancelScheduledPost(postId);
             }
         });
     });
 }
 
-export function editScheduledPost(postId: string) {
-    if (!editScheduledModal) return;
-
-    setCurrentEditingPostId(postId);
-
-    // Load current scheduled posts data
-    getVscode()?.postMessage({ command: 'loadScheduledPosts' });
-
-    // Modal will be populated when data is loaded
-}
-
-export function saveEditedScheduledPost() {
-    if (!currentEditingPostId || !editScheduleDate || !editScheduleLinkedIn || !editScheduleTelegram || !editScheduleReddit || !editScheduledPostText || !editScheduledModal) return;
-
-    const scheduledTime = editScheduleDate.value;
-    const selectedPlatforms: ('linkedin' | 'telegram' | 'reddit')[] = [];
-
-    if (editScheduleLinkedIn.checked) selectedPlatforms.push('linkedin');
-    if (editScheduleTelegram.checked) selectedPlatforms.push('telegram');
-    if (editScheduleReddit.checked) selectedPlatforms.push('reddit');
-
-    if (!scheduledTime) {
-        showStatus('Please select a date and time.', 'error');
-        return;
-    }
-
-    if (selectedPlatforms.length === 0) {
-        showStatus('Please select at least one platform.', 'error');
-        return;
-    }
-
-    const scheduleDateObj = new Date(scheduledTime);
-    const now = new Date();
-
-    if (scheduleDateObj <= now) {
-        showStatus('Scheduled time must be in the future.', 'error');
-        return;
-    }
-
-    getVscode()?.postMessage({
-        command: 'editScheduledPost',
-        scheduledPostId: currentEditingPostId,
-        scheduledTime: scheduledTime,
-        selectedPlatforms: selectedPlatforms,
-        postText: editScheduledPostText.value.trim() || undefined
-    });
-
-    closeEditScheduledModal();
-}
-
-export function closeEditScheduledModal() {
-    if (editScheduledModal) editScheduledModal.style.display = 'none';
-    setCurrentEditingPostId(null);
-}

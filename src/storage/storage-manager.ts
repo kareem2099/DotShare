@@ -2,13 +2,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as vscode from 'vscode';
-import { ScheduledPostsStorage } from '../core/scheduled-posts';
+
 import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary, SavedApiConfiguration } from '../types';
 import { Logger } from '../utils/Logger';
 
 export class StorageManager {
     private _context: vscode.ExtensionContext;
-    private _scheduledPostsStorage!: ScheduledPostsStorage;
+
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -47,13 +47,8 @@ export class StorageManager {
             }
         }
 
-        this._scheduledPostsStorage = new ScheduledPostsStorage(storagePath);
     }
 
-    // Scheduled posts storage methods
-    public get scheduledPostsStorage(): ScheduledPostsStorage {
-        return this._scheduledPostsStorage;
-    }
 
     // Post history methods
     public savePostToHistory(aiProvider: 'gemini' | 'openai' | 'xai', aiModel: string, postData: PostData): void {

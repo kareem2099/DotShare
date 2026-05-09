@@ -689,6 +689,242 @@ header {
     background: var(--vscode-button-secondaryHoverBackground);
 }
 
+/* ── 👤 Profile Toggle Button ──────────────────────────────── */
+.profile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.profile-toggle:hover {
+    background: var(--button-hover);
+    transform: scale(1.05);
+}
+
+/* ── 🪟 Base Modal Overlay ── */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* ── 📦 Modal Content Box ── */
+.modal-content {
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-editorWidget-border, #444);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    position: relative;
+    animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalPop {
+    0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── 👤 Profile Modal Styles ─────────────────────────────── */
+.profile-modal-content {
+    max-width: 350px !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+}
+
+.profile-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.profile-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    box-shadow: var(--shadow);
+}
+
+.profile-details {
+    flex: 1;
+}
+
+.profile-details h4 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+.profile-details p {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.profile-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.tier-badge, .provider-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.provider-badge {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+/* Base Tiers */
+.tier-badge[data-tier="free"], .tier-badge:not([data-tier]) {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.tier-badge[data-tier="basic"] {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* ✨ Premium Tiers */
+.tier-badge[data-tier="pro"], .tier-badge[data-tier="max"] {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+    background-size: 200% 200%;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
+    animation: goldGlow 3s ease infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+.tier-badge[data-tier="max"]::after {
+    content: "✦";
+    margin-left: 4px;
+    font-size: 10px;
+    animation: sparkle 1.5s linear infinite;
+}
+
+@keyframes goldGlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes sparkle {
+    0%, 100% { opacity: 0.5; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+.profile-stats {
+    display: flex;
+    gap: 12px;
+    background: var(--input-bg);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--focus);
+}
+
+.stat-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.profile-footer {
+    padding: 16px;
+    background: var(--input-bg);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+}
+
+/* ── Logout Button ──────────────────── */
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 6px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.logout-btn:hover {
+    background: linear-gradient(135deg, #ff5252, #d63447);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+    transform: translateY(-1px);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(255, 107, 107, 0.2);
+}
+
+.logout-icon {
+    font-size: 16px;
+}
+
+.logout-text {
+    font-weight: 600;
+}
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
     .platform-settings {

@@ -1,3 +1,54 @@
+# 🗺️ DotShare Roadmap — The 3.x Era (SaaS & Cloud Native)
+
+> **Codename:** *The SaaS Way*
+> **Philosophy:** Cloud-first scheduling, secure centralized credentials, lightweight extension.
+
+---
+
+## 🏛️ v3.3.0 Architecture & Refactoring Master Plan
+
+This phase marks a radical shift from a local-first extension to a cloud-native SaaS model, heavily relying on the `dotsuite-core` Rust backend and `dotshare-auth-server`.
+
+### Phase 1: The Purge (Banish Local Scheduling)
+The goal is to completely remove the old local scheduler to ensure a clean slate.
+- [ ] **Delete Local Scheduler:** Remove `src/core/scheduler.ts`.
+- [ ] **Delete Local Storage:** Remove `src/core/scheduled-posts.ts`.
+- [ ] **Delete Local Executor:** Remove `src/core/post-executor.ts`.
+- [ ] **Delete CLI Scheduler:** Remove the entire `bin/` directory.
+- [ ] **Fix Imports & References:** Clean up `src/extension.ts` and UI handlers to remove any calls to the deleted files (e.g., `Scheduler.start()`). Ensure the extension compiles without errors.
+
+### Phase 2: Auth & Billing Foundation (The Connect)
+Establish the connection between the VS Code extension and the user's DotSuite account.
+- [ ] **`DotShareAuth.ts`:** Create a new service to handle the `DOTSHARE_API_TOKEN`.
+  - Store the token securely using `vscode.secrets` (one-time setup).
+  - Implement a validation method via `GET /v1/ping` against the Rust backend.
+- [ ] **Tier & Quota Fetching:** Implement fetching user subscription details via `GET /v1/billing/status` using the token. Store `tier`, `quota`, and `posts_used` in memory.
+- [ ] **Types Update:** Update `src/types.ts` with a new `TierInfo` interface.
+
+### Phase 3: The Scheduler Client
+Shift scheduling responsibilities to the Rust backend.
+- [ ] **`SchedulerClient.ts`:** Create a new service dedicated to backend communication.
+  - **Schedule Post:** Implement `POST /v1/posts/schedule` to send post content and target platforms (without sending credentials).
+  - **Fetch Pending Posts:** Implement `GET /v1/posts?status=pending` to retrieve only active scheduled posts, keeping the extension lightweight.
+  - **Cancel Post:** Implement `DELETE /v1/posts/:id`.
+
+### Phase 4: UI Refactoring
+Wire the VS Code WebView frontend to the new cloud services.
+- [ ] **Scheduled Posts Panel:** Update to fetch data via `SchedulerClient.getPendingPosts()` instead of local JSON. Display post status, scheduled time, and platforms. Add a "Cancel" button linked to the `DELETE` endpoint.
+- [ ] **Schedule Button Flow:**
+  - On click, check for the `DOTSHARE_API_TOKEN` via `DotShareAuth`.
+  - If missing, prompt the user to input their token.
+  - If present, show the Date/Time picker, submit the request to the Rust backend, and display a success message with a link to the DotSuite web dashboard.
+
+### Phase 5: Secure Credentials Architecture (SaaS Way)
+Solve platform credential storage permanently and securely.
+- [ ] **OAuth Platforms (X, LinkedIn, etc.):** Remove credential handling from the extension. Users will link accounts via `dotshare-auth-server.vercel.app`, storing Access/Refresh tokens directly in the shared MongoDB. The Rust backend reads these at publish time.
+- [ ] **Static Key Platforms (Dev.to, Hashnode, etc.):** 
+  - Create a new endpoint in Rust (e.g., `POST /v1/credentials`).
+  - The extension sends these keys **once** to be encrypted and stored in MongoDB, never attaching them to individual post requests again.
+
+---
+
 # 🗺️ DotShare Roadmap — The 3.x Era
 
 > **Codename:** *The Publishing Suite*
