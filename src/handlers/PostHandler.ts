@@ -427,7 +427,24 @@ export class PostHandler {
             this.sendSuccess('Post scheduled successfully in the Cloud! ☁️');
             await this.handleLoadScheduledPosts();
         } else {
-            this.sendError(`Failed to schedule post: ${result.message || 'Unknown error'}`);
+            if (result.errorCode === 'MISSING_OAUTH_CREDENTIALS') {
+                const action = 'Open Dashboard';
+                vscode.window.showErrorMessage(
+                    '☁️ Cloud Scheduling requires secure OAuth. Please open the DotSuite Dashboard to connect your social accounts.',
+                    action
+                ).then(selection => {
+                    if (selection === action) {
+                        const BASE_URL = process.env.NODE_ENV === 'production' ? 'https://dotsuite.vercel.app' : 'http://localhost:3000';
+                        const scheme = vscode.env.uriScheme;
+                        const DOTSUITE_LOGIN_URL = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
+                        vscode.env.openExternal(vscode.Uri.parse(DOTSUITE_LOGIN_URL));
+                    }
+                });
+                // Send specific missing platforms message to webview toast
+                this.sendError(`Failed to schedule post: ${result.message}`);
+            } else {
+                this.sendError(`Failed to schedule post: ${result.message || 'Unknown error'}`);
+            }
         }
     }
 

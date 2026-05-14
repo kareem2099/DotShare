@@ -651,7 +651,7 @@ window.addEventListener('message', (event: MessageEvent) => {
 
             if (tierEl) {
                 tierEl.textContent = data.tier || 'Free';
-                // 🌟 السطر ده هو اللي بيفعل أنيميشن الدهب في الـ CSS
+                // 🌟 This line activates the gold animation in the CSS
                 tierEl.setAttribute('data-tier', (data.tier || 'free').toLowerCase());
             }
 

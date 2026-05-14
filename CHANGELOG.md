@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.7] - 2026-05-14 — "Cloud Anchor"
+
+### Added
+- **Cloud Media Upload Pipeline** (`src/services/SchedulerClient.ts`): Images attached to scheduled posts are now uploaded to **Cloudflare R2** via `POST /v1/media/upload` before the schedule payload is sent. The returned CDN URL replaces the local file path in `media_urls`, ensuring the Rust scheduler can always access the asset at dispatch time — even if the local file is gone.
+  - Upload is authenticated with the user's Bearer JWT (same token used for scheduling).
+  - Each file is sent as `multipart/form-data` to `dotsuite-core`.
+  - Local paths in `media_urls` are detected and uploaded automatically; already-remote URLs are passed through unchanged.
+- **Missing OAuth Credentials UX** (`src/handlers/PostHandler.ts`): Cloud scheduling now intercepts the new `MISSING_OAUTH_CREDENTIALS` error code returned by `dotsuite-core`. Instead of a generic error toast, VS Code shows an actionable alert: **"Open Dashboard"** — deep-linking the user directly to `dotsuite.dev/en/login?intent=vscode` to connect their accounts.
+- **Upload Progress Indicator** (`media/webview/app.ts` + `media/webview/style.css`): A per-image upload progress bar appears in the media grid while images are being pushed to R2. Each thumbnail shows a spinner overlay and transitions to a ✓ checkmark on success. Upload failures display an inline ✗ with a retry hint.
+- **`uploadMediaFiles()` helper** (`media/webview/app.ts`): New async function that resolves all local media paths to CDN URLs before the schedule payload is constructed, keeping `handleSchedulePost()` clean.
+
+### Changed
+- **`SchedulerClient.schedulePost()`**: Now accepts and forwards `media_urls: string[]` (CDN URLs) instead of raw local file paths. Callers are responsible for resolving paths before calling this method.
+- **`MessageHandler.ts`**: Refactored `cloud_schedule` command handler to await media upload resolution before forwarding to `SchedulerClient`. Error surface is now split: upload errors bubble as `upload_error`, OAuth errors as `oauth_error`, quota errors as `quota_error`.
+- **`media/main.ts`**: Unified the media-path serialisation to always use the resolved CDN URL array when building the outgoing `schedulePost` WebView message.
+
+### Fixed
+- **Scheduler sending local paths**: Previously, `media_urls` could contain absolute local filesystem paths (e.g. `/home/user/photo.jpg`). The Rust scheduler has no access to the client's filesystem, so those posts would always fail silently at dispatch. The new upload step eliminates this failure class entirely.
+
+---
+
 ## [3.2.6] - 2026-04-25 — "Patch"
 
 ### Fixed

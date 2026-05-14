@@ -264,6 +264,17 @@ a:hover {
   border-color: var(--vscode-focusBorder);
 }
 
+/* Drag & Drop active state — visible drop target */
+.compose-area textarea.drag-active,
+textarea.drag-active {
+  border-color: var(--vscode-focusBorder);
+  background: color-mix(in srgb, var(--vscode-focusBorder) 8%, var(--vscode-input-background));
+  outline: 2px dashed var(--vscode-focusBorder);
+  outline-offset: -2px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+
 .compose-counter {
   position: absolute;
   bottom: 6px;

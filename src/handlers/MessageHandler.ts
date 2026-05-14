@@ -12,6 +12,7 @@ import { Logger } from '../utils/Logger';
 import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
 import { DraftsService } from '../services/DraftsService';
 import { DotShareAuth } from '../services/DotShareAuth';
+import { SchedulerClient } from '../services/SchedulerClient';
 
 interface Message {
     command: string;
@@ -308,36 +309,37 @@ export class MessageHandler {
                 return;
             }
 
-            const storageUri = this.context.globalStorageUri || vscode.Uri.file(path.join(os.tmpdir(), 'dotshare-media'));
-            const mediaDir = vscode.Uri.joinPath(storageUri, 'media');
+            this.view.webview.postMessage({ command: 'status', status: 'Uploading media to Cloudflare R2...', type: 'info' });
 
-            try {
-                await vscode.workspace.fs.createDirectory(mediaDir);
-            } catch (error: unknown) {
-                Logger.warn('[MessageHandler] Could not create media directory:', error);
+            // Sanitize client-supplied values before forwarding to the backend.
+            // The Rust server validates via magic bytes too, but this is defence-in-depth.
+            const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            const sanitizedType = ALLOWED_TYPES.includes(file.type) ? file.type : 'image/jpeg';
+            // Strip any path components and restrict to safe characters
+            const sanitizedName = (file.name || 'upload')
+                .replace(/.*[/\\]/, '')             // strip path traversal
+                .replace(/[^a-zA-Z0-9._-]/g, '_')  // replace unsafe chars
+                .substring(0, 64);
+
+            const result = await SchedulerClient.uploadMediaBase64(this.context, sanitizedName, file.base64Data, sanitizedType);
+
+
+            if (result.success && result.url) {
+                this.view.webview.postMessage({
+                    command: 'fileUploaded',
+                    mediaPath: result.url,
+                    mediaFilePath: result.url,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    threadIndex: message.threadIndex,
+                    // Echo back so the webview can replace the drag-and-drop placeholder in-place
+                    placeholderRef: message.placeholderRef ?? null
+                });
+
+                this.sendSuccess(`File "${file.name}" uploaded successfully!`);
+            } else {
+                this.sendError(result.message || 'Failed to upload media to server.');
             }
-
-            const binaryString = atob(file.base64Data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-
-            const fileName = `${Date.now()}-${file.name}`;
-            const fileUri = vscode.Uri.joinPath(mediaDir, fileName);
-
-            await vscode.workspace.fs.writeFile(fileUri, bytes);
-
-            this.view.webview.postMessage({
-                command: 'fileUploaded',
-                mediaPath: fileUri.fsPath,
-                mediaFilePath: fileUri.fsPath,
-                fileName: file.name,
-                fileSize: file.size,
-                threadIndex: message.threadIndex
-            });
-
-            this.sendSuccess(`File "${file.name}" uploaded successfully!`);
 
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);

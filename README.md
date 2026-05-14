@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.2.6-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-Nexus-ff6b35?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.2.7-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-Cloud%20Anchor-ff6b35?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -16,6 +16,14 @@
 [Installation](#-installation) • [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Support](#-support)
 
 </div>
+
+---
+
+## 🆕 What's New — v3.2.7 "Cloud Anchor"
+
+- **☁️ Cloud Media Upload**: Images are now uploaded to **Cloudflare R2** before scheduling. The Rust scheduler receives CDN URLs instead of local paths — posts with media can no longer silently fail at dispatch time.
+- **🔐 Smart OAuth Error UX**: Missing platform OAuth credentials surface as an actionable **"Open Dashboard"** alert that deep-links you to `dotsuite.dev` to connect your accounts in one click.
+- **📊 Upload Progress UI**: Per-image spinners in the media grid show real-time upload status (uploading → ✓ done / ✗ failed).
 
 ---
 
@@ -91,6 +99,16 @@ Build and share threads natively:
 - Per-post character counters with platform limits
 - **Up to 4 images per thread post** *(New in v3.2)*
 - X Premium mode (25,000 chars)
+
+### ☁️ Cloud Scheduling with Secure Media (v3.2.7)
+
+When you schedule a post with images, DotShare now:
+
+1. **Uploads each image** to Cloudflare R2 via `POST /v1/media/upload` (authenticated with your session JWT)
+2. **Replaces local paths** with permanent CDN URLs in the schedule payload
+3. **Sends the payload** to the Rust scheduler — which can always reach the assets at dispatch time
+
+> **Why this matters**: Previously, if a post was scheduled for tomorrow and your local file was moved or deleted, the scheduler would fail silently. Now the asset lives in the cloud from the moment you schedule.
 
 ### ⏰ Automation & Scheduling
 

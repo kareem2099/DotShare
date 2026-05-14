@@ -187,6 +187,98 @@ function renderMediaGrid(): void {
     });
 }
 
+// ── Drag & Drop Upload (Placeholder Pattern) ──────────────────────────────────
+/**
+ * Enables drag-and-drop image uploads on a Textarea.
+ * Immediately injects a placeholder, uploads in background,
+ * then replaces the placeholder with the real URL (Notion/GitHub style).
+ */
+function enableDragAndDrop(editor: HTMLTextAreaElement | null) {
+    if (!editor) return;
+
+    editor.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.classList.add('drag-active');
+    });
+
+    editor.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.classList.remove('drag-active');
+    });
+
+    editor.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.classList.remove('drag-active');
+
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        if (!file.type.startsWith('image/')) {
+            toast('Only images can be dropped here.', 'warning');
+            return;
+        }
+
+        // 1. Capture cursor position at the exact moment of drop
+        const startPos = editor.selectionStart;
+        const endPos   = editor.selectionEnd;
+
+        // 2. Build a unique placeholder tied to this specific upload
+        const placeholder = `![Uploading ${file.name} ⏳]()`;
+        const mdPlaceholder = `\n${placeholder}\n`;
+
+        // 3. Inject placeholder immediately so the user can keep typing
+        editor.value = editor.value.substring(0, startPos) + mdPlaceholder + editor.value.substring(endPos);
+        editor.selectionStart = editor.selectionEnd = startPos + mdPlaceholder.length;
+        editor.dispatchEvent(new Event('input'));
+        toast(`Uploading ${file.name}…`, 'info');
+
+        // 4. Compress & upload (same pipeline as the regular button)
+        try {
+            let base64Data: string, size: number, type: string, name: string;
+            const isLarge = file.size > 2 * 1024 * 1024;
+            if (isLarge && !file.type.match(/video|gif/i)) {
+                const compressed = await processAndCompressImage(file);
+                base64Data = compressed.base64Data;
+                size       = compressed.size;
+                type       = compressed.type;
+                name       = compressed.name;
+            } else {
+                await new Promise<void>((res) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        base64Data = (reader.result as string).split(',')[1];
+                        size = file.size;
+                        type = file.type;
+                        name = file.name;
+                        res();
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            // Pass placeholderRef so the extension echoes it back in fileUploaded
+            send('uploadFile', {
+                file: { name: name!, size: size!, type: type!, base64Data: base64Data! },
+                placeholderRef: placeholder
+            });
+        } catch {
+            toast('Failed to process dropped image.', 'error');
+            // Clean up orphaned placeholder on error
+            editor.value = editor.value.replace(mdPlaceholder, '');
+            editor.dispatchEvent(new Event('input'));
+        }
+    });
+}
+
+// Activate Drag & Drop on both editors (runs after DOM is ready)
+setTimeout(() => {
+    enableDragAndDrop(get<HTMLTextAreaElement>('post-text'));
+    enableDragAndDrop(get<HTMLTextAreaElement>('blog-body'));
+}, 0);
+
 // Attach media button
 btnMedia?.addEventListener('click', () => { if (fileInput) fileInput.click(); });
 
@@ -869,6 +961,41 @@ window.addEventListener('message', (event: MessageEvent) => {
                         ci.textContent = count === 1 ? name + sizeStr : `${count} files selected`;
                     }
                     if (isLarge && activeMediaPaths.length === 1) toast('Image > 2MB. It will be auto-compressed.', 'info', 6000);
+
+                    // Insert markdown image link into active text area ONLY for blog writers
+                    if (scheduleMode === 'blog') {
+                        const activeEditor = get<HTMLTextAreaElement>('blog-body');
+                        if (activeEditor) {
+                            const altPlaceholder = 'Image description';
+                            const mdLink = `\n![${altPlaceholder}](${path})\n`;
+
+                            // If a drag-and-drop placeholder exists, replace it in-place
+                            const dndRef = msg.placeholderRef ? String(msg.placeholderRef) : null;
+                            const dndMd  = dndRef ? `\n${dndRef}\n` : null;
+                            let insertIndex: number;
+
+                            if (dndMd && activeEditor.value.includes(dndMd)) {
+                                // Replace placeholder and mark where alt text starts
+                                insertIndex = activeEditor.value.indexOf(dndMd) + 2; // +2 for '\n!'
+                                activeEditor.value = activeEditor.value.replace(dndMd, mdLink);
+                            } else {
+                                // Regular button upload — append at end
+                                insertIndex = activeEditor.value.length + 2;
+                                activeEditor.value += mdLink;
+                            }
+
+                            activeEditor.dispatchEvent(new Event('input'));
+
+                            // 🪄 Auto-select "Image description" so the user types over it instantly
+                            activeEditor.focus();
+                            const selStart = insertIndex + 2; // skip '!['
+                            activeEditor.setSelectionRange(selStart, selStart + altPlaceholder.length);
+
+                            toast('Image uploaded! Type a description for SEO 🔍', 'success', 5000);
+                        }
+                    } else {
+                        toast('Image attached to post! 📸', 'success');
+                    }
                 }
                 break;
             }
