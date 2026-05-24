@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-05-24 — "Production Bridge"
+
+### Added
+- **`src/constants.ts`**: New centralized constants file for all external URLs.
+  - `DOTSUITE_CORE_API_URL` — points to the production Rust backend on Railway (`dotsuite-core-production.up.railway.app`).
+  - `DOTSUITE_WEB_URL` — points to the production Next.js frontend on Vercel (`dotsuite.vercel.app`), with an automatic `localhost:3000` fallback in development.
+- **Cover Image Upload for Blog Posts**: Added a dedicated **Upload** button to the blog composer's Cover Image field. Users can now select a local image file and upload it directly to Cloudflare R2, receiving a permanent CDN URL that is auto-filled into the cover image input — without leaving VS Code.
+
+### Changed
+- **`DotShareAuth.ts`**: Default API base URL updated from `http://127.0.0.1:8080` (local dev) to `DOTSUITE_CORE_API_URL` (production Railway). The local override via `DOTSUITE_API_URL` environment variable is still supported.
+- **`MessageHandler.ts`** and **`PostHandler.ts`**: All hardcoded `localhost:3000` / production URL ternaries replaced with a single import of `DOTSUITE_WEB_URL` from `constants.ts`.
+- **`SchedulerClient.ts`**: Replaced `native fetch` with `axios` for `multipart/form-data` uploads to fix a Node.js boundary-piping bug that caused `Bad Request` errors from the Rust backend.
+
+### Fixed
+- **Composer Wipe on Image Upload**: The `status: success` message handler was incorrectly calling `resetAllComposers()` for *any* success event (including image uploads), erasing the user's title, tags, description, and content. Fixed by decoupling informational success toasts from workflow-completion resets. Only `shareComplete` and `blogShareComplete` events now trigger a composer reset.
+
+---
+
 ## [3.2.7] - 2026-05-14 — "Cloud Anchor"
 
 ### Added

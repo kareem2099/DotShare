@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import { TierInfo } from '../types';
 import { Logger } from '../utils/Logger';
+import { DOTSUITE_CORE_API_URL } from '../constants';
 
 
 export class DotShareAuth {
     private static readonly TOKEN_KEY = 'DOTSHARE_API_TOKEN';
-    // Use production URL later or read from settings, defaulting to local Rust backend for development
-    private static API_BASE_URL = process.env.DOTSUITE_API_URL || 'http://127.0.0.1:8080';
+    // Production Railway backend — override with DOTSUITE_API_URL env var for development
+    private static API_BASE_URL = process.env.DOTSUITE_API_URL || DOTSUITE_CORE_API_URL;
     
     private static cachedTierInfo: TierInfo | null = null;
 

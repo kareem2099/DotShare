@@ -646,8 +646,15 @@ window.addEventListener('message', (event: MessageEvent) => {
 
             if (nameEl) nameEl.textContent = data.name || 'Unknown';
             if (emailEl) emailEl.textContent = data.email || 'No Email';
-            if (postsEl) postsEl.textContent = data.posts_used || '0';
-            if (imagesEl) imagesEl.textContent = data.images_used || '0';
+            const formatQuota = (used: number | string, quota: number | string) => {
+                const q = Number(quota);
+                const u = Number(used) || 0;
+                if (q === 4294967295) return `${u} / ∞`;
+                return `${u} / ${q || 0}`;
+            };
+
+            if (postsEl) postsEl.textContent = formatQuota(data.posts_used, data.post_quota || 100);
+            if (imagesEl) imagesEl.textContent = formatQuota(data.images_used, data.image_quota || 10);
 
             if (tierEl) {
                 tierEl.textContent = data.tier || 'Free';

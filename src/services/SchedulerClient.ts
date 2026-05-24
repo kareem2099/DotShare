@@ -40,29 +40,105 @@ export class SchedulerClient {
                 contentType: contentType
             });
 
-            const response = await fetch(`${this.getApiBaseUrl()}/v1/media/upload`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    ...formData.getHeaders() // Crucial for multipart/form-data boundary
-                },
-                body: formData as any // node-fetch/undici accepts this
-            });
+            // Use axios — native fetch doesn't handle the form-data npm package
+            // correctly: the multipart boundary is missing/broken in the request body.
+            const axios = require('axios');
+            const response = await axios.post(
+                `${this.getApiBaseUrl()}/v1/media/upload`,
+                formData,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        ...formData.getHeaders(), // sets correct Content-Type + boundary
+                    },
+                    maxBodyLength: Infinity,
+                    validateStatus: () => true,
+                }
+            );
 
-            if (response.ok) {
-                const data = await response.json() as { media_url: string };
+            if (response.status >= 200 && response.status < 300) {
+                const data = response.data as { media_url: string };
                 Logger.info('[SchedulerClient] Media uploaded successfully:', data.media_url);
                 return { success: true, url: data.media_url };
             } else {
-                const errorText = await response.text();
-                Logger.warn(`[SchedulerClient] Failed to upload media: ${response.status}`, errorText);
-                return { success: false, message: `Upload failed: ${response.statusText}` };
+                Logger.warn(`[SchedulerClient] Failed to upload media (${response.status}):`, JSON.stringify(response.data));
+                return { success: false, message: `Upload failed: ${response.status} - ${JSON.stringify(response.data)}` };
             }
         } catch (error) {
             Logger.error('[SchedulerClient] Error uploading media:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             return { success: false, message: `Network error: ${errorMessage}` };
         }
+    }
+
+    /**
+     * Sync local credentials to the backend for non-OAuth platforms.
+     * This allows the cloud scheduler to access the keys without the user
+     * having to manually paste them into the dashboard.
+     */
+    public static async syncLocalCredentials(context: vscode.ExtensionContext, platforms: SocialPlatform[]): Promise<void> {
+        const token = await DotShareAuth.getToken(context);
+        if (!token) return;
+
+        const promises: Promise<void>[] = [];
+
+        for (const platform of platforms) {
+            let credToken = '';
+
+            // Get tokens from VS Code secure storage
+            if (platform === 'telegram') {
+                const bot = await context.secrets.get('telegramBot');
+                const chat = await context.secrets.get('telegramChat');
+                if (bot && chat) {
+                    credToken = `${bot}::${chat}`;
+                }
+            } else if (platform === 'devto') {
+                const key = await context.secrets.get('devtoApiKey');
+                if (key) credToken = key;
+            } else if (platform === 'medium') {
+                const key = await context.secrets.get('mediumAccessToken');
+                if (key) credToken = key;
+            } else if (platform === 'bluesky') {
+                const id = await context.secrets.get('blueskyIdentifier');
+                const pw = await context.secrets.get('blueskyPassword');
+                if (id && pw) {
+                    credToken = `${id}::${pw}`; // assuming bluesky needs identifier::password
+                }
+            } else if (platform === 'facebook') {
+                const fbToken = await context.secrets.get('facebookToken');
+                const pageId = await context.secrets.get('facebookPageId');
+                if (fbToken) {
+                    credToken = pageId ? `${fbToken}::${pageId}` : fbToken;
+                }
+            }
+
+            if (credToken) {
+                // Send it to the backend to encrypt and store
+                const req = fetch(`${this.getApiBaseUrl()}/v1/credentials`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        platform: platform,
+                        token: credToken
+                    })
+                }).then(res => {
+                    if (res.ok) {
+                        Logger.info(`[SchedulerClient] Synced local credential for ${platform}`);
+                    } else {
+                        Logger.warn(`[SchedulerClient] Failed to sync local credential for ${platform}: ${res.status}`);
+                    }
+                }).catch(err => {
+                    Logger.error(`[SchedulerClient] Error syncing credential for ${platform}:`, err);
+                });
+
+                promises.push(req);
+            }
+        }
+
+        await Promise.all(promises);
     }
 
     /**
@@ -177,6 +253,37 @@ export class SchedulerClient {
         } catch (error) {
             Logger.error(`[SchedulerClient] Error cancelling post ${postId}:`, error);
             return false;
+        }
+    }
+
+    /**
+     * Fetch the list of platform names the user has connected via OAuth.
+     * Used by the webview to disable schedule buttons for unconnected platforms.
+     * Returns an empty array when unauthenticated or on network error (fail-silent).
+     */
+    public static async getConnections(context: vscode.ExtensionContext): Promise<string[]> {
+        const token = await DotShareAuth.getToken(context);
+        if (!token) return [];
+
+        try {
+            const response = await fetch(`${this.getApiBaseUrl()}/v1/oauth/connections`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json() as { connected_platforms: string[] };
+                Logger.info('[SchedulerClient] Connected platforms:', data.connected_platforms);
+                return data.connected_platforms ?? [];
+            } else {
+                Logger.warn('[SchedulerClient] Failed to fetch connections:', response.status);
+                return [];
+            }
+        } catch (error) {
+            Logger.error('[SchedulerClient] Error fetching connections:', error);
+            return [];
         }
     }
 }

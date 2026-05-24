@@ -233,7 +233,11 @@
             </div>
             <div class="input-group">
               <label>Cover Image URL (optional)</label>
-              <input type="url" id="blog-cover-image" placeholder="https://..." />
+              <div style="display: flex; gap: 8px;">
+                <input type="url" id="blog-cover-image" placeholder="https://..." style="flex: 1;" />
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-upload-cover" title="Upload Cover Image">📤 Upload</button>
+                <input type="file" id="cover-file-input" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" />
+              </div>
             </div>
             <div class="input-group">
               <label>Canonical URL (optional)</label>

@@ -125,6 +125,13 @@ window.addEventListener('keydown', (e) => {
 // ── State ─────────────────────────────────────────────────────────────────────
 let activeCommandPlatform: string | null = (typeof window !== 'undefined' && window.__PLATFORM_DATA__?.platform) || null;
 let activeMediaPaths: string[] = [];
+let globalConnectedPlatforms: string[] = [];
+
+const isCurrentPlatformConnected = () => {
+    const p = activeCommandPlatform || window.__PLATFORM_DATA__?.platform;
+    if (!p) return true; // generic panel without specific platform
+    return globalConnectedPlatforms.includes(p);
+};
 
 // ── Max chars fallback map ────────────────────────────────────────────────────
 const MAX_CHARS_MAP: Record<string, number> = {
@@ -160,9 +167,26 @@ function updateShareBtn(): void {
     const hasText = !!textarea?.value.trim();
     const max = window.__PLATFORM_DATA__?.maxChars || (activeCommandPlatform && MAX_CHARS_MAP[activeCommandPlatform]) || null;
     const tooLong = max ? textarea!.value.length > max : false;
-    
+
+    const p = activeCommandPlatform || window.__PLATFORM_DATA__?.platform;
+
+    // Share Now: always available via local credentials — only gate on text content.
     btnShare.disabled = !hasText || tooLong;
-    if (btnSchedule) btnSchedule.disabled = !hasText || tooLong;
+    btnShare.textContent = p
+        ? `🚀 Share to ${p.charAt(0).toUpperCase() + p.slice(1)}`
+        : '🚀 Share Now';
+
+    // Schedule: requires cloud OAuth — disable with hint when not connected.
+    if (btnSchedule) {
+        const connected = isCurrentPlatformConnected();
+        if (p && !connected) {
+            btnSchedule.disabled = true;
+            btnSchedule.title = 'Connect in Dashboard to enable cloud scheduling';
+        } else {
+            btnSchedule.disabled = !hasText || tooLong;
+            btnSchedule.title = '';
+        }
+    }
 }
 
 textarea?.addEventListener('input', () => { updateCharCounter(); updateShareBtn(); });
@@ -523,10 +547,8 @@ function resetAllComposers(): void {
     setBtnLoading('btn-share', false);
     setBtnLoading('btn-generate-ai', false);
     setBtnLoading('btn-read-md-file', false);
-    if (btnShare) { btnShare.disabled = true; btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now'; }
-    if (btnSchedule) btnSchedule.disabled = true;
     const tBtn = get<HTMLButtonElement>('btn-share-thread');
-    if (tBtn) { tBtn.classList.remove('loading'); tBtn.disabled = false; tBtn.textContent = '🚀 Share Thread'; }
+    if (tBtn) { tBtn.classList.remove('loading'); }
     resetBlogPublishUi();
     // Reset thread composer
     if (threadContainer) {
@@ -570,16 +592,38 @@ function updateBlogPublishButtonsState(): void {
     const has = getBlogBodyText().length > 0;
     (['btn-publish-blog-devto', 'btn-publish-blog-medium', 'btn-publish-blog', 'btn-schedule-blog'] as const).forEach(id => {
         const b = get<HTMLButtonElement>(id);
-        if (b) b.disabled = !has;
+        if (b) {
+            let platform = '';
+            if (id.includes('devto')) platform = 'devto';
+            else if (id.includes('medium')) platform = 'medium';
+            else platform = getSingleBlogPlatform() || '';
+
+            if (platform && !globalConnectedPlatforms.includes(platform)) {
+                b.disabled = true;
+                if (id.includes('schedule')) {
+                    b.title = '🔗 Connect in Dashboard';
+                } else {
+                    b.textContent = '🔗 Connect in Dashboard';
+                }
+            } else {
+                b.disabled = !has;
+                if (id.includes('schedule')) {
+                    b.title = '';
+                } else {
+                    const label = platform === 'devto' ? 'Dev.to' : platform === 'medium' ? 'Medium' : platform;
+                    b.textContent = label ? `🚀 Publish to ${label}` : '🚀 Publish Article';
+                }
+            }
+        }
     });
 }
 
 function resetBlogPublishUi(): void {
-    const has = getBlogBodyText().length > 0;
     const bDev = get<HTMLButtonElement>('btn-publish-blog-devto');
-    if (bDev) { setBtnLoading('btn-publish-blog-devto', false); bDev.disabled = !has; bDev.textContent = BLOG_LABEL_DEVTO; }
+    if (bDev) { setBtnLoading('btn-publish-blog-devto', false); }
     const bMed = get<HTMLButtonElement>('btn-publish-blog-medium');
-    if (bMed) { setBtnLoading('btn-publish-blog-medium', false); bMed.disabled = !has; bMed.textContent = BLOG_LABEL_MEDIUM; }
+    if (bMed) { setBtnLoading('btn-publish-blog-medium', false); }
+    updateBlogPublishButtonsState();
 }
 
 function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): void {
@@ -593,6 +637,7 @@ function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): voi
         coverImage: get<HTMLInputElement>('blog-cover-image')?.value.trim() || undefined,
         canonicalUrl: get<HTMLInputElement>('blog-canonical-url')?.value.trim() || undefined,
         series: get<HTMLInputElement>('blog-series')?.value.trim() || undefined,
+        mediaFilePaths: activeMediaPaths || [],  // ← Include uploaded image URLs
         publishStatus, published: publishStatus === 'published',
     });
     toast('Publishing article…', 'info');
@@ -629,6 +674,30 @@ wireBlogPublishButton(get<HTMLButtonElement>('btn-publish-blog-medium'), 'medium
 
 const singlePlat = getSingleBlogPlatform();
 if (singlePlat) wireBlogPublishButton(get<HTMLButtonElement>('btn-publish-blog'), singlePlat, () => get<HTMLSelectElement>('blog-publish-status')?.value || 'draft');
+
+// Cover Image Upload
+get('btn-upload-cover')?.addEventListener('click', () => {
+    get<HTMLInputElement>('cover-file-input')?.click();
+});
+get<HTMLInputElement>('cover-file-input')?.addEventListener('change', async (e) => {
+    const fileInp = e.target as HTMLInputElement;
+    const file = fileInp.files?.[0];
+    if (!file) return;
+    const btn = get<HTMLButtonElement>('btn-upload-cover');
+    if (btn) btn.textContent = '⏳';
+    try {
+        const { base64Data, size, type, name } = await processAndCompressImage(file);
+        send('uploadFile', { file: { name, size, type, base64Data }, placeholderRef: 'COVER_IMAGE' });
+    } catch {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const b64 = (reader.result as string).split(',')[1];
+            send('uploadFile', { file: { name: file.name, size: file.size, type: file.type, base64Data: b64 }, placeholderRef: 'COVER_IMAGE' });
+        };
+        reader.readAsDataURL(file);
+    }
+    fileInp.value = '';
+});
 
 // Save Draft (Article)
 get('btn-save-draft-blog-devto')?.addEventListener('click', () => {
@@ -681,10 +750,27 @@ function updateThreadShareBtn(): void {
     const max = window.__PLATFORM_DATA__?.maxChars || 280;
     const hasContent = threadPosts.some(p => p.text.trim() || p.mediaFilePaths.length > 0);
     const tooLong = threadPosts.some(p => p.text.length > max);
-    btnShareThread.disabled = !hasContent || tooLong;
-    // Keep schedule-thread button in sync
-    const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
-    if (btnSchedThread) btnSchedThread.disabled = !hasContent || tooLong;
+    
+    const p = activeCommandPlatform || (window as { __AUTO_THREAD_PLATFORM__?: string }).__AUTO_THREAD_PLATFORM__;
+    const connected = !p || globalConnectedPlatforms.includes(p);
+    
+    if (!connected) {
+        btnShareThread.disabled = true;
+        btnShareThread.textContent = '🔗 Connect in Dashboard';
+        const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
+        if (btnSchedThread) {
+            btnSchedThread.disabled = true;
+            btnSchedThread.title = '🔗 Connect in Dashboard';
+        }
+    } else {
+        btnShareThread.disabled = !hasContent || tooLong;
+        btnShareThread.textContent = '🚀 Share Thread';
+        const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
+        if (btnSchedThread) {
+            btnSchedThread.disabled = !hasContent || tooLong;
+            btnSchedThread.title = '';
+        }
+    }
 }
 
 function reIndexThreads(): void {
@@ -829,12 +915,23 @@ window.addEventListener('message', (event: MessageEvent) => {
         if (!msg?.command) return;
 
         switch (msg.command) {
+            case 'LOGOUT_SUCCESS': {
+                // Clear connected platforms list
+                globalConnectedPlatforms = [];
+                
+                // Force UI to update button states (disabling cloud schedule buttons)
+                updateShareBtn();
+                updateBlogPublishButtonsState();
+                updateThreadShareBtn();
+                
+                toast('Logged out successfully', 'info');
+                break;
+            }
 
             case 'navigate': {
                 // platform-post panels receive navigate to set the active platform
                 if ((msg.options as { platform?: string })?.platform) {
                     activeCommandPlatform = String((msg.options as { platform?: string }).platform);
-                    if (btnShare) btnShare.textContent = `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}`;
                     const redditCard = get('reddit-options-card');
                     if (redditCard) redditCard.style.display = activeCommandPlatform === 'reddit' ? 'block' : 'none';
                     setBtnLoading('btn-share', false);
@@ -842,8 +939,10 @@ window.addEventListener('message', (event: MessageEvent) => {
                     setBtnLoading('btn-generate-ai', false);
                 } else {
                     activeCommandPlatform = null;
-                    if (btnShare) btnShare.textContent = '🚀 Share Now';
                 }
+                updateShareBtn();
+                updateThreadShareBtn();
+                updateBlogPublishButtonsState();
                 break;
             }
 
@@ -896,12 +995,8 @@ window.addEventListener('message', (event: MessageEvent) => {
                     const tBtn = get<HTMLButtonElement>('btn-share-thread');
                     if (tBtn) { tBtn.classList.remove('loading'); tBtn.disabled = false; tBtn.textContent = '🚀 Share Thread'; }
                     resetBlogPublishUi();
-                } else if (msg.type === 'success') {
-                    // Reset ALL composers after a successful share/publish
-                    resetAllComposers();
-                    activeDraftId = undefined;
                 } else {
-                    // info / warning — only reset utility buttons
+                    // success / info / warning — only reset utility buttons
                     setBtnLoading('btn-read-md-file', false);
                     setBtnLoading('btn-generate-ai', false);
                 }
@@ -931,6 +1026,19 @@ window.addEventListener('message', (event: MessageEvent) => {
             case 'mediaSelected': {
                 if (!msg.mediaPath) break;
                 const path = String(msg.mediaPath);
+
+                if (msg.placeholderRef === 'COVER_IMAGE') {
+                    const coverInput = get<HTMLInputElement>('blog-cover-image');
+                    if (coverInput) {
+                        coverInput.value = path;
+                        coverInput.dispatchEvent(new Event('input')); // Trigger any input listeners
+                    }
+                    const btn = get<HTMLButtonElement>('btn-upload-cover');
+                    if (btn) btn.textContent = '📤 Upload';
+                    toast('Cover image uploaded successfully!', 'success');
+                    break;
+                }
+
                 const name = String(msg.fileName || 'File');
                 const size = msg.fileSize ? Number(msg.fileSize) : 0;
                 const isLarge = size > 2 * 1024 * 1024;
@@ -1083,6 +1191,15 @@ window.addEventListener('message', (event: MessageEvent) => {
                 console.log('[DotShare] Profile loaded:', msg.data);
                 // Profile data can be used for other UI enhancements if needed
                 break;
+
+            case 'SET_CONNECTIONS': {
+                // Platforms the user has connected via OAuth in the dashboard.
+                // Any platform NOT in this list gets the schedule button disabled
+                // with a hint to connect from the dashboard.
+                const connected = (msg.platforms as string[]) ?? [];
+                applyConnectionState(connected);
+                break;
+            }
         }
     } catch (e) {
         console.error('[DotShare] Message handler error:', e);
@@ -1285,8 +1402,12 @@ function renderScheduledPosts(posts: ScheduledPost[]): void {
     updateScheduledCountdowns();
 }
 
+let lastAutoRefresh = 0;
+
 function updateScheduledCountdowns() {
     const cards = document.querySelectorAll<HTMLElement>('.scheduled-card');
+    let needsRefresh = false;
+
     cards.forEach(card => {
         const approxStr = card.getAttribute('data-approx');
         if (!approxStr) return;
@@ -1299,6 +1420,7 @@ function updateScheduledCountdowns() {
         if (diff <= 0) {
             countdownEl.textContent = '⏱️ Processing by Server...';
             countdownEl.style.color = 'var(--vscode-charts-green)';
+            needsRefresh = true;
         } else {
             const hours = Math.floor(diff / 3600000);
             const mins = Math.floor((diff % 3600000) / 60000);
@@ -1311,6 +1433,12 @@ function updateScheduledCountdowns() {
             countdownEl.textContent = `⏳ Execution in: ${timeStr}`;
         }
     });
+
+    // Auto-refresh the list every 15 seconds if there is a post currently processing
+    if (needsRefresh && (Date.now() - lastAutoRefresh > 15000)) {
+        lastAutoRefresh = Date.now();
+        send('loadScheduledPosts');
+    }
 }
 
 // Start the countdown loop
@@ -1468,9 +1596,26 @@ try {
     // Fetch initial drafts
     send('listLocalDrafts');
 
+    // Fetch which platforms the user has connected via OAuth.
+    // The response triggers SET_CONNECTIONS → applyConnectionState().
+    send('loadOAuthConnections');
+
     updateShareBtn();
     console.log('[DotShare platform-post] Initialized');
 } catch (e) {
     console.error('[DotShare platform-post] Init error:', e);
     toast('Failed to initialize', 'error');
+}
+
+// ── OAuth Connection State ────────────────────────────────────────────────────
+//
+// Called whenever the backend sends SET_CONNECTIONS.
+// Disables the "☁️ Schedule" button for platforms not yet connected via OAuth,
+// and adds a tooltip so the user knows what to do.
+
+function applyConnectionState(connectedPlatforms: string[]): void {
+    globalConnectedPlatforms = connectedPlatforms;
+    updateShareBtn();
+    updateBlogPublishButtonsState();
+    updateThreadShareBtn();
 }

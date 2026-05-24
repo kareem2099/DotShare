@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
+import { DOTSUITE_WEB_URL } from '../constants';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { MediaService } from '../services/MediaService';
-import { PostData } from '../types';
+import { PostData, SocialPlatform } from '../types';
 
 import { Logger } from '../utils/Logger';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
@@ -166,6 +167,10 @@ export class PostHandler {
                     break;
                 case 'resetBlogMarkdown':
                     await this.handleResetBlogMarkdown();
+                    break;
+
+                case 'loadOAuthConnections':
+                    await this.handleLoadOAuthConnections();
                     break;
 
                 default:
@@ -349,6 +354,22 @@ export class PostHandler {
         this.view.webview.postMessage({ command: 'updateScheduledPosts', scheduledPosts: pendingPosts });
     }
 
+    private async handleLoadOAuthConnections(): Promise<void> {
+        // Sync local credentials to backend first (fire and forget to not block UI immediately)
+        // We await it here so the subsequent getConnections includes them if newly added.
+        try {
+            const platformsToSync = ['telegram', 'devto', 'medium', 'bluesky', 'facebook'] as SocialPlatform[];
+            await SchedulerClient.syncLocalCredentials(this.context, platformsToSync);
+        } catch (err) {
+            Logger.warn('[PostHandler] Failed to sync local credentials', err);
+        }
+
+        // Fail-silent: if the user hasn't logged in yet, we get [] and the
+        // webview will disable cloud-schedule buttons for all platforms.
+        const platforms = await SchedulerClient.getConnections(this.context);
+        this.view.webview.postMessage({ command: 'SET_CONNECTIONS', platforms });
+    }
+
     private async handleCancelScheduledPost(message: Message): Promise<void> {
         const msg = message as unknown as { scheduledPostId: string };
         
@@ -396,7 +417,7 @@ export class PostHandler {
             });
 
             // Open the DotSuite web app login page with VS Code intent
-            const BASE_URL = process.env.NODE_ENV === 'production' ? 'https://dotsuite.vercel.app' : 'http://localhost:3000';
+            const BASE_URL = DOTSUITE_WEB_URL;
             const scheme = vscode.env.uriScheme;
             const DOTSUITE_LOGIN_URL = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
             await vscode.env.openExternal(vscode.Uri.parse(DOTSUITE_LOGIN_URL));
@@ -434,7 +455,7 @@ export class PostHandler {
                     action
                 ).then(selection => {
                     if (selection === action) {
-                        const BASE_URL = process.env.NODE_ENV === 'production' ? 'https://dotsuite.vercel.app' : 'http://localhost:3000';
+                        const BASE_URL = DOTSUITE_WEB_URL;
                         const scheme = vscode.env.uriScheme;
                         const DOTSUITE_LOGIN_URL = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
                         vscode.env.openExternal(vscode.Uri.parse(DOTSUITE_LOGIN_URL));
@@ -505,6 +526,7 @@ export class PostHandler {
             series?: string;
             publishStatus?: 'draft' | 'published' | 'unlisted';
             published?: boolean;
+            mediaFilePaths?: string[];  // ← Include uploaded image URLs from webview
         };
 
         const platforms = msg.platforms || [];
@@ -527,7 +549,7 @@ export class PostHandler {
             type: 'info'
         });
 
-        const postData: PostData = { text: postText, media: history[0]?.postData?.media || [] };
+        const postData: PostData = { text: postText, media: msg.mediaFilePaths || history[0]?.postData?.media || [] };
 
         const blogMessage = {
             ...message,

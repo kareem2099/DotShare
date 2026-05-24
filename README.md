@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.2.7-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-Cloud%20Anchor-ff6b35?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-Production%20Bridge-7c3aed?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -19,11 +19,12 @@
 
 ---
 
-## 🆕 What's New — v3.2.7 "Cloud Anchor"
+## 🆕 What's New — v3.3.0 "Production Bridge"
 
-- **☁️ Cloud Media Upload**: Images are now uploaded to **Cloudflare R2** before scheduling. The Rust scheduler receives CDN URLs instead of local paths — posts with media can no longer silently fail at dispatch time.
-- **🔐 Smart OAuth Error UX**: Missing platform OAuth credentials surface as an actionable **"Open Dashboard"** alert that deep-links you to `dotsuite.dev` to connect your accounts in one click.
-- **📊 Upload Progress UI**: Per-image spinners in the media grid show real-time upload status (uploading → ✓ done / ✗ failed).
+- **☁️ Live on Railway**: The DotSuite Core Rust backend is now deployed to production at `dotsuite-core-production.up.railway.app`. No more localhost!
+- **📌 Centralized URLs** (`constants.ts`): All backend and frontend URLs are now managed in one file — `DOTSUITE_CORE_API_URL` and `DOTSUITE_WEB_URL`. Change one line to switch environments.
+- **🖼️ Cover Image Upload**: Upload cover images directly from the blog composer to Cloudflare R2 and get a permanent CDN URL auto-filled — without leaving VS Code.
+- **🐛 Composer Wipe Bug Fixed**: Uploading an image no longer wipes your post title, tags, and content. The composer now only resets after a successful *publish*, not after any success event.
 
 ---
 

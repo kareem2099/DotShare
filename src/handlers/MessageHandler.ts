@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { DOTSUITE_WEB_URL } from '../constants';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -48,8 +49,10 @@ export class MessageHandler {
 
         // Smart routing based on command patterns - check specific commands first
         if (cmd.startsWith('share') || cmd === 'generatePost' || cmd === 'loadPostHistory' ||
-            cmd === 'loadAnalytics' || cmd === 'schedulePost' || cmd === 'editScheduledPost' ||
-            cmd === 'readMarkdownFile' || cmd === 'resetBlogMarkdown' || cmd === 'loadScheduledPosts' || cmd.includes('Draft')) {
+            cmd === 'loadAnalytics' || cmd.startsWith('schedule') || cmd === 'editScheduledPost' ||
+            cmd === 'readMarkdownFile' || cmd === 'resetBlogMarkdown' || cmd === 'loadScheduledPosts' ||
+            cmd === 'cancelScheduledPost' || cmd === 'loadOAuthConnections' || cmd === 'openSupportLink' ||
+            cmd.includes('Draft')) {
             // Posting and content operations including Drafts
             await this.postHandler.handleMessage(message);
         }
@@ -214,7 +217,14 @@ export class MessageHandler {
             const token = await DotShareAuth.getToken(this.context);
             if (!token) {
                 Logger.info("[MessageHandler] No API token found, skipping profile fetch.");
-                vscode.window.showInformationMessage("Please log in first to view your profile.");
+                vscode.window.showInformationMessage("Please log in to view your profile and connect your accounts.", "Log In").then(selection => {
+                    if (selection === "Log In") {
+                        const BASE_URL = DOTSUITE_WEB_URL;
+                        const scheme = vscode.env.uriScheme;
+                        const loginUrl = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
+                        vscode.env.openExternal(vscode.Uri.parse(loginUrl));
+                    }
+                });
                 this.view.webview.postMessage({ command: 'LOGOUT_SUCCESS' });
                 return;
             }
@@ -231,6 +241,8 @@ export class MessageHandler {
 
             if (response.status >= 200 && response.status < 300) {
                 this.view.webview.postMessage({ command: 'SET_PROFILE', data: response.data });
+                // 🔥 Sync connections immediately after profile fetch so UI buttons unlock automatically
+                this.postHandler.handleMessage({ command: 'loadOAuthConnections' });
             } else if (response.status === 401) {
                 Logger.warn("[MessageHandler] Token invalid or expired (401). Auto-logging out.");
                 await DotShareAuth.logout(this.context);
