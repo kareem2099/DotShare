@@ -2,53 +2,51 @@
 
 ---
 
-## 🔧 v3.2.6 — "Patch"
+## 🔐 v3.3.1 — "Security Patch"
 
-*Released: April 25, 2026*
+*Released: May 24, 2026*
 
-### 🐛 Bug Fixes
+### 🛡️ Explicit Security Consent Before Cloud Key Sync
 
-- **Read Markdown File — Fields Were Empty**: Opening a `.md` file with "Read Current Markdown File" now correctly populates Title, Tags, Description, and Body. A silent reset was wiping all fields immediately after loading.
-- **Remote Drafts — Showing Published Articles**: The "Fetch Remote Drafts" button now shows **only unpublished drafts** from Dev.to, not all articles.
-- **Blog Publish — Error + Success Toast at the Same Time**: Validation failures now correctly block publishing without triggering a false success notification.
-- **Publish Button Stuck After Validation Error**: Fixed the "⏳ Publishing…" button getting stuck when validation fails. Article content is now preserved after errors so you don't lose your work.
+DotShare now displays a **mandatory one-time consent dialog** the first time you open Cloud Scheduling. Before any of your platform API keys ever leave your machine, you will see:
 
----
+> *"To enable Cloud Scheduling, DotShare needs to securely sync your platform API keys to the DotSuite server.*
+> *🔐 Your keys are encrypted with AES-256-GCM before being stored.*
+> *🗑️ You can revoke access at any time from the DotSuite Dashboard.*
+> *🚫 Your keys are NEVER shared with third parties or used beyond scheduling."*
 
-### ✨ New — Pre-Publish Validator
+- **"I Agree"** → keys are synced and consent is saved locally. You won't be asked again.
+- **"Cancel"** → nothing is uploaded. Cloud scheduling remains disabled until you agree.
 
-DotShare now validates your article **before** sending it to Dev.to or Medium:
+### 🔍 Security & Privacy Documentation
 
-- ❌ **Blocks publish**: missing title, empty body, boilerplate placeholder still in body
-- ⚠️ **Warns but allows**: short article (< 50 words), missing SEO description, no tags
-- 🔧 **Auto-fixes silently**: duplicate tags removed, invalid characters stripped, tags trimmed to platform limits (4 for Dev.to, 5 for Medium)
+A new **Security, Privacy & Your API Keys** section has been added to the README covering:
 
-After a **successful** publish, the article URL appears in the success notification and your content stays visible — no more blank composer after publishing.
-
----
-
-## 📝 v3.2.5 — "Nexus"
-
-*Released: April 24, 2026*
-
-### 📝 Universal Drafts for All Platforms
-
-The drafts system you loved for blogging is now available for **every platform** in DotShare.
-
-- **Social Drafts** — Save your clever tweets, LinkedIn posts, or Telegram updates as drafts and finish them later.
-- **Cross-Platform Resumption** — Start a draft for X, switch to Bluesky, and your drafts remain safe and easily accessible.
-- **One-Click Loading** — Just like blogging drafts, one click loads your saved content back into the composer.
+| Layer | Protection |
+|---|---|
+| In Transit | HTTPS/TLS end-to-end |
+| At Rest | AES-256-GCM server-side encryption |
+| Access Control | Keys scoped to your user ID only |
+| Third Parties | Never shared or sold |
 
 ---
 
-### 🧹 Codebase Cleanup & Performance
+## 🚀 v3.3.0 — "Production Bridge"
 
-We've "polished the gears" to make DotShare faster and lighter than ever.
+*Released: May 24, 2026*
 
-- **Leaner Webview** — Removed hundreds of lines of legacy CSS and unused components.
-- **Faster Startup** — Optimized state loading for a near-instant experience when opening the Platform Hub.
-- **Cleaner UI** — Refined the composer layout to be even more focused and distraction-free.
+### ☁️ Live Production Backend
 
----
+The DotSuite Core Rust backend is now deployed at **`dotsuite-core-production.up.railway.app`** — no more localhost! Cloud scheduling, media uploads, and OAuth connections all route to the live server.
 
-*Thank you for using DotShare! Questions or feedback? [Open an issue →](https://github.com/kareem2099/DotShare/issues)*
+### 🖼️ Cover Image Upload
+
+Upload cover images directly from the blog composer to **Cloudflare R2** and get a permanent CDN URL auto-filled — without leaving VS Code.
+
+### 🐛 Composer Wipe Bug Fixed
+
+Uploading an image no longer wipes your post title, tags, and content. The composer resets **only** after a successful publish, not after any status event.
+
+### 📌 Centralized URL Management
+
+All backend and frontend URLs now live in `src/constants.ts`. Change one line to switch between environments.

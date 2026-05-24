@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-Production%20Bridge-7c3aed?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.3.1-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-Security%20Patch-e11d48?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -19,12 +19,10 @@
 
 ---
 
-## 🆕 What's New — v3.3.0 "Production Bridge"
+## 🆕 What's New — v3.3.1 "Security Patch"
 
-- **☁️ Live on Railway**: The DotSuite Core Rust backend is now deployed to production at `dotsuite-core-production.up.railway.app`. No more localhost!
-- **📌 Centralized URLs** (`constants.ts`): All backend and frontend URLs are now managed in one file — `DOTSUITE_CORE_API_URL` and `DOTSUITE_WEB_URL`. Change one line to switch environments.
-- **🖼️ Cover Image Upload**: Upload cover images directly from the blog composer to Cloudflare R2 and get a permanent CDN URL auto-filled — without leaving VS Code.
-- **🐛 Composer Wipe Bug Fixed**: Uploading an image no longer wipes your post title, tags, and content. The composer now only resets after a successful *publish*, not after any success event.
+- **🔐 Explicit Security Consent**: Before any platform API key is synced to the cloud, DotShare now shows a **mandatory one-time consent dialog** clearly explaining encryption (AES-256-GCM), data usage, and how to revoke access. Your keys never leave your machine without your approval.
+- **🛡️ Security & Privacy Documentation**: New README section fully documents the consent mechanism, encryption layers (in-transit and at-rest), and your rights as a user.
 
 ---
 
@@ -110,6 +108,41 @@ When you schedule a post with images, DotShare now:
 3. **Sends the payload** to the Rust scheduler — which can always reach the assets at dispatch time
 
 > **Why this matters**: Previously, if a post was scheduled for tomorrow and your local file was moved or deleted, the scheduler would fail silently. Now the asset lives in the cloud from the moment you schedule.
+
+---
+
+### 🔐 Security, Privacy & Your API Keys
+
+DotShare takes your credentials seriously. Here is exactly what happens when you enable Cloud Scheduling:
+
+#### One-Time Explicit Consent
+Before any of your platform API keys are ever sent to the DotSuite server, the extension displays a **mandatory consent dialog** explaining:
+
+- What data will be synced
+- How it is protected
+- How to revoke access
+
+**You must click "I Agree" before any key ever leaves your machine.** This consent is stored locally and only asked once.
+
+#### How Your Keys Are Protected
+
+| Layer | Protection |
+|---|---|
+| **In Transit** | HTTPS/TLS — all traffic is encrypted end-to-end |
+| **At Rest** | AES-256-GCM encryption with a server-side key |
+| **Access Control** | Keys are scoped to your user ID; no other user can read them |
+| **Third Parties** | Your keys are **never** shared with, sold to, or accessible by any third party |
+| **Purpose Limitation** | Keys are used **exclusively** for post scheduling on your behalf |
+
+#### Your Rights
+
+- ✅ **Revoke at any time** — Visit the DotSuite Dashboard → Settings → Connected Accounts and remove any platform key instantly.
+- ✅ **Delete your data** — Contact us to permanently purge all stored credentials from our servers.
+- ✅ **Transparency** — The server-side encryption and storage code is open source at [dotsuite-core](https://github.com/kareem2099/dotsuite-core).
+
+> **Note**: DotShare is open source. You can review exactly how credentials are handled in [`src/handlers/PostHandler.ts`](./src/handlers/PostHandler.ts) and [`src/services/SchedulerClient.ts`](./src/services/SchedulerClient.ts).
+
+---
 
 ### ⏰ Automation & Scheduling
 

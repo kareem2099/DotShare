@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.1] - 2026-05-24 — "Security Patch"
+
+### Added
+- **🔐 Explicit Security Consent** (`src/handlers/PostHandler.ts`): Added a mandatory one-time consent dialog before any platform API key is synced to the DotSuite server. The dialog clearly states:
+  - What data is being synced
+  - That keys are encrypted with **AES-256-GCM** at rest
+  - That access can be revoked at any time from the Dashboard
+  - That keys are never shared with third parties
+  - User consent is persisted in VS Code `globalState` (`dotshare.cloudCredentialsConsentGiven`) — asked only once per machine. If the user declines, no credentials are ever uploaded.
+- **🛡️ README Security Section**: Added a full `Security, Privacy & Your API Keys` section documenting the consent mechanism, encryption layers, and user rights.
+
+---
+
 ## [3.3.0] - 2026-05-24 — "Production Bridge"
 
 ### Added

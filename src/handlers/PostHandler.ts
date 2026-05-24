@@ -355,6 +355,41 @@ export class PostHandler {
     }
 
     private async handleLoadOAuthConnections(): Promise<void> {
+        // ── One-time consent gate ─────────────────────────────────────────────
+        // Before uploading any local credentials to the cloud, the user must
+        // explicitly agree that their keys will be encrypted and stored server-side.
+        const CONSENT_KEY = 'dotshare.cloudCredentialsConsentGiven';
+        const consentGiven = this.context.globalState.get<boolean>(CONSENT_KEY, false);
+
+        if (!consentGiven) {
+            const answer = await vscode.window.showInformationMessage(
+                '☁️ DotSuite Cloud Scheduling',
+                {
+                    modal: true,
+                    detail:
+                        'To enable Cloud Scheduling, DotShare needs to securely sync your platform API keys ' +
+                        'to the DotSuite server.\n\n' +
+                        '🔐 Your keys are encrypted with AES-256-GCM before being stored.\n' +
+                        '🗑️ You can revoke access at any time from the DotSuite Dashboard.\n' +
+                        '🚫 Your keys are NEVER shared with third parties or used beyond scheduling.\n\n' +
+                        'By clicking "I Agree", you consent to this secure key sync.',
+                },
+                'I Agree',
+                'Cancel'
+            );
+
+            if (answer !== 'I Agree') {
+                Logger.info('[PostHandler] User declined cloud credentials consent.');
+                this.view.webview.postMessage({ command: 'SET_CONNECTIONS', platforms: [] });
+                return;
+            }
+
+            // Persist consent so we never ask again on this machine
+            await this.context.globalState.update(CONSENT_KEY, true);
+            Logger.info('[PostHandler] Cloud credentials consent granted by user.');
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // Sync local credentials to backend first (fire and forget to not block UI immediately)
         // We await it here so the subsequent getConnections includes them if newly added.
         try {
