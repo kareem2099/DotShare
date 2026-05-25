@@ -16,6 +16,7 @@ export class DotShareWebView {
     public static readonly viewType = 'dotshare.mainPanel';
     private static _context: vscode.ExtensionContext | undefined;
     private static _messageHandler?: MessageHandler;
+    private static _panels: vscode.WebviewPanel[] = [];
 
     private constructor(private readonly _context: vscode.ExtensionContext) {}
 
@@ -32,8 +33,9 @@ export class DotShareWebView {
      * Post a message to the active platform post panel.
      */
     public static postMessage(message: Record<string, unknown>): void {
-        // No-op: platform post panels are independent; targeted via MessageHandler
-        void message;
+        DotShareWebView._panels.forEach(panel => {
+            panel.webview.postMessage(message);
+        });
     }
 
 
@@ -77,6 +79,16 @@ Start writing your article here...
             }
         }
 
+        // Capture active editor state BEFORE the webview steals focus
+        const activeEditor = vscode.window.activeTextEditor;
+        let initialFileName = '';
+        let initialCode = '';
+        if (activeEditor && activeEditor.document) {
+            initialFileName = path.basename(activeEditor.document.fileName);
+            const selection = activeEditor.selection;
+            initialCode = !selection.isEmpty ? activeEditor.document.getText(selection) : activeEditor.document.getText();
+        }
+
         const panel = vscode.window.createWebviewPanel(
             `dotshare.platformPost.${platformKey}`,
             `${config.icon} Post to ${config.name}`,
@@ -87,6 +99,7 @@ Start writing your article here...
                 localResourceRoots: [context.extensionUri],
             }
         );
+        DotShareWebView._panels.push(panel);
 
         panel.webview.html = DotShareWebView._buildPlatformHtml(panel.webview, context.extensionUri, config, platformKey);
 
@@ -130,12 +143,26 @@ Start writing your article here...
             Logger.error(`[DotShareWebView] Error loading post history (${platformKey}):`, msg);
         });
 
+        // Auto-fill Gist workspace with captured editor data
+        setTimeout(() => {
+            if (initialFileName || initialCode) {
+                panel.webview.postMessage({
+                    command: 'initGistData',
+                    fileName: initialFileName,
+                    code: initialCode,
+                    description: ''
+                });
+                Logger.info(`[DotShareWebView] Auto-populated Gist with: ${initialFileName}`);
+            }
+        }, 300);
+
         setTimeout(() => {
             panel.webview.postMessage({ command: 'navigate', page: 'post', options: { platform: platformKey } });
         }, 200);
 
         panel.onDidDispose(
             () => {
+                DotShareWebView._panels = DotShareWebView._panels.filter(p => p !== panel);
                 Logger.info(`[DotShareWebView] Platform post panel disposed for: ${platformKey}`);
             },
             undefined,
@@ -167,6 +194,7 @@ Start writing your article here...
         const threadsActive = config.workspaceType === 'threads' ? ' active' : '';
         const socialActive = config.workspaceType === 'social' ? ' active' : '';
         const blogsActive = config.workspaceType === 'blogs' ? ' active' : '';
+        const gistActive = config.workspaceType === 'gist' ? ' active' : '';
 
         const isBlogPlatform = platformKey === 'devto' || platformKey === 'medium';
         const blogIntroText = isBlogPlatform
@@ -229,6 +257,7 @@ Start writing your article here...
             html = html.replace(/\{\{THREADS_ACTIVE\}\}/g, threadsActive);
             html = html.replace(/\{\{SOCIAL_ACTIVE\}\}/g, socialActive);
             html = html.replace(/\{\{BLOGS_ACTIVE\}\}/g, blogsActive);
+            html = html.replace(/\{\{GIST_ACTIVE\}\}/g, gistActive);
             html = html.replace(/\{\{BLOG_INTRO_TEXT\}\}/g, blogIntroText);
             html = html.replace(/\{\{BLOG_SERIES_FIELD_HTML\}\}/g, blogSeriesFieldHtml);
             html = html.replace(/\{\{BLOG_PUBLISH_CARD_HTML\}\}/g, blogPublishCardHtml);

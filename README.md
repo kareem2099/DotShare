@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.3.1-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-Security%20Patch-e11d48?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.3.2-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-GitHub%20Gists-10b981?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -19,10 +19,17 @@
 
 ---
 
-## 🆕 What's New — v3.3.1 "Security Patch"
+## 🆕 What's New — v3.3.2 "GitHub Gists & Developer Workflows"
 
-- **🔐 Explicit Security Consent**: Before any platform API key is synced to the cloud, DotShare now shows a **mandatory one-time consent dialog** clearly explaining encryption (AES-256-GCM), data usage, and how to revoke access. Your keys never leave your machine without your approval.
-- **🛡️ Security & Privacy Documentation**: New README section fully documents the consent mechanism, encryption layers (in-transit and at-rest), and your rights as a user.
+- **🪄 1-Click Gist Creation**: Highlight code in your VS Code editor, click "Create Gist", and DotShare instantly opens with your code snippet and current filename auto-populated.
+- **💾 Universal Drafts Integration**: Gists are now a first-class citizen inside the global Drafts System. Save your snippets and resume them anytime alongside your social and blog drafts.
+
+---
+
+## 🔐 Security Patch — v3.3.1
+
+- **Explicit Security Consent**: Before any platform API key is synced to the cloud, DotShare now shows a **mandatory one-time consent dialog** clearly explaining encryption (AES-256-GCM), data usage, and how to revoke access. Your keys never leave your machine without your approval.
+- **Security & Privacy Documentation**: New README section fully documents the consent mechanism, encryption layers (in-transit and at-rest), and your rights as a user.
 
 ---
 
@@ -67,8 +74,9 @@ Share seamlessly across your entire professional network:
 | 💬 **Discord** | Social | Webhooks, embeds | ✅ Full Support |
 | 🟠 **Reddit** | Social | Subreddits, profiles (r/, u/) | ✅ Full Support |
 | 🦋 **BlueSky** | Social | Threads, facets, **up to 4 images**, JIT compression | ✅ Full Support |
-| 👨‍💻 **Dev.to** | Blog | Articles, series, drafts | ✅ **New in v3.0** |
-| Ⓜ️ **Medium** | Blog | Articles, draft/publish/unlisted | ✅ **New in v3.0** |
+| 👨‍💻 **Dev.to** | Blog | Articles, series, drafts | ✅ Full Support |
+| Ⓜ️ **Medium** | Blog | Articles, draft/publish/unlisted | ✅ Full Support |
+| 💻 **GitHub Gist** | Code | Snippets, public/secret, auto-populate | ✅ **New in v3.3.2** |
 
 ### 📰 The Publishing Suite (v3.0 New!)
 

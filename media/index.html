@@ -420,6 +420,49 @@
                             </ol>
                         </details>
                     </div>
+
+                    <div class="platform-card github">
+                        <div class="card-header">
+                            <h3>⚡ GitHub Gist</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="gist" data-key="createPostBtn">✨ Create Gist</button>
+                                <button class="saved-apis-btn" data-platform="gist" data-key="savedApisBtn">📚 Saved Drafts</button>
+                            </div>
+                        </div>
+                        <p>Create and share code snippets as GitHub Gists directly from VS Code</p>
+
+                        <div class="oauth-connect-section" id="oauthSection_gist">
+                            <div class="oauth-btn-row" id="oauthBtnRow_gist">
+                                <button class="oauth-connect-btn" id="oauthConnect_gist" data-platform="gist">
+                                    <span class="oauth-icon">🔗 Connect with GitHub</span>
+                                    <span class="oauth-btn-text" id="oauthBtnText_gist" style="display:none;"></span>
+                                </button>
+                                <button class="oauth-disconnect-btn" id="oauthDisconnect_gist" data-platform="gist" style="display:none;" title="Disconnect GitHub" data-key="disconnect">Disconnect</button>
+                            </div>
+                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_gist">
+                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
+                                <span class="toggle-icon">⌄</span>
+                            </div>
+                        </div>
+
+                        <div class="oauth-advanced-content" id="oauthAdvancedContent_gist" style="display:none;">
+                            <div class="input-group">
+                                <label for="githubToken">GitHub Token</label>
+                                <input type="password" id="githubToken" placeholder="Paste your GitHub token">
+                            </div>
+                        </div>
+
+                        <details class="guidelines">
+                            <summary>How to get a GitHub Token</summary>
+                            <ol>
+                                <li>Visit <a href="https://github.com/settings/tokens" target="_blank">GitHub Personal Access Tokens</a></li>
+                                <li>Create a new token with <code>gist</code> scope only</li>
+                                <li>Paste the token in the field above</li>
+                                <li>Or use GitHub CLI: <code>gh auth token</code></li>
+                            </ol>
+                            <p><em>Token is stored securely and never transmitted to external servers</em></p>
+                        </details>
+                    </div>
                 </div>
             </section>
 

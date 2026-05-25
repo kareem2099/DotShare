@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "publisher": "freerave",
   "funding": [
     {
@@ -93,8 +93,41 @@
         "command": "dotshare.confirmLogout",
         "title": "DotShare: Confirm Logout",
         "category": "DotShare"
+      },
+      {
+        "command": "dotshare.recheckBanStatus",
+        "title": "DotShare: Recheck Ban Status",
+        "category": "DotShare"
+      },
+      {
+        "command": "dotshare.createGistFromSelection",
+        "title": "DotShare: Create Gist from Selection",
+        "category": "DotShare",
+        "icon": "$(github)"
+      },
+      {
+        "command": "dotshare.createGistFromFile",
+        "title": "DotShare: Create Gist from File",
+        "category": "DotShare",
+        "icon": "$(github)"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "dotshare.createGistFromSelection",
+          "when": "editorHasSelection",
+          "group": "1_modification"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "dotshare.createGistFromFile",
+          "when": "!explorerResourceIsFolder",
+          "group": "1_modification"
+        }
+      ]
+    },
     "uriHandlers": [
       {
         "scheme": "vscode",

@@ -12,7 +12,7 @@
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type WorkspaceType = 'threads' | 'social' | 'blogs';
+export type WorkspaceType = 'threads' | 'social' | 'blogs' | 'gist';
 export type AuthType      = 'oauth2' | 'api_key' | 'token' | 'webhook' | 'password';
 export type CharCountMethod = 'standard' | 'twitter'; // Twitter counts URLs as 23 chars
 
@@ -183,6 +183,19 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
         workspaceType:    'blogs',
         charCountMethod:  'standard',
         authType:         'token',
+    },
+
+    gist: {
+        name:             'GitHub Gist',
+        icon:             '⚡',
+        maxChars:         100000,
+        supportsThreads:  false,
+        supportsMedia:    false,
+        maxMediaCount:    0,
+        supportsScheduling: false,
+        workspaceType:    'gist',
+        charCountMethod:  'standard',
+        authType:         'oauth2',
     },
 };
 

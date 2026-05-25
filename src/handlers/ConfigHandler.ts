@@ -217,6 +217,14 @@ export class ConfigHandler {
             Logger.warn(`[ConfigHandler] Failed to load translations for ${currentLanguage}`, e);
         }
 
+        let githubConnected = false;
+        try {
+            const { TokenManager } = await import('../services/TokenManager');
+            githubConnected = await TokenManager.hasGitHubToken();
+        } catch (e) {
+            // Ignore error
+        }
+
         this.view.webview.postMessage({
             command: 'updateConfiguration',
             selectedModel: savedModel ? { ...savedModel, apiKey } : savedModel,
@@ -240,6 +248,7 @@ export class ConfigHandler {
             blueskyPassword: savedBlueSkyPassword,
             devtoApiKey: savedDevToApiKey,
             mediumAccessToken: savedMediumAccessToken,
+            githubConnected,
             theme: currentTheme,
             language: currentLanguage,
             translations: translations,

@@ -957,6 +957,27 @@ window.addEventListener('message', (event: MessageEvent) => {
                 toast('Post updated!', 'success');
                 break;
 
+            case 'injectText':
+                if (msg.text) {
+                    const appendText = `\n${msg.text}\n`;
+                    if (window.__PLATFORM_DATA__?.workspaceType === 'blogs') {
+                        const b = get<HTMLTextAreaElement>('blog-body');
+                        if (b) {
+                            const insertIndex = b.selectionStart !== undefined ? b.selectionStart : b.value.length;
+                            b.value = b.value.slice(0, insertIndex) + appendText + b.value.slice(insertIndex);
+                            b.dispatchEvent(new Event('input'));
+                        }
+                    } else {
+                        if (textarea) {
+                            const insertIndex = textarea.selectionStart !== undefined ? textarea.selectionStart : textarea.value.length;
+                            textarea.value = textarea.value.slice(0, insertIndex) + appendText + textarea.value.slice(insertIndex);
+                            textarea.dispatchEvent(new Event('input'));
+                        }
+                    }
+                    toast('Link injected!', 'success');
+                }
+                break;
+
             case 'revealBlogPublisher':
                 revealBlogPublisherUi();
                 break;
@@ -1152,7 +1173,28 @@ window.addEventListener('message', (event: MessageEvent) => {
             case 'draftLoaded': {
                 const d = msg.draft as DraftItem | undefined;
                 if (d) {
-                    if (d.type === 'article') {
+                    if (window.__PLATFORM_DATA__?.platform === 'gist') {
+                        const gistFileNameInput = get<HTMLInputElement>('gistFileName');
+                        const gistDescriptionInput = get<HTMLInputElement>('gistDescription');
+                        const gistCodeInput = get<HTMLTextAreaElement>('gistCode');
+                        
+                        const gistData = d.data as { bodyMarkdown?: string; description?: string; visibility?: string };
+                        
+                        if (gistFileNameInput && d.title) gistFileNameInput.value = d.title;
+                        if (gistCodeInput) gistCodeInput.value = gistData.bodyMarkdown ?? '';
+                        if (gistDescriptionInput) gistDescriptionInput.value = gistData.description ?? '';
+                        
+                        if (gistData.visibility) {
+                            const rb = document.querySelector(`input[name="gistVisibility"][value="${gistData.visibility}"]`) as HTMLInputElement;
+                            if (rb) rb.checked = true;
+                        }
+                        toast('Gist Draft loaded', 'info');
+                        
+                        // Switch to compose view
+                        const composeBtn = document.querySelector('.inner-sidebar .tab-btn[data-target="view-compose"]') as HTMLButtonElement;
+                        if (composeBtn) composeBtn.click();
+                        
+                    } else if (d.type === 'article') {
                         const body = get<HTMLTextAreaElement>('blog-body');
                         const title = get<HTMLInputElement>('blog-title');
                         const tags = get<HTMLInputElement>('blog-tags');
@@ -1171,6 +1213,9 @@ window.addEventListener('message', (event: MessageEvent) => {
                         revealBlogPublisherUi();
                         updateBlogPublishButtonsState();
                         toast('Draft loaded into article composer', 'info');
+                        
+                        const composeBtn = document.querySelector('.inner-sidebar .tab-btn[data-target="view-compose"]') as HTMLButtonElement;
+                        if (composeBtn) composeBtn.click();
                     } else {
                         const postText = get<HTMLTextAreaElement>('post-text');
                         if (postText) postText.value = d.data.text ?? '';

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import { TierInfo } from '../types';
 import { Logger } from '../utils/Logger';
 import { DOTSUITE_CORE_API_URL } from '../constants';
@@ -10,6 +11,80 @@ export class DotShareAuth {
     private static API_BASE_URL = process.env.DOTSUITE_API_URL || DOTSUITE_CORE_API_URL;
     
     private static cachedTierInfo: TierInfo | null = null;
+    private static _context: vscode.ExtensionContext | null = null;
+
+    /** Call once during activation to allow ban checks from inside auth methods. */
+    public static setContext(ctx: vscode.ExtensionContext): void {
+        this._context = ctx;
+    }
+
+    /**
+     * Hash the VS Code machine ID for privacy before sending as a header.
+     * SHA-256(machineId) — one-way, no PII transmitted.
+     */
+    public static getHashedMachineId(): string {
+        try {
+            return crypto
+                .createHash('sha256')
+                .update(vscode.env.machineId)
+                .digest('hex');
+        } catch {
+            return '';
+        }
+    }
+
+    /**
+     * Build standard headers for all API requests.
+     * Includes Authorization and X-Machine-Id.
+     */
+    public static async buildHeaders(
+        context: vscode.ExtensionContext,
+        extra?: Record<string, string>
+    ): Promise<Record<string, string>> {
+        const token = await this.getToken(context);
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            'X-Machine-Id': this.getHashedMachineId(),
+            ...extra,
+        };
+    }
+
+    /**
+     * Check if an API response indicates a ban.
+     * If banned: persists state to globalState, shows blocking modal, returns true.
+     * Caller should abort if this returns true.
+     */
+    public static async handleBannedResponse(
+        response: Response,
+        context: vscode.ExtensionContext
+    ): Promise<boolean> {
+        if (response.status !== 403) return false;
+
+        let data: Record<string, unknown> = {};
+        try { data = (await response.clone().json()) as Record<string, unknown>; } catch { /* ignore */ }
+
+        if (data.banned !== true) return false;
+
+        const reason = (data.reason as string) ?? 'Terms of Service violation';
+
+        // Persist across restarts
+        await context.globalState.update('dotshare.banned', true);
+        await context.globalState.update('dotshare.banReason', reason);
+
+        // Disable all dotshare commands
+        await vscode.commands.executeCommand('setContext', 'dotshare.accountActive', false);
+
+        Logger.warn('[DotShareAuth] Account banned by server:', reason);
+
+        // Show blocking modal
+        vscode.window.showErrorMessage(
+            `⛔ DotShare: Account Terminated\n\n${reason}\n\nContact: kareem209907@gmail.com`,
+            { modal: true }
+        );
+
+        return true;
+    }
 
     /**
      * Configure the API base URL (useful for testing or remote backends)
@@ -72,7 +147,7 @@ export class DotShareAuth {
      */
     public static async verifyToken(
         context: vscode.ExtensionContext
-    ): Promise<{ valid: boolean; reason?: 'unauthorized' | 'server_error' }> {
+    ): Promise<{ valid: boolean; reason?: 'unauthorized' | 'server_error' | 'banned' }> {
         const token = await this.getToken(context);
         if (!token) {
             Logger.warn('[DotShareAuth] No token found for verification');
@@ -88,8 +163,8 @@ export class DotShareAuth {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
+                    'X-Machine-Id': this.getHashedMachineId(),
                 },
-                // Abort after 10 s so the user isn't left waiting
                 signal: AbortSignal.timeout(10_000),
             });
 
@@ -98,21 +173,23 @@ export class DotShareAuth {
                 return { valid: true };
             }
 
+            // Check for ban response before anything else
+            if (await this.handleBannedResponse(response, context)) {
+                return { valid: false, reason: 'banned' };
+            }
+
             const responseText = await response.text().catch(() => '');
             Logger.warn(
                 `[DotShareAuth] Token verification failed: HTTP ${response.status} — ${responseText}`
             );
 
-            // 401 / 403 → the token itself is invalid
             if (response.status === 401 || response.status === 403) {
                 return { valid: false, reason: 'unauthorized' };
             }
 
-            // 5xx or anything else → backend problem, not a bad token
             return { valid: false, reason: 'server_error' };
 
         } catch (error) {
-            // Network error, DNS failure, timeout, etc.
             Logger.error('[DotShareAuth] Error verifying token (network):', error);
             return { valid: false, reason: 'server_error' };
         }

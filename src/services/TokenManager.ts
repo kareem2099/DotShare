@@ -242,4 +242,42 @@ export class TokenManager {
         }
         Logger.info(`[TokenManager] ${platform} token cleared`);
     }
+
+    // ── GitHub Token Support (Simple, Non-Refreshable) ────────────────────────
+
+    /**
+     * Store a GitHub token (from user input or GitHub CLI)
+     */
+    static async setToken(platform: 'github' | string, token: string): Promise<void> {
+        if (platform === 'github') {
+            await this._context.secrets.store('githubToken', token);
+            Logger.info('[TokenManager] GitHub token stored');
+        }
+    }
+
+    /**
+     * Get GitHub token
+     */
+    static async getToken(platform: 'github' | string): Promise<string | undefined> {
+        if (platform === 'github') {
+            return await this._context.secrets.get('githubToken');
+        }
+        return undefined;
+    }
+
+    /**
+     * Clear GitHub token
+     */
+    static async clearGitHubToken(): Promise<void> {
+        await this._context.secrets.delete('githubToken');
+        Logger.info('[TokenManager] GitHub token cleared');
+    }
+
+    /**
+     * Check if GitHub token exists
+     */
+    static async hasGitHubToken(): Promise<boolean> {
+        const token = await this._context.secrets.get('githubToken');
+        return !!token;
+    }
 }

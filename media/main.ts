@@ -169,7 +169,7 @@ function disconnectOAuth(platform: string): void {
 
 // ── OAuth Button UI Sync ─────────────────────────────────────
 // Platforms that use OAuth (connect/disconnect flow)
-const OAUTH_PLATFORMS = ['linkedin', 'x', 'facebook', 'reddit'] as const;
+const OAUTH_PLATFORMS = ['linkedin', 'x', 'facebook', 'reddit', 'gist'] as const;
 type OAuthPlatform = typeof OAUTH_PLATFORMS[number];
 
 function updateOAuthButtons(tokenMap: Record<string, string | undefined>): void {
@@ -524,6 +524,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                 x: msg.xAccessToken,
                 facebook: msg.facebookToken,
                 reddit: msg.redditAccessToken,
+                gist: msg.githubConnected ? 'connected' : undefined,
             });
 
             // Theme
@@ -630,6 +631,10 @@ window.addEventListener('message', (event: MessageEvent) => {
                 updateOAuthButtons({ [msg.platform]: msg.token });
                 showStatus(`${msg.platform} connected successfully!`, 'success');
             }
+            break;
+
+        case 'gitHubAuthSuccess':
+            updateOAuthButtons({ gist: 'connected' });
             break;
 
         case "SET_PROFILE": {

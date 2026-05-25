@@ -9,6 +9,7 @@ import { MediaService } from '../services/MediaService';
 import { ConfigHandler } from './ConfigHandler';
 import { RedditHandler } from './RedditHandler';
 import { PostHandler } from './PostHandler';
+import { GistHandler } from './GistHandler';
 import { Logger } from '../utils/Logger';
 import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
 import { DraftsService } from '../services/DraftsService';
@@ -24,6 +25,7 @@ export class MessageHandler {
     private configHandler: ConfigHandler;
     private redditHandler: RedditHandler;
     private postHandler: PostHandler;
+    private gistHandler: GistHandler;
     private draftsService: DraftsService;
 
     constructor(
@@ -38,6 +40,7 @@ export class MessageHandler {
         this.configHandler = new ConfigHandler(view, context);
         this.redditHandler = new RedditHandler(view, context, historyService);
         this.postHandler = new PostHandler(view, context, historyService, analyticsService, mediaService, this.draftsService);
+        this.gistHandler = new GistHandler(view, context);
     }
 
     public async handleMessage(message: unknown) {
@@ -52,9 +55,14 @@ export class MessageHandler {
             cmd === 'loadAnalytics' || cmd.startsWith('schedule') || cmd === 'editScheduledPost' ||
             cmd === 'readMarkdownFile' || cmd === 'resetBlogMarkdown' || cmd === 'loadScheduledPosts' ||
             cmd === 'cancelScheduledPost' || cmd === 'loadOAuthConnections' || cmd === 'openSupportLink' ||
-            cmd.includes('Draft')) {
+            (cmd.includes('Draft') && !cmd.includes('Gist'))) {
             // Posting and content operations including Drafts
             await this.postHandler.handleMessage(message);
+        }
+        else if (cmd === 'createGist' || cmd === 'saveGistDraft' || cmd === 'loadGistDrafts' ||
+            cmd === 'deleteGistDraft') {
+            // GitHub Gist operations
+            await this.gistHandler.handleMessage(message);
         }
         else if (cmd.includes('Reddit') || cmd === 'generateRedditTokens' || cmd === 'getRedditFlairs' ||
             cmd === 'getRedditUserPosts' || cmd === 'editRedditPost' || cmd === 'deleteRedditPost') {
@@ -78,6 +86,13 @@ export class MessageHandler {
             switch (cmd) {
                 case 'openOAuth': {
                     const platform = message.platform as string;
+                    
+                    // GitHub Gist uses VS Code's built-in authentication
+                    if (platform === 'gist') {
+                        await this.handleGitHubGistAuth();
+                        return;
+                    }
+                    
                     const validPlatforms = ['linkedin', 'x', 'facebook', 'reddit'];
                     if (!platform || !validPlatforms.includes(platform)) {
                         this.sendError(`DotShare: Unknown OAuth platform "${platform}"`);
@@ -128,6 +143,18 @@ export class MessageHandler {
 
                 case 'disconnectOAuth': {
                     const platform = message.platform as string;
+                    
+                    // GitHub Gist
+                    if (platform === 'gist') {
+                        await TokenManager.clearGitHubToken();
+                        this.sendSuccess('✅ GitHub disconnected');
+                        // Reload config so UI updates
+                        const { ConfigHandler } = await import('./ConfigHandler');
+                        const cfgHandler = new ConfigHandler(this.view, this.context);
+                        await cfgHandler.handleMessage({ command: 'loadConfiguration' });
+                        return;
+                    }
+                    
                     const validPlatforms = ['linkedin', 'x', 'facebook', 'reddit'];
                     if (!platform || !validPlatforms.includes(platform)) {
                         this.sendError(`Unknown platform: ${platform}`);
@@ -148,6 +175,23 @@ export class MessageHandler {
                     const cfgHandler = new ConfigHandler(this.view, this.context);
                     await cfgHandler.handleMessage({ command: 'loadConfiguration' });
                     this.sendSuccess(`${platform} disconnected`);
+                    break;
+                }
+
+                case 'setGitHubToken': {
+                    const token = message.token as string;
+                    if (!token || token.trim().length === 0) {
+                        this.sendError('⚠️ Token cannot be empty');
+                        return;
+                    }
+                    try {
+                        await TokenManager.setToken('github', token);
+                        this.sendSuccess('✅ GitHub token stored securely!');
+                        Logger.info('[MessageHandler] GitHub token saved from manual entry');
+                    } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        this.sendError(`Failed to store token: ${errorMessage}`);
+                    }
                     break;
                 }
 
@@ -418,7 +462,51 @@ export class MessageHandler {
             this.sendError(`Error removing media: ${errorMessage}`);
         }
     }
+    /**
+     * Handle GitHub Gist authentication using VS Code's built-in GitHub provider
+     * This is the "magic" — VS Code handles OAuth, token storage, and refresh automatically!
+     */
+    private async handleGitHubGistAuth(): Promise<void> {
+        try {
+            Logger.info('[MessageHandler] Starting VS Code GitHub authentication for Gist...');
+            
+            // Request GitHub session with 'gist' scope
+            // This pops up a dialog asking the user for permission
+            const session = await vscode.authentication.getSession('github', ['gist'], { createIfNone: true });
+            
+            if (!session || !session.accessToken) {
+                this.sendError('Failed to get GitHub authentication token');
+                Logger.warn('[MessageHandler] GitHub authentication session is empty');
+                return;
+            }
 
+            // Store token securely via TokenManager
+            await TokenManager.setToken('github', session.accessToken);
+
+            Logger.info('[MessageHandler] ✅ GitHub Gist authentication successful!');
+            Logger.info(`[MessageHandler] GitHub user: ${session.account.label}`);
+
+            // Notify UI of successful authentication
+            this.view.webview.postMessage({
+                command: 'gitHubAuthSuccess',
+                user: session.account.label
+            });
+
+            this.sendSuccess(`✅ Connected to GitHub as ${session.account.label}`);
+
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            Logger.error('[MessageHandler] GitHub authentication failed:', errorMessage);
+
+            // User cancelled the auth dialog or network error
+            if (errorMessage.includes('User cancelled')) {
+                Logger.info('[MessageHandler] User cancelled GitHub authentication');
+                return; // Silent fail for user cancellation
+            }
+
+            this.sendError(`GitHub authentication failed: ${errorMessage}`);
+        }
+    }
     private isValidMessage(message: unknown): message is Message {
         return typeof message === 'object' && message !== null && 'command' in message && typeof (message as Message).command === 'string';
     }

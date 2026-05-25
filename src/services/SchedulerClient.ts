@@ -160,7 +160,8 @@ export class SchedulerClient {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Machine-Id': DotShareAuth.getHashedMachineId(),
                 },
                 body: JSON.stringify({
                     text: postData.text,
@@ -170,6 +171,10 @@ export class SchedulerClient {
                     scheduled_at: scheduledTime
                 })
             });
+
+            if (await DotShareAuth.handleBannedResponse(response, context)) {
+                return { success: false, message: 'Account terminated.', errorCode: 'ACCOUNT_TERMINATED' };
+            }
 
             if (response.ok) {
                 Logger.info('[SchedulerClient] Post scheduled successfully');
@@ -211,9 +216,14 @@ export class SchedulerClient {
             const response = await fetch(`${this.getApiBaseUrl()}/v1/posts?status=pending`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Machine-Id': DotShareAuth.getHashedMachineId(),
                 }
             });
+
+            if (await DotShareAuth.handleBannedResponse(response, context)) {
+                return [];
+            }
 
             if (response.ok) {
                 const data = await response.json() as { posts: ScheduledPost[] } | ScheduledPost[];
@@ -239,9 +249,14 @@ export class SchedulerClient {
             const response = await fetch(`${this.getApiBaseUrl()}/v1/posts/${postId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Machine-Id': DotShareAuth.getHashedMachineId(),
                 }
             });
+
+            if (await DotShareAuth.handleBannedResponse(response, context)) {
+                return false;
+            }
 
             if (response.ok) {
                 Logger.info(`[SchedulerClient] Post ${postId} cancelled successfully.`);
@@ -269,9 +284,14 @@ export class SchedulerClient {
             const response = await fetch(`${this.getApiBaseUrl()}/v1/oauth/connections`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Machine-Id': DotShareAuth.getHashedMachineId(),
                 }
             });
+
+            if (await DotShareAuth.handleBannedResponse(response, context)) {
+                return [];
+            }
 
             if (response.ok) {
                 const data = await response.json() as { connected_platforms: string[] };

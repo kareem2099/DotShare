@@ -7,10 +7,38 @@ import { StorageManager } from './storage/storage-manager';
 import { Logger } from './utils/Logger';
 import { TokenManager } from './services/TokenManager';
 import { DotShareAuth } from './services/DotShareAuth';
+import { GistService } from './services/GistService';
+import * as path from 'path';
 
 export async function activate(context: vscode.ExtensionContext) {
+    // ── Emergency Unban Recovery ──────────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.recheckBanStatus', async () => {
+            await context.globalState.update('dotshare.banned', undefined);
+            await context.globalState.update('dotshare.banReason', undefined);
+            vscode.window.showInformationMessage('DotShare: Local ban state cleared. Please reload the window.', 'Reload Window').then(sel => {
+                if (sel === 'Reload Window') {
+                    vscode.commands.executeCommand('workbench.action.reloadWindow');
+                }
+            });
+        })
+    );
+
+    // ── 🚨 FIRST THING: Check if account is banned ────────────────────────────
+    // This persists across restarts so once banned, always banned unless cleared.
+    const isBanned = context.globalState.get<boolean>('dotshare.banned');
+    if (isBanned) {
+        const reason = context.globalState.get<string>('dotshare.banReason') ?? 'Terms of Service violation';
+        vscode.window.showErrorMessage(
+            `⛔ DotShare: Account Terminated\n\n${reason}\n\nContact: kareem209907@gmail.com`,
+            { modal: true }
+        );
+        return; // Stop activation entirely — no commands, no UI registered
+    }
+
     Logger.init(context);
     TokenManager.init(context);
+    DotShareAuth.setContext(context);
     Logger.section('DotShare v3.0 Activating (Hybrid Mode)');
 
     // ── Data / Storage ────────────────────────────────────────
@@ -28,6 +56,9 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('dotshare.openFullWebview', (_page?: string, options?: { platform?: string }) => {
             const platform = options?.platform;
             DotShareWebView.createPlatformPost(context, platform || 'linkedin');
+        }),
+        vscode.commands.registerCommand('dotshare.injectToWebview', (text: string) => {
+            DotShareWebView.postMessage({ command: 'injectText', text });
         })
     );
 
@@ -61,6 +92,58 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.whatsNew', () => {
             WhatsNewProvider.show(context);
+        })
+    );
+
+    // ── 5. Gist Commands ──────────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.createGistFromSelection', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('DotShare: No active editor found.');
+                return;
+            }
+
+            const selection = editor.selection;
+            if (selection.isEmpty) {
+                vscode.window.showErrorMessage('DotShare: No text selected.');
+                return;
+            }
+
+            const text = editor.document.getText(selection);
+            const defaultFileName = editor.document.isUntitled ? 'snippet.txt' : (path.basename(editor.document.fileName) || 'snippet.txt');
+            
+            const fileName = await vscode.window.showInputBox({
+                prompt: 'Enter the file name for your Gist snippet',
+                value: defaultFileName
+            });
+
+            if (!fileName) return; // Cancelled
+
+            await handleGistCreation(text, fileName);
+        }),
+
+        vscode.commands.registerCommand('dotshare.createGistFromFile', async (uri?: vscode.Uri) => {
+            let fileUri = uri;
+            if (!fileUri) {
+                const editor = vscode.window.activeTextEditor;
+                if (!editor) {
+                    vscode.window.showErrorMessage('DotShare: No file selected or active.');
+                    return;
+                }
+                fileUri = editor.document.uri;
+            }
+
+            try {
+                const fileData = await vscode.workspace.fs.readFile(fileUri);
+                const text = new TextDecoder().decode(fileData);
+                const fileName = path.basename(fileUri.fsPath);
+
+                await handleGistCreation(text, fileName);
+            } catch (err) {
+                Logger.error('[Extension] Failed to read file for gist', err);
+                vscode.window.showErrorMessage('DotShare: Failed to read file for Gist.');
+            }
         })
     );
 
@@ -291,4 +374,56 @@ async function checkVersionAndShowWhatsNew(context: vscode.ExtensionContext): Pr
 
 export function deactivate(): void {
     Logger.info('[Extension] DotShare deactivated');
+}
+
+async function handleGistCreation(content: string, fileName: string) {
+    const description = await vscode.window.showInputBox({
+        prompt: 'Enter a description for your Gist',
+        placeHolder: 'e.g., Useful utility function'
+    });
+
+    if (description === undefined) return; // Cancelled
+
+    const visibility = await vscode.window.showQuickPick(['Secret', 'Public'], {
+        placeHolder: 'Select Gist visibility'
+    });
+
+    if (!visibility) return; // Cancelled
+
+    const isPublic = visibility === 'Public';
+
+    vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: 'DotShare: Creating Gist...',
+        cancellable: false
+    }, async () => {
+        try {
+            const files = { [fileName]: { content } };
+            const url = await GistService.createGist(files, description, isPublic);
+
+            if (url) {
+                vscode.window.showInformationMessage(`✓ DotShare: Gist created successfully!`, 'Copy Link', 'Open in Browser', '🚀 Share via DotShare').then(async sel => {
+                    if (sel === 'Copy Link') {
+                        await vscode.env.clipboard.writeText(url);
+                        vscode.window.showInformationMessage('DotShare: Gist link copied to clipboard.');
+                    } else if (sel === 'Open in Browser') {
+                        vscode.env.openExternal(vscode.Uri.parse(url));
+                    } else if (sel === '🚀 Share via DotShare') {
+                        await vscode.env.clipboard.writeText(url);
+                        vscode.commands.executeCommand('dotshare.openFullWebview');
+                        // Give webview time to open and load before injecting
+                        setTimeout(() => {
+                            vscode.commands.executeCommand('dotshare.injectToWebview', url);
+                        }, 1500);
+                        vscode.window.showInformationMessage('DotShare: Gist link added to your post!');
+                    }
+                });
+            } else {
+                vscode.window.showErrorMessage('DotShare: Failed to create Gist or authentication was cancelled.');
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`DotShare: ${msg}`);
+        }
+    });
 }

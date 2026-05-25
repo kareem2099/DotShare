@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.2] - 2026-05-25 — "GitHub Gists & Developer Workflows"
+
+### Added
+- **1-Click Gist Creation (Auto-Populate)**: Select any code snippet in your active VS Code editor, hit "Create Gist" from the command palette or sidebar, and the Webview will open with the exact code snippet and current file name automatically populated.
+- **Universal Drafts System for Gists**: Gists are now fully integrated into DotShare's global `DraftsService`. You can save, load, edit, and delete Gist drafts seamlessly alongside your other social media and blog drafts from the unified "Saved Drafts" tab.
+
+### Fixed
+- **OAuth Connect/Disconnect State Bug**: Fixed a bug where the GitHub "Disconnect" button would fail to appear correctly in the UI. The extension now relies on its internal `TokenManager` as the absolute source of truth instead of checking the global VS Code session, ensuring the sidebar Connect/Disconnect UI accurately reflects your DotShare authentication status.
+- **Type Safety**: Ensured strict TypeScript casting for draft data when loading isolated Gist drafts into the Webview.
+
+---
+
 ## [3.3.1] - 2026-05-24 — "Security Patch"
 
 ### Added

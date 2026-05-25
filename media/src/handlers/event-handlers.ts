@@ -253,6 +253,20 @@ export function setupPlatformEventListeners() {
             }
         });
     }
+
+    // GitHub Token (for Gist)
+    const githubTokenInput = document.getElementById('githubToken') as HTMLInputElement;
+    if (githubTokenInput) {
+        githubTokenInput.addEventListener('input', updateButtonStates);
+        githubTokenInput.addEventListener('blur', () => {
+            if (githubTokenInput.value.trim()) {
+                getVscode()?.postMessage({
+                    command: 'setGitHubToken',
+                    token: githubTokenInput.value
+                });
+            }
+        });
+    }
 }
 
 // Function to set up Reddit event listeners
