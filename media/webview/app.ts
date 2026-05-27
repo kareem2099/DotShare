@@ -566,8 +566,6 @@ function resetAllComposers(): void {
 }
 
 // ── Blog Publisher ────────────────────────────────────────────────────────────
-const BLOG_LABEL_DEVTO  = '🚀 Publish to Dev.to';
-const BLOG_LABEL_MEDIUM = '🚀 Publish to Medium';
 
 function revealBlogPublisherUi(): void {
     const preview = get('blog-preview');
@@ -593,10 +591,9 @@ function updateBlogPublishButtonsState(): void {
     (['btn-publish-blog-devto', 'btn-publish-blog-medium', 'btn-publish-blog', 'btn-schedule-blog'] as const).forEach(id => {
         const b = get<HTMLButtonElement>(id);
         if (b) {
-            let platform = '';
-            if (id.includes('devto')) platform = 'devto';
-            else if (id.includes('medium')) platform = 'medium';
-            else platform = getSingleBlogPlatform() || '';
+            const platform = id.includes('devto') ? 'devto'
+                           : id.includes('medium') ? 'medium'
+                           : (getSingleBlogPlatform() || '');
 
             if (platform && !globalConnectedPlatforms.includes(platform)) {
                 // For schedule buttons, we strictly require Cloud OAuth.
@@ -1572,7 +1569,7 @@ try {
             if (!platformTarget) return;
 
             // Gather data based on workspace
-            let text = '';
+            let text: string;
             let type: 'social' | 'article' = 'social';
             
             if (window.__PLATFORM_DATA__?.workspaceType === 'blogs') {

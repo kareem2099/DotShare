@@ -69,7 +69,7 @@ export async function validateDiscordWebhook(webhookUrl: string): Promise<boolea
 
         const response = await axios.post(webhookUrl, testPayload, { headers });
         return response.status === 204;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

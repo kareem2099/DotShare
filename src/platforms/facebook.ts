@@ -50,7 +50,7 @@ export async function validateFacebookCredentials(accessToken: string): Promise<
     try {
         const response = await axios.get(`https://graph.facebook.com/v18.0/me?fields=id,name&access_token=${accessToken}`);
         return !!response.data.id;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

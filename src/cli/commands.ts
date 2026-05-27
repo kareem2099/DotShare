@@ -79,7 +79,7 @@ export function setupInitCommand(program: Command) {
                     if (response.status === 200) {
                         Logger.info('✅ Server connection successful!\n');
                     }
-                } catch (error) {
+                } catch {
                     Logger.info('⚠️  Server connection failed. Make sure the Python server is running.\n');
                 }
 

@@ -27,7 +27,7 @@ import { shareToBlueSky } from '../platforms/bluesky';
 import { shareToDevTo } from '../platforms/devto';
 import { shareToMedium } from '../platforms/medium';
 import { parseFrontMatter } from '../utils/frontmatter-parser';
-import { validateDevTo, validateMedium, formatValidationSummary } from '../utils/blog-validator';
+import { validateDevTo, validateMedium } from '../utils/blog-validator';
 import { generatePost as generateClaudePost } from '../ai/claude';
 import { DraftsService } from '../services/DraftsService';
 import { fetchDevToArticles, updateDevToArticle } from '../platforms/devto';

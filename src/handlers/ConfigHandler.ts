@@ -221,7 +221,7 @@ export class ConfigHandler {
         try {
             const { TokenManager } = await import('../services/TokenManager');
             githubConnected = await TokenManager.hasGitHubToken();
-        } catch (e) {
+        } catch {
             // Ignore error
         }
 

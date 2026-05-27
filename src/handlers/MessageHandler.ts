@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { DOTSUITE_WEB_URL } from '../constants';
 import * as path from 'path';
-import * as os from 'os';
 import * as fs from 'fs';
 import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
@@ -15,6 +14,7 @@ import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
 import { DraftsService } from '../services/DraftsService';
 import { DotShareAuth } from '../services/DotShareAuth';
 import { SchedulerClient } from '../services/SchedulerClient';
+import axios from 'axios';
 
 interface Message {
     command: string;
@@ -310,7 +310,6 @@ export class MessageHandler {
             }
 
             const baseUrl = DotShareAuth.getApiBaseUrl();
-            const axios = require('axios');
             const response = await axios.get(`${baseUrl}/v1/users/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -332,7 +331,7 @@ export class MessageHandler {
                 Logger.warn(`[MessageHandler] Failed to fetch profile: ${response.status}`);
                 vscode.window.showErrorMessage(`Failed to load profile (Status: ${response.status}).`);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             Logger.error('[MessageHandler] Error fetching profile:', error);
             // Exit loading state gracefully — token may still be valid, just no network
             this.view.webview.postMessage({ command: 'LOGOUT_SUCCESS' });

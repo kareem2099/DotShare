@@ -207,7 +207,7 @@ export async function validateBlueSkyCredentials(identifier: string, password: s
     try {
         await authenticateBlueSky(identifier, password);
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }
