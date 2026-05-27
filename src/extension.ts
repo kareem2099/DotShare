@@ -149,31 +149,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // ── SaaS Auth Commands ────────────────────────────────────
     context.subscriptions.push(
-        vscode.commands.registerCommand('dotshare.login', async () => {
-            const token = await vscode.window.showInputBox({
-                prompt: 'Enter your DotSuite API Token',
-                password: true,
-                ignoreFocusOut: true
-            });
-            if (token) {
-                await DotShareAuth.storeToken(context, token);
-                const verification = await DotShareAuth.verifyToken(context);
-                if (verification.valid) {
-                    const tierInfo = await DotShareAuth.fetchTierInfo(context);
-                    vscode.window.showInformationMessage(`DotShare: Successfully logged in to DotSuite Cloud! Tier: ${tierInfo?.tier || 'Unknown'}`);
-                } else if (verification.reason === 'server_error') {
-                    vscode.window.showWarningMessage('DotShare: Token saved, but the server is currently unreachable. Verify your connection and try again.');
-                } else {
-                    vscode.window.showErrorMessage('DotShare: Invalid API token or backend unreachable.');
-                    await DotShareAuth.logout(context);
-                }
-            }
-        }),
         vscode.commands.registerCommand('dotshare.logout', async () => {
             // 🔴 Clear token
             await DotShareAuth.logout(context);
             
-            // 🔄 Reload webviews to show login screen
+            // 🔄 Update sidebar cloud section to logged-out state
+            provider.postMessage({ command: 'LOGOUT_SUCCESS' });
             provider.reloadConfiguration();
             DotShareWebView.reloadConfiguration();
             
@@ -181,16 +162,13 @@ export async function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage('✓ DotShare: Successfully logged out. Token cleared! 🧹');
         }),
         vscode.commands.registerCommand('dotshare.confirmLogout', async () => {
-            // Show confirmation to user
             const choice = await vscode.window.showWarningMessage(
                 '⚠️ DotShare: Are you sure you want to logout and clear your token?\n\nYou will need to login again.',
                 { modal: true },
-                'Yes, Logout',
-                'Cancel'
+                'Yes, Logout'
             );
             
             if (choice === 'Yes, Logout') {
-                // Execute actual logout
                 vscode.commands.executeCommand('dotshare.logout');
             }
         })
@@ -229,13 +207,16 @@ export async function activate(context: vscode.ExtensionContext) {
                             vscode.window.showInformationMessage(`✓ DotShare: Successfully connected to DotSuite Cloud! (Tier: ${tierInfo?.tier || 'Unknown'})`);
                             vscode.commands.executeCommand('workbench.view.extension.dotshare-container');
                             
-                            // Reload webviews to reflect new auth state
-                            const provider = new DotShareProvider(context.extensionUri, context);
+                            // Push fetchProfile to the sidebar so the cloud section
+                            // switches immediately from "logged out" → "logged in"
+                            provider.postMessage({ command: 'fetchProfile' });
                             provider.reloadConfiguration();
                             DotShareWebView.reloadConfiguration();
                         } else if (verification.reason === 'server_error') {
                             // 5xx or network error — the token may be fine, don't delete it
                             Logger.warn('[Extension] Backend unreachable during token verification — keeping token, will retry on next use');
+                            // Still push fetchProfile so the sidebar can show a partial connected state
+                            provider.postMessage({ command: 'fetchProfile' });
                             vscode.window.showWarningMessage(
                                 '⚠️ DotShare: Could not reach the DotSuite server to verify your key. ' +
                                 'The key has been saved — your connection will be confirmed automatically once the server is back online.',
@@ -246,9 +227,11 @@ export async function activate(context: vscode.ExtensionContext) {
                                     if (retry.valid) {
                                         vscode.window.showInformationMessage('✓ DotShare: Connection verified successfully!');
                                         vscode.commands.executeCommand('workbench.view.extension.dotshare-container');
+                                        provider.postMessage({ command: 'fetchProfile' });
                                     } else if (retry.reason === 'unauthorized') {
                                         vscode.window.showErrorMessage('❌ DotShare: Security Alert — Invalid token. Please generate a new key.');
                                         await DotShareAuth.logout(context);
+                                        provider.postMessage({ command: 'LOGOUT_SUCCESS' });
                                     }
                                 }
                             });

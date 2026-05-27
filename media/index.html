@@ -22,9 +22,6 @@
                     <option value="ar">العربية</option>
                     <option value="ru">Русский</option>
                 </select>
-                <button id="profileBtn" class="profile-toggle" title="User Profile">
-                    <span class="icon">👤</span>
-                </button>
                 <button id="themeToggle" class="theme-toggle" title="Toggle Theme">
                     <span class="icon">🌙</span>
                 </button>
@@ -33,6 +30,61 @@
     </header>
 
     <div class="sidebar-content">
+
+        <!-- ☁️ DotSuite Cloud Auth -->
+        <section id="cloud-auth-section" class="cloud-section">
+
+            <!-- LOADING state -->
+            <div id="cloud-loading" class="cloud-panel cloud-loading-panel">
+                <span>⏳</span> Checking connection…
+            </div>
+
+            <!-- LOGGED OUT state -->
+            <div id="cloud-out" class="cloud-panel" style="display:none;">
+                <div class="cloud-brand-row">
+                    <span class="cloud-brand-icon">☁️</span>
+                    <div class="cloud-brand-text">
+                        <strong>DotSuite Cloud</strong>
+                        <span>Unlock scheduling &amp; sync</span>
+                    </div>
+                </div>
+                <button id="btn-connect-dashboard" class="btn-cloud-primary">
+                    🌐 Connect via Dashboard
+                </button>
+                <button id="btn-toggle-api-key" class="btn-cloud-ghost">
+                    🔑 Enter API Key manually
+                </button>
+                <div id="api-key-form" class="api-key-form" style="display:none;">
+                    <input type="password" id="cloud-api-key-input"
+                           placeholder="ds_prod_…">
+                    <div class="api-key-btns">
+                        <button id="btn-connect-apikey" class="btn-cloud-primary btn-sm">✓ Connect</button>
+                        <button id="btn-cancel-apikey" class="btn-cloud-ghost btn-sm">Cancel</button>
+                    </div>
+                </div>
+                <div id="cloud-auth-error" class="cloud-auth-error" style="display:none;"></div>
+            </div>
+
+            <!-- LOGGED IN state -->
+            <div id="cloud-in" class="cloud-panel" style="display:none;">
+                <div class="cloud-user-card">
+                    <span class="cloud-avatar" id="cloud-avatar">👤</span>
+                    <div class="cloud-user-meta">
+                        <div class="cloud-username" id="cloud-display-name">…</div>
+                        <div class="cloud-useremail" id="cloud-display-email">…</div>
+                    </div>
+                    <span class="cloud-tier" id="cloud-display-tier" data-tier="free">Free</span>
+                </div>
+                <div class="cloud-usage">
+                    <span id="cloud-posts-stat">— posts</span>
+                    <span class="cloud-sep">·</span>
+                    <span id="cloud-images-stat">— images</span>
+                </div>
+                <button id="btn-cloud-disconnect" class="btn-cloud-disconnect">🧹 Disconnect</button>
+            </div>
+
+        </section>
+
         <div id="platformsTab">
             <section class="api-settings">
                 <div class="section-header">
@@ -467,47 +519,6 @@
             </section>
 
 
-        </div>
-    </div>
-
-    <!-- 👤 Profile Modal -->
-    <div id="profileModal" class="modal" style="display: none;">
-        <div class="modal-content profile-modal-content">
-            <div class="modal-header">
-                <h3><span data-key="profile">User Profile</span></h3>
-                <span id="closeProfileModal" class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body profile-body">
-                <div class="profile-info">
-                    <div class="profile-avatar">
-                        <span id="profileIcon">👤</span>
-                    </div>
-                    <div class="profile-details">
-                        <h4 id="profileName">Loading...</h4>
-                        <p id="profileEmail">Loading...</p>
-                        <div class="profile-badges">
-                            <span id="profileTier" class="tier-badge">Free</span>
-                            <span id="profileProvider" class="provider-badge"></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="profile-stats">
-                    <div class="stat-item">
-                        <span class="stat-value" id="profilePostsUsed">0</span>
-                        <span class="stat-label" data-key="postsUsed">Posts Used</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" id="profileImagesUsed">0</span>
-                        <span class="stat-label" data-key="imagesUsed">Images Used</span>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer profile-footer">
-                <button id="logoutBtn" class="logout-btn" title="Logout and clear token">
-                    <span class="logout-icon">🧹</span>
-                    <span class="logout-text" data-key="logout">Logout</span>
-                </button>
-            </div>
         </div>
     </div>
 

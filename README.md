@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.3.2-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-GitHub%20Gists-10b981?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.3.4-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-Unified%20Cloud-10b981?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -19,7 +19,22 @@
 
 ---
 
-## 🆕 What's New — v3.3.2 "GitHub Gists & Developer Workflows"
+## 🆕 What's New — v3.3.4 "Unified Cloud Auth"
+
+- **🌐 Unified DotSuite Cloud Authentication**: We've completely overhauled the authentication experience. The old, intrusive manual API key popup is gone. It's been replaced by a sleek, unified "DotSuite Cloud" section directly inside the sidebar. 
+- **⚡ Seamless Browser OAuth**: Connect to DotShare securely via your browser (dashboard) and watch the VS Code sidebar instantly update in real-time. No copy-pasting required.
+- **💼 Rich Profile Insights**: Once connected, your cloud card now displays your active tier (Pro/Max), used quotas, and profile details straight from the backend.
+
+---
+
+## [3.3.3] - 2026-05-27 — "Auth Hotfix"
+
+- **Critical Fix**: Resolved an issue where the production version was incorrectly pointing to `localhost:3000` for authentication callbacks instead of the live Vercel URL.
+- **URI Handler Update**: Fixed the `vscode://freerave.dotshare` URI scheme handler to properly intercept production tokens.
+
+---
+
+## [3.3.2] - 2026-05-25 — "GitHub Gists & Developer Workflows"
 
 - **🪄 1-Click Gist Creation**: Highlight code in your VS Code editor, click "Create Gist", and DotShare instantly opens with your code snippet and current filename auto-populated.
 - **💾 Universal Drafts Integration**: Gists are now a first-class citizen inside the global Drafts System. Save your snippets and resume them anytime alongside your social and blog drafts.

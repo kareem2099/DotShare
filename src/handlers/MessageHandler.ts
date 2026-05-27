@@ -247,6 +247,42 @@ export class MessageHandler {
                     break;
                 }
 
+                case 'connectToDashboard': {
+                    const BASE_URL = DOTSUITE_WEB_URL;
+                    const scheme = vscode.env.uriScheme;
+                    const loginUrl = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
+                    Logger.info(`[MessageHandler] Opening dashboard login: ${loginUrl}`);
+                    vscode.env.openExternal(vscode.Uri.parse(loginUrl));
+                    break;
+                }
+
+                case 'loginWithApiKey': {
+                    const token = message.token as string;
+                    if (!token) {
+                        this.view.webview.postMessage({ command: 'loginResult', success: false, error: 'API key cannot be empty.' });
+                        return;
+                    }
+                    try {
+                        await DotShareAuth.storeToken(this.context, token);
+                        const verification = await DotShareAuth.verifyToken(this.context);
+                        if (verification.valid) {
+                            await this.handleFetchProfile();
+                            this.view.webview.postMessage({ command: 'loginResult', success: true });
+                        } else if (verification.reason === 'server_error') {
+                            // Token saved but server unreachable — still show as connected
+                            await this.handleFetchProfile();
+                            this.view.webview.postMessage({ command: 'loginResult', success: true, warning: 'Server unreachable — key saved, will verify later.' });
+                        } else {
+                            await DotShareAuth.logout(this.context);
+                            this.view.webview.postMessage({ command: 'loginResult', success: false, error: 'Invalid API key. Check it and try again.' });
+                        }
+                    } catch (error) {
+                        const msg = error instanceof Error ? error.message : String(error);
+                        this.view.webview.postMessage({ command: 'loginResult', success: false, error: msg });
+                    }
+                    break;
+                }
+
                 default:
                     Logger.info('[MessageHandler] Unhandled command:', cmd);
             }
@@ -298,7 +334,8 @@ export class MessageHandler {
             }
         } catch (error: any) {
             Logger.error('[MessageHandler] Error fetching profile:', error);
-            vscode.window.showErrorMessage(`Error loading profile: ${error?.message || 'Network error'}`);
+            // Exit loading state gracefully — token may still be valid, just no network
+            this.view.webview.postMessage({ command: 'LOGOUT_SUCCESS' });
         }
     }
 

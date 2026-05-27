@@ -260,6 +260,42 @@ function escapeHtml(str: string): string {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Cloud Auth Section State ─────────────────────────────────
+function showCloudLoading(): void {
+    const load = getEl('cloud-loading'); const out = getEl('cloud-out'); const inn = getEl('cloud-in');
+    if (load) load.style.display = 'flex';
+    if (out) out.style.display = 'none';
+    if (inn) inn.style.display = 'none';
+}
+
+function showCloudOut(): void {
+    const load = getEl('cloud-loading'); const inn = getEl('cloud-in'); const out = getEl('cloud-out');
+    if (load) load.style.display = 'none';
+    if (inn) inn.style.display = 'none';
+    if (out) out.style.display = 'block';
+    // Reset error + form
+    const err = getEl('cloud-auth-error'); if (err) { err.style.display = 'none'; err.textContent = ''; }
+    const form = getEl('api-key-form'); if (form) form.style.display = 'none';
+    const inp = getEl<HTMLInputElement>('cloud-api-key-input'); if (inp) inp.value = '';
+}
+
+function showCloudIn(data: { name?: string; email?: string; tier?: string; posts_used?: number; post_quota?: number; images_used?: number; image_quota?: number; provider?: string }): void {
+    const load = getEl('cloud-loading'); const out = getEl('cloud-out'); const inn = getEl('cloud-in');
+    if (load) load.style.display = 'none';
+    if (out) out.style.display = 'none';
+    if (inn) inn.style.display = 'block';
+    // Populate
+    const nameEl = getEl('cloud-display-name'); if (nameEl) nameEl.textContent = data.name || 'DotSuite User';
+    const emailEl = getEl('cloud-display-email'); if (emailEl) emailEl.textContent = data.email || '';
+    const tierEl = getEl('cloud-display-tier');
+    if (tierEl) { const t = (data.tier || 'free').toLowerCase(); tierEl.textContent = t.charAt(0).toUpperCase() + t.slice(1); tierEl.setAttribute('data-tier', t); }
+    const avatarEl = getEl('cloud-avatar');
+    if (avatarEl) { if (data.provider === 'github') avatarEl.textContent = '🐙'; else if (data.provider === 'google') avatarEl.textContent = '🔵'; else avatarEl.textContent = '✉️'; }
+    const fmtQuota = (used: number | undefined, quota: number | undefined) => { const q = Number(quota || 0); const u = Number(used || 0); return q >= 4294967295 ? `${u} / ∞` : `${u} / ${q}`; };
+    const postsEl = getEl('cloud-posts-stat'); if (postsEl) postsEl.textContent = `${fmtQuota(data.posts_used, data.post_quota)} posts`;
+    const imagesEl = getEl('cloud-images-stat'); if (imagesEl) imagesEl.textContent = `${fmtQuota(data.images_used, data.image_quota)} images`;
+}
+
 // ── Auth Server Health Check ────────────────────────────────
 let authServerHealthy = true;
 
@@ -281,7 +317,7 @@ async function checkAuthServerHealth(): Promise<void> {
 function setOAuthButtonsState(): void {
     const oauthBtns = document.querySelectorAll<HTMLButtonElement>('[id^="oauthConnect_"]');
     const serverStatusMsg = 'Server Under Maintenance - OAuth temporarily unavailable';
-    
+
     oauthBtns.forEach(btn => {
         if (!authServerHealthy) {
             btn.disabled = true;
@@ -455,39 +491,47 @@ function initEventListeners(): void {
         send({ command: 'openFullWebview', action: 'analytics' });
     });
 
-    // ==========================================
-    // 👤 Profile Modal Logic
-    // ==========================================
-    const profileBtn = getEl('profileBtn');
-    const profileModal = getEl('profileModal');
-    const closeProfileModal = getEl('closeProfileModal');
-    const logoutBtn = getEl('logoutBtn');
+    // ── Cloud Auth Buttons ───────────────────────────────────────
+    getEl('btn-connect-dashboard')?.addEventListener('click', () => {
+        send({ command: 'connectToDashboard' });
+        showStatus('Opening DotSuite login page…', 'info');
+    });
 
-    if (profileBtn) {
-        profileBtn.addEventListener('click', () => {
-            if (profileModal) profileModal.style.display = 'flex';
-            const nameEl = getEl('profileName');
-            if (nameEl) nameEl.textContent = 'Loading...';
-            send({ command: 'fetchProfile' });
-        });
-    }
+    getEl('btn-toggle-api-key')?.addEventListener('click', () => {
+        const form = getEl('api-key-form');
+        if (!form) return;
+        const visible = form.style.display !== 'none';
+        form.style.display = visible ? 'none' : 'block';
+        if (!visible) { const inp = getEl<HTMLInputElement>('cloud-api-key-input'); if (inp) inp.focus(); }
+    });
 
-    if (closeProfileModal) {
-        closeProfileModal.addEventListener('click', () => {
-            if (profileModal) profileModal.style.display = 'none';
-        });
-    }
+    getEl('btn-cancel-apikey')?.addEventListener('click', () => {
+        const form = getEl('api-key-form');
+        if (form) form.style.display = 'none';
+        const inp = getEl<HTMLInputElement>('cloud-api-key-input');
+        if (inp) inp.value = '';
+    });
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            send({ command: 'logout' });
-            if (profileModal) profileModal.style.display = 'none';
-        });
-    }
+    getEl('btn-connect-apikey')?.addEventListener('click', () => {
+        const key = (getEl<HTMLInputElement>('cloud-api-key-input')?.value || '').trim();
+        if (!key) { showStatus('Please enter your API key', 'error'); return; }
+        const btn = getEl<HTMLButtonElement>('btn-connect-apikey');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Connecting…'; }
+        send({ command: 'loginWithApiKey', token: key });
+    });
+
+    // Also allow Enter key in api key input
+    getEl<HTMLInputElement>('cloud-api-key-input')?.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Enter') getEl<HTMLButtonElement>('btn-connect-apikey')?.click();
+    });
+
+    getEl('btn-cloud-disconnect')?.addEventListener('click', () => {
+        send({ command: 'logout' });
+    });
 
     // Check auth server health on startup
     checkAuthServerHealth();
-    
+
     // Periodically check server health (every 30 seconds)
     setInterval(() => {
         checkAuthServerHealth();
@@ -637,52 +681,34 @@ window.addEventListener('message', (event: MessageEvent) => {
             updateOAuthButtons({ gist: 'connected' });
             break;
 
+        // Extension host pushing us to re-fetch profile (e.g. after URI login callback)
+        case 'fetchProfile':
+            send({ command: 'fetchProfile' });
+            break;
+
         case "SET_PROFILE": {
             const data = msg.data;
             if (!data) break;
 
-            const nameEl = getEl('profileName');
-            const emailEl = getEl('profileEmail');
-            const postsEl = getEl('profilePostsUsed');
-            const imagesEl = getEl('profileImagesUsed');
-            const tierEl = getEl('profileTier');
-            const providerEl = getEl('profileProvider');
-            const iconEl = getEl('profileIcon');
+            // ✅ Update cloud auth section to logged-in state
+            showCloudIn(data);
+            break;
+        }
 
-            if (nameEl) nameEl.textContent = data.name || 'Unknown';
-            if (emailEl) emailEl.textContent = data.email || 'No Email';
-            const formatQuota = (used: number | string, quota: number | string) => {
-                const q = Number(quota);
-                const u = Number(used) || 0;
-                if (q === 4294967295) return `${u} / ∞`;
-                return `${u} / ${q || 0}`;
-            };
-
-            if (postsEl) postsEl.textContent = formatQuota(data.posts_used, data.post_quota || 100);
-            if (imagesEl) imagesEl.textContent = formatQuota(data.images_used, data.image_quota || 10);
-
-            if (tierEl) {
-                tierEl.textContent = data.tier || 'Free';
-                // 🌟 This line activates the gold animation in the CSS
-                tierEl.setAttribute('data-tier', (data.tier || 'free').toLowerCase());
-            }
-
-            if (providerEl) {
-                providerEl.textContent = data.provider || 'email';
-            }
-
-            if (iconEl) {
-                if (data.provider === 'github') iconEl.textContent = '🐙';
-                else if (data.provider === 'google') iconEl.textContent = '🔵';
-                else iconEl.textContent = '✉️';
+        case "loginResult": {
+            const btn = getEl<HTMLButtonElement>('btn-connect-apikey');
+            if (btn) { btn.disabled = false; btn.textContent = '✓ Connect'; }
+            if (!msg.success) {
+                const err = getEl('cloud-auth-error');
+                if (err) { err.textContent = String(msg.error || 'Connection failed.'); err.style.display = 'block'; }
             }
             break;
         }
 
         case "LOGOUT_SUCCESS": {
-            const modal = getEl('profileModal');
-            if (modal) modal.style.display = 'none';
-            showStatus("Logged out successfully", "success");
+            // ✅ Show logged-out state in cloud section
+            showCloudOut();
+            showStatus("Disconnected from DotSuite Cloud", "success");
             break;
         }
 
@@ -732,8 +758,9 @@ function updateAegisStatus(platform: string, shouldRefreshSoon: boolean, expires
 document.addEventListener('DOMContentLoaded', () => {
     try {
         initEventListeners();
-
         send({ command: 'loadConfiguration' });
+        // Fetch profile to determine cloud auth state
+        send({ command: 'fetchProfile' });
         console.log('[DotShare Sidebar] Initialized');
     } catch (e) {
         console.error('[DotShare Sidebar] Init error:', e);

@@ -689,28 +689,8 @@ header {
     background: var(--vscode-button-secondaryHoverBackground);
 }
 
-/* ── 👤 Profile Toggle Button ──────────────────────────────── */
-.profile-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: var(--button-bg);
-    color: var(--button-text);
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s ease;
-}
 
-.profile-toggle:hover {
-    background: var(--button-hover);
-    transform: scale(1.05);
-}
-
-/* ── 🪟 Base Modal Overlay ── */
+/* ── Responsive ───────────────────────────────────────────── */
 .modal {
     position: fixed;
     top: 0;
@@ -740,190 +720,6 @@ header {
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── 👤 Profile Modal Styles ─────────────────────────────── */
-.profile-modal-content {
-    max-width: 350px !important;
-    border-radius: 16px !important;
-    overflow: hidden;
-}
-
-.profile-body {
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.profile-info {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.profile-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    box-shadow: var(--shadow);
-}
-
-.profile-details {
-    flex: 1;
-}
-
-.profile-details h4 {
-    margin: 0 0 4px 0;
-    font-size: 16px;
-    color: var(--text-color);
-}
-
-.profile-details p {
-    margin: 0 0 8px 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-.profile-badges {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.tier-badge, .provider-badge {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.provider-badge {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-}
-
-/* Base Tiers */
-.tier-badge[data-tier="free"], .tier-badge:not([data-tier]) {
-    background: #e2e8f0;
-    color: #475569;
-}
-
-.tier-badge[data-tier="basic"] {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-/* ✨ Premium Tiers */
-.tier-badge[data-tier="pro"], .tier-badge[data-tier="max"] {
-    background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
-    background-size: 200% 200%;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
-    animation: goldGlow 3s ease infinite;
-    position: relative;
-    overflow: hidden;
-}
-
-.tier-badge[data-tier="max"]::after {
-    content: "✦";
-    margin-left: 4px;
-    font-size: 10px;
-    animation: sparkle 1.5s linear infinite;
-}
-
-@keyframes goldGlow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-@keyframes sparkle {
-    0%, 100% { opacity: 0.5; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1.2); }
-}
-
-.profile-stats {
-    display: flex;
-    gap: 12px;
-    background: var(--input-bg);
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-}
-
-.stat-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-.stat-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--focus);
-}
-
-.stat-label {
-    font-size: 10px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-}
-
-.profile-footer {
-    padding: 16px;
-    background: var(--input-bg);
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    justify-content: center;
-}
-
-/* ── Logout Button ──────────────────── */
-.logout-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    gap: 6px;
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
-}
-
-.logout-btn:hover {
-    background: linear-gradient(135deg, #ff5252, #d63447);
-    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
-    transform: translateY(-1px);
-}
-
-.logout-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 4px rgba(255, 107, 107, 0.2);
-}
-
-.logout-icon {
-    font-size: 16px;
-}
-
-.logout-text {
-    font-weight: 600;
-}
 
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -936,3 +732,106 @@ header {
         align-items: flex-start;
     }
 }
+/* ═══════════════════════════════════════════════════════════
+   ☁️ DotSuite Cloud Auth Section
+   ═══════════════════════════════════════════════════════════ */
+.cloud-section {
+    margin: 8px 8px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--vscode-panel-border, rgba(128,128,128,0.2));
+    background: var(--vscode-sideBar-background);
+}
+.cloud-panel { padding: 12px; }
+.cloud-loading-panel {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--vscode-descriptionForeground);
+}
+.cloud-brand-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.cloud-brand-icon { font-size: 22px; line-height: 1; }
+.cloud-brand-text strong {
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--vscode-foreground);
+}
+.cloud-brand-text span { font-size: 11px; color: var(--vscode-descriptionForeground); }
+
+.btn-cloud-primary {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 8px 12px; border-radius: 6px; border: none;
+    cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: 6px;
+    background: var(--vscode-button-background, #0e639c);
+    color: var(--vscode-button-foreground, #fff);
+    transition: opacity 0.15s;
+}
+.btn-cloud-primary:hover { opacity: 0.85; }
+.btn-cloud-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-cloud-ghost {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 7px 12px; border-radius: 6px;
+    border: 1px solid var(--vscode-button-secondaryBackground, rgba(128,128,128,0.3));
+    cursor: pointer; font-size: 12px; background: transparent;
+    color: var(--vscode-foreground); transition: background 0.15s; margin-bottom: 6px;
+}
+.btn-cloud-ghost:hover { background: var(--vscode-list-hoverBackground); }
+
+.btn-sm { padding: 5px 10px !important; font-size: 11px !important; margin-bottom: 0 !important; }
+
+.api-key-form {
+    margin-top: 6px; padding: 8px; border-radius: 6px;
+    background: var(--vscode-input-background, rgba(0,0,0,0.2));
+    border: 1px solid var(--vscode-input-border, rgba(128,128,128,0.2));
+}
+.api-key-form input {
+    width: 100%; box-sizing: border-box; padding: 6px 8px;
+    border-radius: 4px; border: 1px solid var(--vscode-input-border, rgba(128,128,128,0.3));
+    background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+    font-size: 11px; font-family: var(--vscode-editor-font-family, monospace);
+    margin-bottom: 6px;
+}
+.api-key-btns { display: flex; gap: 6px; }
+.api-key-btns .btn-cloud-primary,
+.api-key-btns .btn-cloud-ghost { width: auto; flex: 1; }
+
+.cloud-auth-error {
+    margin-top: 6px; padding: 6px 8px; border-radius: 4px; font-size: 11px;
+    background: rgba(255,80,80,0.12); color: var(--vscode-errorForeground, #f48771);
+    border: 1px solid rgba(255,80,80,0.25);
+}
+
+/* Logged-in card */
+.cloud-user-card { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cloud-avatar { font-size: 20px; line-height: 1; }
+.cloud-user-meta { flex: 1; min-width: 0; }
+.cloud-username {
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; color: var(--vscode-foreground);
+}
+.cloud-useremail {
+    font-size: 10px; color: var(--vscode-descriptionForeground);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cloud-tier {
+    padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0;
+    background: rgba(107,114,128,0.25); color: var(--vscode-descriptionForeground);
+}
+.cloud-tier[data-tier="pro"]   { background: rgba(168,85,247,0.25); color: #a855f7; }
+.cloud-tier[data-tier="basic"] { background: rgba(59,130,246,0.25);  color: #60a5fa; }
+.cloud-tier[data-tier="max"]   { background: rgba(234,179,8,0.25);   color: #eab308; }
+
+.cloud-usage {
+    display: flex; align-items: center; gap: 4px; font-size: 10px;
+    color: var(--vscode-descriptionForeground); margin-bottom: 8px;
+}
+.cloud-sep { opacity: 0.4; }
+
+.btn-cloud-disconnect {
+    width: 100%; padding: 6px; border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.3); background: transparent;
+    color: var(--vscode-errorForeground, #f48771); font-size: 11px;
+    cursor: pointer; transition: background 0.15s;
+}
+.btn-cloud-disconnect:hover { background: rgba(239,68,68,0.1); }

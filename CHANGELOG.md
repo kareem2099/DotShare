@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.4] - 2026-05-27 — "Unified Cloud Auth"
+
+### Added
+- **🌐 Unified DotSuite Cloud Authentication**: We've completely overhauled the authentication experience. The old, intrusive manual API key popup is gone. It's been replaced by a sleek, unified "DotSuite Cloud" section directly inside the sidebar. 
+- **⚡ Seamless Browser OAuth**: Connect to DotShare securely via your browser (dashboard) and watch the VS Code sidebar instantly update in real-time. No copy-pasting required.
+- **💼 Rich Profile Insights**: Once connected, your cloud card now displays your active tier (Pro/Max), used quotas, and profile details straight from the backend.
+
+### Removed
+- Removed the old redundant "Profile Modal" and `dotshare.login` command popups to streamline the user experience into a single sidebar component.
+
+---
+
+## [3.3.3] - 2026-05-27 — "Auth Hotfix"
+
+### Fixed
+- **Critical Fix**: Resolved an issue where the production version was incorrectly pointing to `localhost:3000` for authentication callbacks instead of the live Vercel URL.
+- **URI Handler Update**: Fixed the `vscode://freerave.dotshare` URI scheme handler to properly intercept production tokens.
+
+---
+
 ## [3.3.2] - 2026-05-25 — "GitHub Gists & Developer Workflows"
 
 ### Added
