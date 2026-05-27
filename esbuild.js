@@ -23,7 +23,6 @@ const esbuildProblemMatcherPlugin = {
 };
 
 async function main() {
-    // 1. Extension Backend — Node/CJS
     const extCtx = await esbuild.context({
         entryPoints: ['src/extension.ts'],
         bundle: true,
@@ -36,6 +35,9 @@ async function main() {
         external: ['vscode'],
         logLevel: 'silent',
         plugins: [esbuildProblemMatcherPlugin],
+        define: {
+            'process.env.NODE_ENV': production ? '"production"' : '"development"',
+        },
     });
 
     // 2. Sidebar Frontend — Browser/IIFE
@@ -50,6 +52,9 @@ async function main() {
         outfile: 'media/app.js',
         logLevel: 'silent',
         plugins: [esbuildProblemMatcherPlugin],
+        define: {
+            'process.env.NODE_ENV': production ? '"production"' : '"development"',
+        },
     });
 
     // 3. WebView Frontend — Browser/IIFE
@@ -64,6 +69,9 @@ async function main() {
         outfile: 'media/webview/app.js',
         logLevel: 'silent',
         plugins: [esbuildProblemMatcherPlugin],
+        define: {
+            'process.env.NODE_ENV': production ? '"production"' : '"development"',
+        },
     });
 
     if (watch) {
