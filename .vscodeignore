@@ -34,6 +34,11 @@ CLI_README.md
 CLI_SCHEDULER_README.md
 package.cli.json
 
+# Internal developer documentation (not useful for end users)
+IMAGE_UPLOAD_FLOW.md
+REDDIT_CODE_REVIEW.md
+ROADMAP.md
+
 # Webview Source Files (only bundled .js files ship with the extension)
 out/**/__tests__/       
 media/src/               
