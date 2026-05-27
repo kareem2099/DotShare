@@ -599,11 +599,15 @@ function updateBlogPublishButtonsState(): void {
             else platform = getSingleBlogPlatform() || '';
 
             if (platform && !globalConnectedPlatforms.includes(platform)) {
-                b.disabled = true;
+                // For schedule buttons, we strictly require Cloud OAuth.
                 if (id.includes('schedule')) {
-                    b.title = '🔗 Connect in Dashboard';
+                    b.disabled = true;
+                    b.title = '🔗 Connect in Dashboard to enable cloud scheduling';
                 } else {
-                    b.textContent = '🔗 Connect in Dashboard';
+                    // For regular publish buttons, we allow local tokens.
+                    b.disabled = !has;
+                    const label = platform === 'devto' ? 'Dev.to' : platform === 'medium' ? 'Medium' : platform;
+                    b.textContent = label ? `🚀 Publish to ${label}` : '🚀 Publish Article';
                 }
             } else {
                 b.disabled = !has;
@@ -754,19 +758,17 @@ function updateThreadShareBtn(): void {
     const p = activeCommandPlatform || (window as { __AUTO_THREAD_PLATFORM__?: string }).__AUTO_THREAD_PLATFORM__;
     const connected = !p || globalConnectedPlatforms.includes(p);
     
-    if (!connected) {
-        btnShareThread.disabled = true;
-        btnShareThread.textContent = '🔗 Connect in Dashboard';
-        const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
-        if (btnSchedThread) {
+    // Share Thread: always available via local credentials
+    btnShareThread.disabled = !hasContent || tooLong;
+    btnShareThread.textContent = '🚀 Share Thread';
+
+    // Schedule Thread: requires cloud OAuth
+    const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
+    if (btnSchedThread) {
+        if (!connected) {
             btnSchedThread.disabled = true;
-            btnSchedThread.title = '🔗 Connect in Dashboard';
-        }
-    } else {
-        btnShareThread.disabled = !hasContent || tooLong;
-        btnShareThread.textContent = '🚀 Share Thread';
-        const btnSchedThread = get<HTMLButtonElement>('btn-schedule-thread');
-        if (btnSchedThread) {
+            btnSchedThread.title = '🔗 Connect in Dashboard to enable cloud scheduling';
+        } else {
             btnSchedThread.disabled = !hasContent || tooLong;
             btnSchedThread.title = '';
         }

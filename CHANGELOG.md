@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.5] - 2026-05-27 — "Open Privacy Hotfix"
+
+### Fixed
+- **Local Publishing Bug**: We apologize for a bug introduced in v3.3.4 where the "Share Thread" and "Publish Article" buttons were incorrectly disabled if you weren't logged into DotSuite Cloud. DotShare remains a privacy-first tool: standard local publishing via manual API keys is fully supported and does **not** require a DotSuite Cloud account. Only Cloud Scheduling requires the dashboard connection. This has been fully resolved.
+- **UI Clarification**: Added explicit "OPTIONAL" tagging to the DotSuite Cloud section to clarify that it is solely for scheduling and sync features.
+
+---
+
 ## [3.3.4] - 2026-05-27 — "Unified Cloud Auth"
 
 ### Added

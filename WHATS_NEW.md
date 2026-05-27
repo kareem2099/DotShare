@@ -2,6 +2,29 @@
 
 ---
 
+## 🔐 v3.3.5 — "Open Privacy Hotfix"
+
+*Released: May 27, 2026*
+
+### 🛠️ Local Publishing Restored
+We apologize for a bug introduced in v3.3.4 where the "Share Thread" and "Publish Article" buttons were incorrectly disabled if you weren't logged into DotSuite Cloud. 
+
+**DotShare remains a privacy-first tool**: standard local publishing via your own manual API keys is fully supported and does **not** require a DotSuite Cloud account. The UI has been updated to explicitly state that the DotSuite Cloud login is `OPTIONAL` and is only required for Cloud Scheduling.
+
+---
+
+## 🌐 v3.3.4 — "Unified Cloud Auth"
+
+*Released: May 27, 2026*
+
+### ⚡ Seamless Browser OAuth
+We've completely overhauled the authentication experience. The old, intrusive manual API key popup is gone. It's been replaced by a sleek, unified "DotSuite Cloud" section directly inside the sidebar. Connect securely via your browser and watch the VS Code sidebar instantly update in real-time. No copy-pasting required.
+
+### 💼 Rich Profile Insights
+Once connected, your cloud card now displays your active tier (Pro/Max), used quotas, and profile details straight from the backend.
+
+---
+
 ## 🔐 v3.3.1 — "Security Patch"
 
 *Released: May 24, 2026*
