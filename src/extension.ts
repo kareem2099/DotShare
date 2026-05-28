@@ -3,6 +3,7 @@ import { DotShareProvider } from './ui/DotShareProvider';
 import { DotShareWebView } from './ui/DotShareWebView';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
+import { DOTSUITE_CORE_API_URL } from './constants';
 
 import { Logger } from './utils/Logger';
 import { TokenManager } from './services/TokenManager';
@@ -314,6 +315,41 @@ export async function activate(context: vscode.ExtensionContext) {
                     default:
                         vscode.window.showErrorMessage(`DotShare: Unknown platform "${platform}"`);
                         return;
+                }
+
+                // 🔐 Sync OAuth token to dotsuite-core so the website can show it as connected
+                try {
+                    const apiKey = await DotShareAuth.getToken(context);
+                    if (apiKey) {
+                        const syncPayload = {
+                            platform,
+                            access_token: accessToken,
+                            ...(refreshToken && { refresh_token: refreshToken }),
+                            ...(expiresIn && { expires_in: Number(expiresIn) }),
+                        };
+
+                        const syncResponse = await fetch(`${DOTSUITE_CORE_API_URL}/v1/oauth/save`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${apiKey}`,
+                                'X-Machine-Id': DotShareAuth.getHashedMachineId(),
+                            },
+                            body: JSON.stringify(syncPayload),
+                        });
+
+                        if (!syncResponse.ok) {
+                            const error = await syncResponse.text();
+                            Logger.warn(`[Extension] Failed to sync ${platform} token to dotsuite-core:`, error);
+                            // Don't fail the entire flow; token is stored locally
+                        } else {
+                            Logger.info(`[Extension] ✅ ${platform} token synced to dotsuite-core`);
+                        }
+                    }
+                } catch (syncError) {
+                    const errorMessage = syncError instanceof Error ? syncError.message : String(syncError);
+                    Logger.warn(`[Extension] Failed to sync ${platform} token:`, errorMessage);
+                    // Don't fail; token is stored locally
                 }
 
                 provider.reloadConfiguration();

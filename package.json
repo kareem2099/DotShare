@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.3.5",
+  "version": "3.3.6",
   "publisher": "freerave",
   "funding": [
     {
@@ -128,12 +128,7 @@
         }
       ]
     },
-    "uriHandlers": [
-      {
-        "scheme": "vscode",
-        "authority": "freerave.dotshare"
-      }
-    ],
+
     "configuration": {
       "title": "DotShare",
       "properties": {
