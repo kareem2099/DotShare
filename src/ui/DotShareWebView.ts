@@ -117,6 +117,16 @@ Start writing your article here...
 
         panel.webview.onDidReceiveMessage(
             async (data) => {
+                // ── webviewReady: Composer has mounted ────────────────────────
+                // CodeSnapPanel stores a pending snap path after the user picks a
+                // platform via QuickPick. The moment the Composer fires webviewReady
+                // we attach the image — no setTimeout race condition.
+                if (data?.command === 'webviewReady') {
+                    Logger.info(`[DotShareWebView] Composer webviewReady (${platformKey})`);
+                    // Delegate to extension command so CodeSnapPanel can clear its state
+                    vscode.commands.executeCommand('dotshare._composerReady', panel);
+                    return;
+                }
                 try {
                     await messageHandler.handleMessage(data);
                 } catch (error: unknown) {

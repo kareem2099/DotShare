@@ -116,6 +116,10 @@ export class MessageHandler {
                     break;
                 }
 
+                case 'triggerCodeSnap':
+                    vscode.commands.executeCommand('dotshare.codeSnap');
+                    break;
+
                 case 'selectMediaFiles':
                     await this.handleSelectMediaFiles();
                     break;

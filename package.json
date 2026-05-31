@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.3.6",
+  "version": "3.4.0",
   "publisher": "freerave",
   "funding": [
     {
@@ -110,6 +110,17 @@
         "title": "DotShare: Create Gist from File",
         "category": "DotShare",
         "icon": "$(github)"
+      },
+      {
+        "command": "dotshare.codeSnap",
+        "title": "DotShare: 📸 CodeSnap — Capture Code as Image",
+        "category": "DotShare",
+        "icon": "$(camera)"
+      },
+      {
+        "command": "dotshare.attachSnapToComposer",
+        "title": "DotShare: Attach Snap to Composer (internal)",
+        "category": "DotShare"
       }
     ],
     "menus": {
@@ -118,6 +129,18 @@
           "command": "dotshare.createGistFromSelection",
           "when": "editorHasSelection",
           "group": "1_modification"
+        },
+        {
+          "command": "dotshare.codeSnap",
+          "when": "editorTextFocus",
+          "group": "1_modification"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "dotshare.codeSnap",
+          "when": "editorHasSelection",
+          "group": "navigation"
         }
       ],
       "explorer/context": [

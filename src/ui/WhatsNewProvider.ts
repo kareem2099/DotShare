@@ -34,10 +34,10 @@ export class WhatsNewProvider {
     private static async getHtmlForWebview(webview: vscode.Webview, extensionUri: vscode.Uri): Promise<string> {
         const whatsNewPath = path.join(extensionUri.fsPath, 'WHATS_NEW.md');
 
-        let markdownContent = '';
+        let markdownContent: string;
         try {
             markdownContent = await fs.promises.readFile(whatsNewPath, 'utf-8');
-        } catch (error) {
+        } catch {
             markdownContent = '# Error Loading Updates\n\nCould not load the updates file. Please check if WHATS_NEW.md exists.';
         }
 

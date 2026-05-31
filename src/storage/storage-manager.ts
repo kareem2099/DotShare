@@ -16,37 +16,31 @@ export class StorageManager {
     }
 
     private initializeStorage() {
-        // Try to get global storage first
-        const storageUri = this._context.globalStorageUri;
-        let storagePath: string;
+        // Resolve storage directory with fallbacks, then ensure it exists
+        const resolveStoragePath = (): string => {
+            const storageUri = this._context.globalStorageUri;
+            if (storageUri) { return storageUri.fsPath; }
+            return path.join(this._context.extensionPath, 'storage');
+        };
 
-        if (storageUri) {
-            storagePath = storageUri.fsPath;
-        } else {
-            // Fallback to extension storage directory
-            storagePath = path.join(this._context.extensionPath, 'storage');
-        }
-
-        // Try to create the storage directory synchronously
-        try {
-            if (!fs.existsSync(storagePath)) {
-                fs.mkdirSync(storagePath, { recursive: true });
-            }
-        } catch (error) {
-            Logger.warn('[StorageManager] Could not create storage directory, using temp:', error);
-            // Final fallback to temp directory
-            storagePath = path.join(os.tmpdir(), 'dotshare-scheduled');
+        const ensureDir = (dirPath: string): boolean => {
             try {
-                if (!fs.existsSync(storagePath)) {
-                    fs.mkdirSync(storagePath, { recursive: true });
-                }
-            } catch (tempError) {
-                Logger.error('[StorageManager] Even temp directory creation failed:', tempError);
-                // Last resort - use system temp
-                storagePath = os.tmpdir();
+                if (!fs.existsSync(dirPath)) { fs.mkdirSync(dirPath, { recursive: true }); }
+                return true;
+            } catch {
+                return false;
+            }
+        };
+
+        const primary = resolveStoragePath();
+        if (!ensureDir(primary)) {
+            Logger.warn('[StorageManager] Could not create storage directory, using temp');
+            const temp = path.join(os.tmpdir(), 'dotshare-scheduled');
+            if (!ensureDir(temp)) {
+                Logger.error('[StorageManager] Even temp directory creation failed, falling back to os.tmpdir()');
+                ensureDir(os.tmpdir());
             }
         }
-
     }
 
 
@@ -178,8 +172,8 @@ export class StorageManager {
         const blueskyPassword = blueskyConfig?.blueskyPassword || await this._context.secrets.get('blueskyPassword') || '';
 
         // Get X/Twitter credentials (from saved config or individual secrets)
-        let xAccessToken = '';
-        let xAccessSecret = '';
+        let xAccessToken: string;
+        let xAccessSecret: string;
         if (xConfig) {
             xAccessToken = xConfig.xAccessToken;
             xAccessSecret = xConfig.xAccessSecret;

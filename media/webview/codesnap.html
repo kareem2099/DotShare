@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="{{CSP}}" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeSnap — DotShare</title>
+
+  <!-- Highlight.js: served locally (offline-first, no CDN) -->
+  <link id="hljs-theme-link" rel="stylesheet" href="{{DEFAULT_CSS_URI}}" />
+  <script src="{{HLJS_JS_URI}}" nonce="{{NONCE}}"></script>
+
+  <style>
+    /* ── Reset & base ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0d0d14;
+      --surface:      #16161f;
+      --surface2:     #1e1e2a;
+      --border:       #2a2a3d;
+      --text:         #e2e2f0;
+      --text-dim:     #7a7a9a;
+      --accent:       #7c6aff;
+      --accent-glow:  rgba(124,106,255,.25);
+      --accent-hover: #9482ff;
+      --success:      #3ddc84;
+      --danger:       #ff5f57;
+      --warn:         #ffbd2e;
+      --radius:       10px;
+      --font-ui:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-code:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: 13px; }
+    body { display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Toolbar ─────────────────────────────────────── */
+    .toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .toolbar-title { font-size: 13px; font-weight: 700; margin-right: auto; letter-spacing: -.2px; }
+    .toolbar-title span { color: var(--accent); }
+
+    .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    label { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+    select, input[type="range"], input[type="color"] {
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 5px; padding: 3px 6px;
+      font-size: 11px; cursor: pointer; outline: none; transition: border-color .15s;
+    }
+    select:hover, select:focus { border-color: var(--accent); }
+    input[type="range"] { width: 72px; accent-color: var(--accent); padding: 0; }
+    input[type="color"] { width: 28px; height: 24px; padding: 1px 2px; }
+
+    .range-val { font-size: 11px; color: var(--text-dim); min-width: 22px; text-align: right; }
+
+    /* Toggle */
+    .toggle-wrap { display: flex; align-items: center; gap: 5px; }
+    .toggle { position: relative; width: 30px; height: 16px; flex-shrink: 0; }
+    .toggle input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0; background: var(--border);
+      border-radius: 8px; cursor: pointer; transition: background .2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 12px; height: 12px; background: #fff;
+      border-radius: 50%; transition: transform .2s;
+    }
+    .toggle input:checked + .toggle-track::after { transform: translateX(14px); }
+
+    /* Separator */
+    .sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      border: none; border-radius: 6px; padding: 5px 11px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: opacity .15s, background .15s, box-shadow .15s;
+      white-space: nowrap;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); box-shadow: 0 0 12px var(--accent-glow); }
+    .btn-ghost    { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+    .btn-success  { background: var(--success); color: #000; }
+
+    /* ── Canvas area ──────────────────────────────────── */
+    .canvas-wrap {
+      flex: 1; overflow: auto;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 24px; background: var(--bg);
+    }
+    canvas {
+      display: block; border-radius: var(--radius);
+      box-shadow: 0 8px 40px rgba(0,0,0,.65);
+      max-width: 100%;
+      transition: box-shadow .2s;
+    }
+    canvas:hover { box-shadow: 0 12px 50px rgba(0,0,0,.8); }
+
+    /* Empty state */
+    #empty-state {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; color: var(--text-dim); font-size: 13px;
+      text-align: center; padding: 2rem;
+    }
+    #empty-state .icon { font-size: 36px; margin-bottom: 4px; }
+    #empty-state strong { color: var(--text); }
+
+    /* ── Status bar ────────────────────────────────────── */
+    .status-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 5px 14px; background: var(--surface);
+      border-top: 1px solid var(--border); flex-shrink: 0;
+      font-size: 11px; color: var(--text-dim);
+    }
+    .status-bar .file-info { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge {
+      padding: 2px 6px; border-radius: 4px; font-size: 10px;
+      font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+    .badge-lang { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+
+    /* Loading overlay */
+    #loading-overlay {
+      position: fixed; inset: 0; background: rgba(13,13,20,.82);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: var(--text-dim); z-index: 100;
+      backdrop-filter: blur(2px);
+    }
+    #loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .65s linear infinite; margin-right: 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <span>Rendering…</span>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="toolbar-title"><span>📸</span> CodeSnap</div>
+
+  <div class="controls">
+    <!-- Theme -->
+    <label for="sel-theme">Theme</label>
+    <select id="sel-theme">
+      <option value="atom-one-dark" selected>Atom One Dark</option>
+      <option value="github-dark">GitHub Dark</option>
+      <option value="monokai">Monokai</option>
+      <option value="dracula">Dracula</option>
+      <option value="nord">Nord</option>
+      <option value="vs2015">VS 2015</option>
+      <option value="tokyo-night-dark">Tokyo Night</option>
+      <option value="github">GitHub Light</option>
+      <option value="catppuccin-mocha">Catppuccin Mocha</option>
+    </select>
+
+    <div class="sep"></div>
+
+    <!-- Font size -->
+    <label for="rng-fontsize">Size</label>
+    <input type="range" id="rng-fontsize" min="10" max="22" value="14" step="1" />
+    <span class="range-val" id="val-fontsize">14</span>
+
+    <div class="sep"></div>
+
+    <!-- Padding -->
+    <label for="rng-padding">Pad</label>
+    <input type="range" id="rng-padding" min="16" max="80" value="40" step="4" />
+    <span class="range-val" id="val-padding">40</span>
+
+    <div class="sep"></div>
+
+    <!-- Window chrome toggle -->
+    <div class="toggle-wrap">
+      <label class="toggle" title="Window chrome">
+        <input type="checkbox" id="chk-window" checked />
+        <div class="toggle-track"></div>
+      </label>
+      <label for="chk-window">Window</label>
+    </div>
+
+    <!-- Line numbers toggle -->
+    <div class="toggle-wrap">
+      <label class="toggle" title="Line numbers">
+        <input type="checkbox" id="chk-linenums" checked />
+        <div class="toggle-track"></div>
+      </label>
+      <label for="chk-linenums">Lines</label>
+    </div>
+
+    <!-- Watermark toggle -->
+    <div class="toggle-wrap">
+      <label class="toggle" title="DotShare watermark">
+        <input type="checkbox" id="chk-watermark" checked />
+        <div class="toggle-track"></div>
+      </label>
+      <label for="chk-watermark">Mark</label>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- Background colour -->
+    <label for="pick-bg">BG</label>
+    <input type="color" id="pick-bg" value="#1a1a2e" title="Background colour" />
+
+    <div class="sep"></div>
+
+    <button class="btn btn-ghost"    id="btn-save-file" disabled>💾 Save</button>
+    <button class="btn btn-primary"  id="btn-share"     disabled>🚀 Share</button>
+  </div>
+</div>
+
+<!-- Canvas / empty state -->
+<div class="canvas-wrap" id="canvas-wrap">
+  <div id="empty-state">
+    <div class="icon">📂</div>
+    <div>Select code in your editor, then run <strong>DotShare: CodeSnap</strong></div>
+    <div style="font-size:11px;margin-top:4px;">Right-click → DotShare: 📸 CodeSnap</div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <span class="file-info" id="status-file">No file loaded</span>
+  <span class="badge badge-lang" id="status-lang">—</span>
+  <span id="status-lines">—</span>
+</div>
+
+<script nonce="{{NONCE}}">
+// ── VS Code API ───────────────────────────────────────────────────────────────
+const vscode = acquireVsCodeApi();
+
+// ── Theme CSS URI map (injected by CodeSnapPanel._buildHtml) ─────────────────
+const THEME_CSS_MAP = JSON.parse('{{THEME_CSS_MAP}}');
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const wrap        = document.getElementById('canvas-wrap');
+const overlay     = document.getElementById('loading-overlay');
+const emptyState  = document.getElementById('empty-state');
+const btnShare    = document.getElementById('btn-share');
+const btnSave     = document.getElementById('btn-save-file');
+const selTheme    = document.getElementById('sel-theme');
+const rngSize     = document.getElementById('rng-fontsize');
+const rngPad      = document.getElementById('rng-padding');
+const valSize     = document.getElementById('val-fontsize');
+const valPad      = document.getElementById('val-padding');
+const chkWindow   = document.getElementById('chk-window');
+const chkLines    = document.getElementById('chk-linenums');
+const chkWmark    = document.getElementById('chk-watermark');
+const pickBg      = document.getElementById('pick-bg');
+const statusFile  = document.getElementById('status-file');
+const statusLang  = document.getElementById('status-lang');
+const statusLines = document.getElementById('status-lines');
+const hljsLink    = document.getElementById('hljs-theme-link');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentData   = null;
+let currentCanvas = null;
+let renderTimer   = null;
+
+// ── Theme metadata ────────────────────────────────────────────────────────────
+const THEME_META = {
+  'atom-one-dark':    { bg: '#1a1a2e', codeBg: '#282c34', codeText: '#abb2bf' },
+  'github-dark':      { bg: '#0d1117', codeBg: '#161b22', codeText: '#c9d1d9' },
+  'monokai':          { bg: '#272822', codeBg: '#272822', codeText: '#f8f8f2' },
+  'dracula':          { bg: '#282a36', codeBg: '#282a36', codeText: '#f8f8f2' },
+  'nord':             { bg: '#2e3440', codeBg: '#2e3440', codeText: '#d8dee9' },
+  'vs2015':           { bg: '#1e1e1e', codeBg: '#1e1e1e', codeText: '#d4d4d4' },
+  'tokyo-night-dark': { bg: '#1a1b2e', codeBg: '#1a1b2e', codeText: '#a9b1d6' },
+  'github':           { bg: '#f6f8fa', codeBg: '#ffffff', codeText: '#24292e' },
+  'catppuccin-mocha': { bg: '#1e1e2e', codeBg: '#181825', codeText: '#cdd6f4' },
+};
+
+// ── Syntax colour palettes per theme ─────────────────────────────────────────
+// Atom One Dark palette (default)
+const BASE_PALETTE = {
+  'hljs-keyword':              '#c678dd',
+  'hljs-built_in':             '#e06c75',
+  'hljs-type':                 '#e5c07b',
+  'hljs-class':                '#e5c07b',
+  'hljs-title class_':         '#e5c07b',
+  'hljs-literal':              '#d19a66',
+  'hljs-number':               '#d19a66',
+  'hljs-operator':             '#56b6c2',
+  'hljs-punctuation':          '#abb2bf',
+  'hljs-property':             '#e06c75',
+  'hljs-regexp':               '#98c379',
+  'hljs-string':               '#98c379',
+  'hljs-subst':                '#e06c75',
+  'hljs-symbol':               '#61afef',
+  'hljs-function':             '#61afef',
+  'hljs-title':                '#61afef',
+  'hljs-title function_':      '#61afef',
+  'hljs-title function_ invoke__': '#61afef',
+  'hljs-params':               '#abb2bf',
+  'hljs-comment':              '#5c6370',
+  'hljs-doctag':               '#c678dd',
+  'hljs-meta':                 '#e06c75',
+  'hljs-tag':                  '#e06c75',
+  'hljs-name':                 '#e06c75',
+  'hljs-attr':                 '#d19a66',
+  'hljs-attribute':            '#d19a66',
+  'hljs-selector-tag':         '#e06c75',
+  'hljs-selector-id':          '#61afef',
+  'hljs-selector-class':       '#e5c07b',
+  'hljs-variable':             '#e06c75',
+  'hljs-template-variable':    '#e06c75',
+  'hljs-addition':             '#98c379',
+  'hljs-deletion':             '#e06c75',
+  'hljs-emphasis':             '#e06c75',
+  'hljs-strong':               '#e5c07b',
+  'hljs-link':                 '#61afef',
+};
+
+const THEME_PALETTES = {
+  'github': {
+    'hljs-keyword':         '#d73a49',
+    'hljs-built_in':        '#005cc5',
+    'hljs-type':            '#6f42c1',
+    'hljs-class':           '#6f42c1',
+    'hljs-title class_':    '#6f42c1',
+    'hljs-literal':         '#005cc5',
+    'hljs-number':          '#005cc5',
+    'hljs-string':          '#032f62',
+    'hljs-regexp':          '#032f62',
+    'hljs-comment':         '#6a737d',
+    'hljs-function':        '#6f42c1',
+    'hljs-title':           '#6f42c1',
+    'hljs-title function_': '#6f42c1',
+    'hljs-attr':            '#005cc5',
+    'hljs-attribute':       '#005cc5',
+    'hljs-meta':            '#d73a49',
+    'hljs-tag':             '#22863a',
+    'hljs-name':            '#22863a',
+  },
+  'dracula': {
+    'hljs-keyword':         '#ff79c6',
+    'hljs-built_in':        '#8be9fd',
+    'hljs-type':            '#8be9fd',
+    'hljs-class':           '#8be9fd',
+    'hljs-title class_':    '#8be9fd',
+    'hljs-number':          '#bd93f9',
+    'hljs-literal':         '#bd93f9',
+    'hljs-string':          '#f1fa8c',
+    'hljs-regexp':          '#f1fa8c',
+    'hljs-comment':         '#6272a4',
+    'hljs-function':        '#50fa7b',
+    'hljs-title':           '#50fa7b',
+    'hljs-title function_': '#50fa7b',
+    'hljs-attr':            '#ffb86c',
+    'hljs-attribute':       '#ffb86c',
+    'hljs-variable':        '#ff79c6',
+    'hljs-operator':        '#ff79c6',
+  },
+  'nord': {
+    'hljs-keyword':         '#81a1c1',
+    'hljs-built_in':        '#88c0d0',
+    'hljs-type':            '#8fbcbb',
+    'hljs-class':           '#8fbcbb',
+    'hljs-title class_':    '#8fbcbb',
+    'hljs-number':          '#b48ead',
+    'hljs-literal':         '#b48ead',
+    'hljs-string':          '#a3be8c',
+    'hljs-regexp':          '#a3be8c',
+    'hljs-comment':         '#4c566a',
+    'hljs-function':        '#88c0d0',
+    'hljs-title':           '#88c0d0',
+    'hljs-title function_': '#88c0d0',
+    'hljs-attr':            '#d8dee9',
+    'hljs-attribute':       '#d8dee9',
+    'hljs-operator':        '#81a1c1',
+    'hljs-variable':        '#bf616a',
+  },
+  'monokai': {
+    'hljs-keyword':         '#f92672',
+    'hljs-built_in':        '#66d9e8',
+    'hljs-type':            '#66d9e8',
+    'hljs-class':           '#a6e22e',
+    'hljs-title class_':    '#a6e22e',
+    'hljs-number':          '#ae81ff',
+    'hljs-literal':         '#ae81ff',
+    'hljs-string':          '#e6db74',
+    'hljs-regexp':          '#e6db74',
+    'hljs-comment':         '#75715e',
+    'hljs-function':        '#a6e22e',
+    'hljs-title':           '#a6e22e',
+    'hljs-title function_': '#a6e22e',
+    'hljs-attr':            '#a6e22e',
+    'hljs-attribute':       '#a6e22e',
+    'hljs-operator':        '#f92672',
+    'hljs-variable':        '#f92672',
+  },
+  'vs2015': {
+    'hljs-keyword':         '#569cd6',
+    'hljs-built_in':        '#4ec9b0',
+    'hljs-type':            '#4ec9b0',
+    'hljs-class':           '#4ec9b0',
+    'hljs-title class_':    '#4ec9b0',
+    'hljs-number':          '#b5cea8',
+    'hljs-literal':         '#569cd6',
+    'hljs-string':          '#ce9178',
+    'hljs-regexp':          '#d16969',
+    'hljs-comment':         '#6a9955',
+    'hljs-function':        '#dcdcaa',
+    'hljs-title':           '#dcdcaa',
+    'hljs-title function_': '#dcdcaa',
+    'hljs-attr':            '#9cdcfe',
+    'hljs-attribute':       '#9cdcfe',
+    'hljs-operator':        '#d4d4d4',
+    'hljs-variable':        '#9cdcfe',
+  },
+  'tokyo-night-dark': {
+    'hljs-keyword':         '#bb9af7',
+    'hljs-built_in':        '#7dcfff',
+    'hljs-type':            '#2ac3de',
+    'hljs-class':           '#2ac3de',
+    'hljs-title class_':    '#2ac3de',
+    'hljs-number':          '#ff9e64',
+    'hljs-literal':         '#ff9e64',
+    'hljs-string':          '#9ece6a',
+    'hljs-regexp':          '#89ddff',
+    'hljs-comment':         '#565f89',
+    'hljs-function':        '#7aa2f7',
+    'hljs-title':           '#7aa2f7',
+    'hljs-title function_': '#7aa2f7',
+    'hljs-attr':            '#73daca',
+    'hljs-attribute':       '#73daca',
+    'hljs-operator':        '#89ddff',
+    'hljs-variable':        '#bb9af7',
+  },
+  'github-dark': {
+    'hljs-keyword':         '#ff7b72',
+    'hljs-built_in':        '#79c0ff',
+    'hljs-type':            '#ffa657',
+    'hljs-class':           '#ffa657',
+    'hljs-title class_':    '#ffa657',
+    'hljs-number':          '#79c0ff',
+    'hljs-literal':         '#79c0ff',
+    'hljs-string':          '#a5d6ff',
+    'hljs-regexp':          '#a5d6ff',
+    'hljs-comment':         '#8b949e',
+    'hljs-function':        '#d2a8ff',
+    'hljs-title':           '#d2a8ff',
+    'hljs-title function_': '#d2a8ff',
+    'hljs-attr':            '#79c0ff',
+    'hljs-attribute':       '#79c0ff',
+    'hljs-operator':        '#ff7b72',
+    'hljs-variable':        '#ffa657',
+  },
+  'catppuccin-mocha': {
+    'hljs-keyword':         '#cba6f7',
+    'hljs-built_in':        '#89b4fa',
+    'hljs-type':            '#89dceb',
+    'hljs-class':           '#89dceb',
+    'hljs-title class_':    '#89dceb',
+    'hljs-number':          '#fab387',
+    'hljs-literal':         '#fab387',
+    'hljs-string':          '#a6e3a1',
+    'hljs-regexp':          '#f5c2e7',
+    'hljs-comment':         '#6c7086',
+    'hljs-function':        '#89b4fa',
+    'hljs-title':           '#89b4fa',
+    'hljs-title function_': '#89b4fa',
+    'hljs-attr':            '#f9e2af',
+    'hljs-attribute':       '#f9e2af',
+    'hljs-operator':        '#cba6f7',
+    'hljs-variable':        '#f38ba8',
+  },
+};
+
+let activePalette = { ...BASE_PALETTE };
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function getOpts() {
+  const theme = selTheme.value;
+  const meta  = THEME_META[theme] ?? THEME_META['atom-one-dark'];
+  return {
+    theme,
+    fontSize:   parseInt(rngSize.value,  10),
+    padding:    parseInt(rngPad.value,   10),
+    showWindow: chkWindow.checked,
+    showLines:  chkLines.checked,
+    watermark:  chkWmark.checked,
+    bgColor:    pickBg.value,
+    codeBg:     meta.codeBg,
+    codeText:   meta.codeText,
+  };
+}
+
+function scheduleRender() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(() => { if (currentData) renderSnap(currentData); }, 120);
+}
+
+rngSize.addEventListener('input',    () => { valSize.textContent = rngSize.value; scheduleRender(); });
+rngPad.addEventListener('input',     () => { valPad.textContent  = rngPad.value;  scheduleRender(); });
+chkWindow.addEventListener('change', scheduleRender);
+chkLines.addEventListener('change',  scheduleRender);
+chkWmark.addEventListener('change',  scheduleRender);
+pickBg.addEventListener('input',     scheduleRender);
+
+selTheme.addEventListener('change', () => {
+  const theme = selTheme.value;
+  // Update HL.js CSS
+  if (THEME_CSS_MAP[theme]) hljsLink.href = THEME_CSS_MAP[theme];
+  // Update BG colour picker
+  const meta = THEME_META[theme] ?? THEME_META['atom-one-dark'];
+  pickBg.value = meta.bg;
+  // Update active palette
+  activePalette = { ...BASE_PALETTE, ...(THEME_PALETTES[theme] ?? {}) };
+  scheduleRender();
+});
+
+// ── Main render ───────────────────────────────────────────────────────────────
+async function renderSnap(data) {
+  overlay.classList.remove('hidden');
+  btnShare.disabled = true;
+  btnSave.disabled  = true;
+  await new Promise(r => setTimeout(r, 10));
+
+  try {
+    const canvas = await buildCanvas(data, getOpts());
+    currentCanvas = canvas;
+    const existing = wrap.querySelector('canvas');
+    if (existing) existing.remove();
+    emptyState.style.display = 'none';
+    wrap.appendChild(canvas);
+    btnShare.disabled = false;
+    btnSave.disabled  = false;
+  } catch (err) {
+    console.error('[CodeSnap] render error:', err);
+  } finally {
+    overlay.classList.add('hidden');
+  }
+}
+
+// ── Canvas builder ────────────────────────────────────────────────────────────
+async function buildCanvas(data, opts) {
+  const { fontSize, padding, showWindow, showLines, watermark, bgColor, codeBg, codeText } = opts;
+
+  const LINE_H   = Math.round(fontSize * 1.6);
+  const TITLE_H  = showWindow ? 40 : 0;
+  const WMARK_H  = watermark  ? 24 : 0;
+
+  // Measure text
+  const tmp    = document.createElement('canvas');
+  const tmpCtx = tmp.getContext('2d');
+  tmpCtx.font  = `${fontSize}px 'JetBrains Mono', 'Fira Code', Consolas, monospace`;
+
+  const lines    = data.code.split('\n');
+  const lineNums = showLines ? lines.length : 0;
+  const lineNumW = showLines ? tmpCtx.measureText(String(data.lineStart + lines.length)).width + fontSize * 1.5 : 0;
+  const maxCodeW = Math.max(...lines.map(l => tmpCtx.measureText(l).width));
+
+  const innerW = Math.ceil(Math.max(maxCodeW + lineNumW, 300)) + padding * 2;
+  const innerH = lines.length * LINE_H + padding * 2 + TITLE_H;
+  const canvasW = innerW;
+  const canvasH = innerH + WMARK_H;
+
+  const cv = document.createElement('canvas');
+  cv.width  = canvasW * 2;
+  cv.height = canvasH * 2;
+  cv.style.width  = canvasW + 'px';
+  cv.style.height = canvasH + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(2, 2);
+
+  // Background
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Card
+  const cardX = padding / 2, cardY = padding / 2;
+  const cardW = canvasW - padding, cardH = innerH - padding;
+
+  ctx.save();
+  ctx.shadowColor   = 'rgba(0,0,0,.5)';
+  ctx.shadowBlur    = 24;
+  ctx.shadowOffsetY = 8;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 10);
+  ctx.fillStyle = codeBg;
+  ctx.fill();
+  ctx.restore();
+
+  // Window chrome dots
+  if (showWindow) {
+    const dotY  = cardY + TITLE_H / 2;
+    const dotX0 = cardX + 16;
+    [['#ff5f57', '#ff5f57'], ['#ffbd2e', '#ffbd2e'], ['#28c840', '#28c840']].forEach(([c], i) => {
+      ctx.beginPath();
+      ctx.arc(dotX0 + i * 18, dotY, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = c;
+      ctx.fill();
+    });
+    // File name centred in title bar
+    ctx.font      = `500 11px -apple-system, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,.3)';
+    ctx.textAlign = 'center';
+    ctx.fillText(data.fileName, cardX + cardW / 2, cardY + TITLE_H / 2 + 4);
+    ctx.textAlign = 'left';
+  }
+
+  // Code lines
+  ctx.font = `${fontSize}px 'JetBrains Mono', 'Fira Code', Consolas, monospace`;
+  ctx.textBaseline = 'alphabetic';
+
+  const highlighted = hljs.highlight(data.code, { language: data.language, ignoreIllegals: true });
+  const segments    = parseHljsHtml(highlighted.value, codeText);
+  const lineSegs    = buildLines(segments);
+
+  const codeX = cardX + padding / 2 + lineNumW;
+  const codeY = cardY + TITLE_H + padding / 2 + fontSize;
+
+  lineSegs.forEach((segs, i) => {
+    const y = codeY + i * LINE_H;
+
+    // Line number
+    if (showLines) {
+      ctx.fillStyle = 'rgba(200,200,220,.22)';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(data.lineStart + i), cardX + padding / 2 + lineNumW - fontSize * 0.5, y);
+      ctx.textAlign = 'left';
+    }
+
+    // Tokens
+    let x = codeX;
+    for (const seg of segs) {
+      if (!seg.text) continue;
+      ctx.fillStyle = seg.color;
+      ctx.fillText(seg.text, x, y);
+      x += ctx.measureText(seg.text).width;
+    }
+  });
+
+  // Watermark
+  if (watermark) {
+    ctx.font      = '500 10px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.textAlign = 'center';
+    ctx.fillText('📸 DotShare CodeSnap', canvasW / 2, innerH + WMARK_H / 2 + 4);
+    ctx.textAlign = 'left';
+  }
+
+  return cv;
+}
+
+// ── HL.js HTML → token list ───────────────────────────────────────────────────
+function parseHljsHtml(html, defaultColor) {
+  const out    = [];
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(`<pre>${html}</pre>`, 'text/html');
+  flattenNode(doc.querySelector('pre'), defaultColor, out);
+  return out;
+}
+
+function flattenNode(node, inheritColor, out) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    if (node.textContent) out.push({ text: node.textContent, color: inheritColor });
+    return;
+  }
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const cls   = (node.className || '').trim();
+    const color = activePalette[cls] ?? inheritColor;
+    node.childNodes.forEach(c => flattenNode(c, color, out));
+  }
+}
+
+function buildLines(segments) {
+  const lines = [[]];
+  for (const seg of segments) {
+    const parts = seg.text.split('\n');
+    parts.forEach((part, i) => {
+      if (i > 0) lines.push([]);
+      if (part) lines[lines.length - 1].push({ text: part, color: seg.color });
+    });
+  }
+  return lines;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+btnShare.addEventListener('click', () => {
+  if (!currentCanvas) return;
+  btnShare.disabled = true;
+  btnShare.textContent = '⏳ Saving…';
+  vscode.postMessage({ command: 'snapReady', base64: currentCanvas.toDataURL('image/png') });
+});
+
+btnSave.addEventListener('click', () => {
+  if (!currentCanvas) return;
+  vscode.postMessage({ command: 'saveAsFile', base64: currentCanvas.toDataURL('image/png') });
+});
+
+// ── Extension → WebView messages ──────────────────────────────────────────────
+window.addEventListener('message', async (event) => {
+  const msg = event.data;
+  if (!msg?.command) return;
+
+  switch (msg.command) {
+    case 'loadCode': {
+      currentData = msg.data;
+      const d     = msg.data;
+      statusFile.textContent  = d.hasSelection
+        ? `${d.fileName}  [L${d.lineStart}–L${d.lineEnd}]`
+        : d.fileName;
+      statusLang.textContent  = d.language;
+      statusLines.textContent = `${d.code.split('\n').length} lines`;
+      await renderSnap(d);
+      break;
+    }
+
+    case 'snapSaved': {
+      // Reset share button after a moment
+      setTimeout(() => {
+        btnShare.disabled    = false;
+        btnShare.textContent = '🚀 Share';
+        btnShare.className   = 'btn btn-success';
+        setTimeout(() => { btnShare.className = 'btn btn-primary'; }, 2500);
+      }, 200);
+      break;
+    }
+  }
+});
+
+// ── Init: tell extension the webview is ready ─────────────────────────────────
+overlay.classList.add('hidden');
+vscode.postMessage({ command: 'webviewReady' });
+console.log('[CodeSnap] WebView ready (offline mode)');
+</script>
+</body>
+</html>

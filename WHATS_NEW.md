@@ -2,7 +2,60 @@
 
 ---
 
-## 🔐 v3.3.5 — "Open Privacy Hotfix"
+## � v3.4.0 — "CodeSnap"
+
+*Released: May 31, 2026*
+
+### 📸 Create Beautiful Code Snapshots Right from Your Editor
+
+Meet **CodeSnap** — your new favorite way to share code visually. Highlight any code in VS Code, hit the CodeSnap command, and watch your code transform into a gorgeous, ready-to-share image.
+
+#### Key Features
+
+**🎨 9+ Professional Themes**
+- Atom One Dark (default), GitHub Dark, Monokai, Dracula, Nord, VS2015, Tokyo Night, GitHub Light, Catppuccin Mocha
+- Each theme includes authentic color palettes for all syntax elements
+- Real-time preview as you switch themes
+
+**🎛️ Full Customization**
+- **Font Size**: Adjust from 8px to 24px to make code readable at any scale
+- **Padding**: Control spacing around your code (4px–48px)
+- **Line Numbers**: Toggle on/off to show or hide line numbers
+- **Window Chrome**: Add a macOS-style window frame around your snapshot
+- **DotShare Watermark**: Include or exclude the DotShare badge
+- **Background Color**: Custom background via color picker
+
+**🚀 One-Click Platform Sharing**
+1. Customize your snapshot
+2. Click "🚀 Share"
+3. Select a platform from the QuickPick (LinkedIn, X, BlueSky, Telegram, Facebook, Discord, Reddit, Dev.to, Medium)
+4. Composer opens automatically with your snapshot attached
+5. Add caption, adjust settings, and post directly
+
+**💾 Local Save**
+- Download your CodeSnap as PNG to your computer for use anywhere
+- Native macOS/Windows/Linux save dialogs
+
+#### Smart Code Capture
+- **Selection**: If you've highlighted code, CodeSnap captures exactly that
+- **Full File**: If nothing is selected, CodeSnap captures your entire file
+- **40+ Languages**: Full syntax highlighting support for TypeScript, JavaScript, Python, Rust, Go, Java, C++, C#, HTML, CSS, and more
+- **Smart Indentation**: Automatically strips common leading whitespace so deep nesting doesn't waste space
+- **Tab Normalization**: Tabs are converted to spaces for proper rendering
+
+#### Integration with the Composer
+- **Seamless Workflow**: CodeSnap panel stores pending images until the Composer is ready, then automatically attaches them
+- **Two-Way**: CodeSnap has a "Share" button; Composer has an "📸 Add CodeSnap" button
+- **Race-Condition Safe**: Uses webviewReady handshake instead of timeouts
+
+#### Zero Dependencies for Rendering
+- No native image libraries—all rendering happens in the webview via HTML Canvas
+- Offline-first: Highlight.js and theme CSS are served locally from the `vendor/` directory
+- No external API calls during rendering
+
+---
+
+## �🔐 v3.3.5 — "Open Privacy Hotfix"
 
 *Released: May 27, 2026*
 

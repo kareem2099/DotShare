@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { HistoryService } from '../services/HistoryService';
 
@@ -57,8 +59,9 @@ export class AnalyticsPanel {
         // Get version dynamically from package.json
         let version = '2.3.0';
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            version = require('../../package.json').version;
+            const pkgPath = path.join(__dirname, '..', '..', 'package.json');
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string };
+            if (pkg.version) { version = pkg.version; }
         } catch {
             // fallback to default
         }

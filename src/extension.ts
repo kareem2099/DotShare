@@ -4,11 +4,12 @@ import { DotShareWebView } from './ui/DotShareWebView';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
 import { DOTSUITE_CORE_API_URL } from './constants';
-
 import { Logger } from './utils/Logger';
 import { TokenManager } from './services/TokenManager';
 import { DotShareAuth } from './services/DotShareAuth';
 import { GistService } from './services/GistService';
+import { MediaService } from './services/MediaService';
+import { CodeSnapPanel } from './ui/CodeSnapPanel';
 import * as path from 'path';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -42,7 +43,10 @@ export async function activate(context: vscode.ExtensionContext) {
     DotShareAuth.setContext(context);
     Logger.section('DotShare v3.0 Activating (Hybrid Mode)');
 
-    // ── Data / Storage ────────────────────────────────────────
+    // ── Shared services ───────────────────────────────────
+    const mediaService = new MediaService(context);
+
+    // ── Data / Storage ────────────────────────────────────
     const storageManager = new StorageManager(context);
     storageManager.migrateLegacyData().catch((e) => Logger.error('[Extension] Migration failed', e));
 
@@ -80,6 +84,51 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('dotshare.shareToMedium', () => {
             DotShareWebView.createPlatformPost(context, 'medium');
         })
+    );
+
+    // ── 4. CodeSnap ───────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.codeSnap', () => {
+            CodeSnapPanel.open(context, mediaService);
+        }),
+        // Internal command: called by CodeSnapPanel after QuickPick → Composer opens
+        // The Composer fires { command: 'webviewReady' } on mount; we relay the pending
+        // snap image via DotShareWebView.postMessage() so it attaches automatically.
+        vscode.commands.registerCommand(
+            'dotshare.attachSnapToComposer',
+            (filePath: string, fileName: string) => {
+                DotShareWebView.postMessage({
+                    command:    'mediaAttached',
+                    mediaFiles: [{
+                        mediaPath:     filePath,
+                        mediaFilePath: filePath,
+                        fileName:      fileName,
+                        fileSize:      0,
+                    }],
+                });
+                Logger.info(`[Extension] CodeSnap attached to composer: ${fileName}`);
+            },
+        ),
+        // Internal: fired by DotShareWebView when ANY Composer posts webviewReady.
+        // Checks CodeSnapPanel for a pending snap and injects it into the new panel.
+        vscode.commands.registerCommand(
+            'dotshare._composerReady',
+            (panel: vscode.WebviewPanel) => {
+                const pending = CodeSnapPanel.consumePendingSnap();
+                if (pending) {
+                    panel.webview.postMessage({
+                        command:    'mediaAttached',
+                        mediaFiles: [{
+                            mediaPath:     pending.filePath,
+                            mediaFilePath: pending.filePath,
+                            fileName:      pending.fileName,
+                            fileSize:      0,
+                        }],
+                    });
+                    Logger.info(`[Extension] Pending snap delivered to new composer: ${pending.fileName}`);
+                }
+            },
+        )
     );
 
     // ── 4. Analytics ──────────────────────────────────────────

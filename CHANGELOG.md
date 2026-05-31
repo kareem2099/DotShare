@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-05-31 — "CodeSnap"
+
+### Added
+- **📸 CodeSnap Feature**: Capture syntax-highlighted code snapshots from your active editor
+  - Auto-captures selected code or full file content
+  - Smart indentation normalization to avoid wasted space
+  - Supports 40+ programming languages with proper syntax coloring
+- **🎨 Rendering Engine**: HTML Canvas-based rendering (no native dependencies)
+  - Offline-first with local Highlight.js and theme CSS via `vendor/` directory
+  - Webview Asset URIs for secure local resource loading
+- **🎨 Professional Theme Support**: 9+ built-in themes with accurate color palettes
+  - Atom One Dark, GitHub Dark, Monokai, Dracula, Nord, VS2015, Tokyo Night, GitHub Light, Catppuccin Mocha
+  - Each theme includes background, code background, and syntax color definitions
+- **🎛️ Customization Controls**: Real-time preview with adjustable settings
+  - Font size slider (8px–24px)
+  - Padding slider (4px–48px)
+  - Toggle: Window chrome, line numbers, DotShare watermark
+  - Background color picker
+- **📱 Platform Integration**: QuickPick platform selector to share CodeSnap to all platforms
+  - Works with: LinkedIn, X (Twitter), BlueSky, Telegram, Facebook, Discord, Reddit, Dev.to, Medium
+  - Automatically opens Composer with snapshot attached via internal messaging
+- **💾 Local Save**: Download CodeSnap as PNG via native Save dialog
+- **🔄 Singleton Panel**: One CodeSnap panel at a time, reuses existing panel if already open
+- **🔗 Two-Way Integration**: 
+  - CodeSnap panel has a "Share" button that opens the Composer
+  - Composer has a "📸 Add CodeSnap" button that opens the CodeSnap panel
+  - Pending snap image is held until Composer fires webviewReady, then automatically attached
+- **⌨️ Command Registration**:
+  - `dotshare.codeSnap`: Opens CodeSnap panel
+  - `dotshare.attachSnapToComposer`: Internal command to attach snap to Composer
+  - `dotshare._composerReady`: Monitors Composer readiness and injects pending snap
+
+### Technical Details
+- **CodeSnapService**: Captures editor state with language detection and indentation normalization
+- **CodeSnapPanel**: Manages WebView lifecycle with race-condition-safe webviewReady handshake
+- **codesnap.html**: Standalone HTML UI with embedded Canvas rendering logic and theme system
+- **messaging**: Base64 PNG encoding/decoding for snap data transfer between panels
+
+---
+
 ## [3.3.5] - 2026-05-27 — "Open Privacy Hotfix"
 
 ### Fixed

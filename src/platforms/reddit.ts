@@ -108,6 +108,20 @@ function mapRedditError(errorCode: unknown, subreddit?: string, fallback?: strin
 }
 
 /**
+ * Resolves a raw Reddit error field (string, object, or unknown) into a string.
+ */
+function resolveErrorString(errorField: unknown): string {
+    if (typeof errorField === 'string') return errorField;
+    if (typeof errorField === 'object' && errorField !== null) {
+        const obj = errorField as Record<string, unknown>;
+        if (typeof obj.reason === 'string') return obj.reason;
+        if (typeof obj.message === 'string') return obj.message;
+        return JSON.stringify(obj);
+    }
+    return String(errorField ?? 'UNKNOWN_ERROR');
+}
+
+/**
  * Extracts Reddit error codes from an Axios error response and maps them to
  * user-friendly strings. Handles complex error structures with detailed logging.
  */
@@ -151,25 +165,7 @@ function extractRedditErrors(error: unknown, subreddit?: string): string {
 
     // Handle flat error field
     if (data?.error) {
-        // data.error might be an object, so convert safely
-        let errorStr = '';
-        if (typeof data.error === 'string') {
-            errorStr = data.error;
-        } else if (typeof data.error === 'object' && data.error !== null) {
-            // If error is an object, try to extract reason or message
-            const errObj = data.error as Record<string, unknown>;
-            if (errObj.reason && typeof errObj.reason === 'string') {
-                errorStr = errObj.reason;
-            } else if (errObj.message && typeof errObj.message === 'string') {
-                errorStr = errObj.message;
-            } else {
-                errorStr = JSON.stringify(errObj);
-            }
-        } else {
-            errorStr = String(data.error ?? 'UNKNOWN_ERROR');
-        }
-
-        const code = errorStr.toUpperCase().trim();
+        const code = resolveErrorString(data.error).toUpperCase().trim();
 
         // HTTP 403 — commonly "forbidden" / restricted sub
         if (status === 403 || code === 'FORBIDDEN' || code === '403') {
@@ -456,22 +452,7 @@ export async function shareToReddit(postData: RedditPostData): Promise<string> {
         }
 
         if (response.data.error) {
-            // Handle case where error might be an object
-            let errorStr = '';
-            if (typeof response.data.error === 'string') {
-                errorStr = response.data.error;
-            } else if (typeof response.data.error === 'object' && response.data.error !== null) {
-                const errObj = response.data.error as Record<string, unknown>;
-                if (errObj.reason && typeof errObj.reason === 'string') {
-                    errorStr = errObj.reason;
-                } else if (errObj.message && typeof errObj.message === 'string') {
-                    errorStr = errObj.message;
-                } else {
-                    errorStr = JSON.stringify(errObj);
-                }
-            } else {
-                errorStr = String(response.data.error ?? 'UNKNOWN_ERROR');
-            }
+            const errorStr = resolveErrorString(response.data.error);
             throw new Error(mapRedditError(errorStr, subreddit, response.data.error_description ? String(response.data.error_description) : undefined));
         }
 
@@ -534,7 +515,7 @@ export async function validateRedditCredentials(accessToken: string): Promise<bo
             headers: getAuthHeaders(accessToken)
         });
         return !!response.data.name;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

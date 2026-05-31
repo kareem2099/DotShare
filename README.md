@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.3.5-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-Open%20Privacy-10b981?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-CodeSnap-10b981?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -19,11 +19,12 @@
 
 ---
 
-## 🆕 What's New — v3.3.4 "Unified Cloud Auth"
+## 🆕 What's New — v3.4.0 "CodeSnap"
 
-- **🌐 Unified DotSuite Cloud Authentication**: We've completely overhauled the authentication experience. The old, intrusive manual API key popup is gone. It's been replaced by a sleek, unified "DotSuite Cloud" section directly inside the sidebar. 
-- **⚡ Seamless Browser OAuth**: Connect to DotShare securely via your browser (dashboard) and watch the VS Code sidebar instantly update in real-time. No copy-pasting required.
-- **💼 Rich Profile Insights**: Once connected, your cloud card now displays your active tier (Pro/Max), used quotas, and profile details straight from the backend.
+- **📸 CodeSnap Panel**: Create beautiful, syntax-highlighted code snapshots directly from your editor with full customization controls (themes, font size, padding, line numbers, watermark, background color).
+- **🎨 9+ Professional Themes**: Choose from Atom One Dark, GitHub Dark, Monokai, Dracula, Nord, VS2015, Tokyo Night, GitHub Light, Catppuccin Mocha, and more—with accurate syntax highlighting via Highlight.js.
+- **📱 Share to All Platforms**: Export your CodeSnap directly to LinkedIn, X (Twitter), BlueSky, Telegram, Facebook, Discord, Reddit, Dev.to, Medium, and more—with the Composer automatically loading your snapshot.
+- **💾 Local Save**: Download CodeSnap images as PNG files to your computer with one click.
 
 ---
 

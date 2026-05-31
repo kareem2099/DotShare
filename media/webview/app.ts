@@ -140,13 +140,14 @@ const MAX_CHARS_MAP: Record<string, number> = {
 };
 
 // ── Compose Area ──────────────────────────────────────────────────────────────
-const textarea  = get<HTMLTextAreaElement>('post-text');
-const counter   = get('char-counter');
-const btnShare  = get<HTMLButtonElement>('btn-share');
-const btnGen    = get<HTMLButtonElement>('btn-generate-ai');
-const btnMedia  = get<HTMLButtonElement>('btn-attach-media');
+const textarea    = get<HTMLTextAreaElement>('post-text');
+const counter     = get('char-counter');
+const btnShare    = get<HTMLButtonElement>('btn-share');
+const btnGen      = get<HTMLButtonElement>('btn-generate-ai');
+const btnMedia    = get<HTMLButtonElement>('btn-attach-media');
+const btnCodeSnap = get<HTMLButtonElement>('btn-codesnap');
 const btnSchedule = get<HTMLButtonElement>('btn-schedule');
-const fileInput = get<HTMLInputElement>('media-file-input');
+const fileInput   = get<HTMLInputElement>('media-file-input');
 
 let scheduleMode: 'social' | 'blog' | 'thread' = 'social';
 
@@ -297,14 +298,32 @@ function enableDragAndDrop(editor: HTMLTextAreaElement | null) {
     });
 }
 
-// Activate Drag & Drop on both editors (runs after DOM is ready)
-setTimeout(() => {
+// Activate Drag & Drop on both editors + fire webviewReady handshake.
+// webviewReady tells the extension that this Composer is mounted and ready
+// to receive a pending CodeSnap image (the event-driven alternative to setTimeout).
+// Single onReady() guard prevents double-attach when readyState is already 'complete'.
+function onReady(): void {
     enableDragAndDrop(get<HTMLTextAreaElement>('post-text'));
     enableDragAndDrop(get<HTMLTextAreaElement>('blog-body'));
-}, 0);
+    // Signal readiness to the extension host
+    send('webviewReady');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', onReady, { once: true });
+} else {
+    onReady();
+}
 
 // Attach media button
 btnMedia?.addEventListener('click', () => { if (fileInput) fileInput.click(); });
+
+// ── 📸 CodeSnap button (Pull Flow) ───────────────────────────────────────────
+// Opens CodeSnap panel from inside the Composer. The rendered image will be
+// auto-attached when the user clicks Share in the CodeSnap panel.
+btnCodeSnap?.addEventListener('click', () => {
+    send('triggerCodeSnap');
+});
 
 fileInput?.addEventListener('change', () => {
     const files = fileInput?.files;
@@ -1129,17 +1148,38 @@ window.addEventListener('message', (event: MessageEvent) => {
             }
 
             case 'mediaAttached': {
-                const files = msg.mediaFiles as Array<{ mediaPath: string; fileName: string }> | undefined;
-                if (files?.length) {
-                    const MAX = 4;
+                const files = msg.mediaFiles as Array<{ mediaPath: string; fileName: string; fileSize?: number }> | undefined;
+                if (files && files.length > 0) {
+                    const MAX = 4; // الحد الأقصى للصور
                     const toAdd = files.slice(0, MAX - activeMediaPaths.length);
-                    toAdd.forEach(f => activeMediaPaths.push(f.mediaPath));
+                    
+                    toAdd.forEach(f => {
+                        // بنضيف الصورة للمصفوفة
+                        activeMediaPaths.push(f.mediaPath);
+                        
+                        // لو إحنا في البلوج (Dev.to أو Medium)، بنعملها Insert جوه الـ Markdown
+                        if (scheduleMode === 'blog') {
+                            const activeEditor = get<HTMLTextAreaElement>('blog-body');
+                            if (activeEditor) {
+                                const altPlaceholder = f.fileName || 'CodeSnap';
+                                const mdLink = `\n![${altPlaceholder}](${f.mediaPath})\n`;
+                                const insertIndex = activeEditor.selectionStart !== undefined ? activeEditor.selectionStart : activeEditor.value.length;
+                                activeEditor.value = activeEditor.value.slice(0, insertIndex) + mdLink + activeEditor.value.slice(insertIndex);
+                                activeEditor.dispatchEvent(new Event('input'));
+                            }
+                        }
+                    });
+                    
+                    // تحديث واجهة المستخدم لعرض الـ Thumbnails
                     renderMediaGrid();
                     if (files.length > toAdd.length) toast(`⚠️ Only ${MAX} images allowed. Extra skipped.`, 'warning');
+                    
                     const preview = get('media-preview');
                     const ci      = get('media-count-info');
                     if (preview) preview.style.display = 'block';
                     if (ci) ci.textContent = activeMediaPaths.length === 1 ? toAdd[0].fileName : `${activeMediaPaths.length} files selected`;
+                    
+                    toast('📸 CodeSnap attached!', 'success');
                 }
                 break;
             }

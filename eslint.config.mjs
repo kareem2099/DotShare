@@ -13,6 +13,8 @@ const ignores = [
     'media/webview/app.js',
     'media/webview/app.js.map',
     'media/webview/style.css',
+    // Third-party vendor files (highlight.js, theme CSS) — generated, not our code
+    'media/webview/vendor/**',
     // Source-only dirs that shouldn't be linted directly
     'media/src/**',
     'media/main.ts',

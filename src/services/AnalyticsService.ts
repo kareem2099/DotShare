@@ -6,18 +6,17 @@ export class AnalyticsService {
         let successfulShares = 0;
         let failedShares = 0;
 
-        // Initialize counters dynamically or statically as you prefer
-        const platformCounts: Record<SocialPlatform, number> = {
-            linkedin: 0, telegram: 0, x: 0, facebook: 0,
-            discord: 0, reddit: 0, bluesky: 0, devto: 0, medium: 0
-        };
+        // Build counters dynamically — no manual sync needed when SocialPlatform grows
+        const platformCounts: Partial<Record<SocialPlatform, number>> = {};
 
         for (const post of history) {
             for (const share of post.shares) {
-                if (platformCounts[share.platform] !== undefined) {
-                    platformCounts[share.platform]++;
+                platformCounts[share.platform] = (platformCounts[share.platform] ?? 0) + 1;
+                if (share.success) {
+                    successfulShares++;
+                } else {
+                    failedShares++;
                 }
-                share.success ? successfulShares++ : failedShares++;
             }
         }
 
@@ -28,15 +27,15 @@ export class AnalyticsService {
             totalPosts,
             successfulShares,
             failedShares,
-            linkedinShares: platformCounts['linkedin'],
-            telegramShares: platformCounts['telegram'],
-            xShares: platformCounts['x'],
-            facebookShares: platformCounts['facebook'],
-            discordShares: platformCounts['discord'],
-            redditShares: platformCounts['reddit'],
-            blueskyShares: platformCounts['bluesky'],
-            devtoShares: platformCounts['devto'],
-            mediumShares: platformCounts['medium'],
+            linkedinShares: platformCounts['linkedin'] ?? 0,
+            telegramShares: platformCounts['telegram'] ?? 0,
+            xShares:        platformCounts['x']        ?? 0,
+            facebookShares: platformCounts['facebook'] ?? 0,
+            discordShares:  platformCounts['discord']  ?? 0,
+            redditShares:   platformCounts['reddit']   ?? 0,
+            blueskyShares:  platformCounts['bluesky']  ?? 0,
+            devtoShares:    platformCounts['devto']    ?? 0,
+            mediumShares:   platformCounts['medium']   ?? 0,
             successRate
         };
     }

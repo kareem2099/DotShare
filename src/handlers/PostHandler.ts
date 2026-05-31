@@ -46,7 +46,7 @@ export class PostHandler {
         private analyticsService: AnalyticsService,
         private mediaService: MediaService,
         private draftsService: DraftsService
-    ) {}
+    ) { }
 
     public async handleMessage(message: Message): Promise<void> {
         const cmd = message.command;
@@ -100,7 +100,7 @@ export class PostHandler {
                 case 'shareThread':
                     await this.handleShareThread(message);
                     break;
-                    
+
                 case 'scheduleBlog':
                     // Rust backend scheduler doesn't yet support blog metadata (title, tags, etc).
                     this.sendSuccess('☁️ Blog scheduling (Dev.to / Medium) will be available in the next DotSuite Cloud update!');
@@ -142,7 +142,7 @@ export class PostHandler {
                 case 'openSupportLink':
                     vscode.env.openExternal(vscode.Uri.parse('https://www.buymeacoffee.com/freerave'));
                     break;
-                
+
                 // Drafts Commands
                 case 'saveLocalDraft':
                     await this.handleSaveLocalDraft(message);
@@ -200,9 +200,9 @@ export class PostHandler {
         const maxRetries = 1;
         while (retryCount <= maxRetries) {
             try {
-                if (provider === 'gemini')      post = await generateGeminiPost(apiKey, model);
+                if (provider === 'gemini') post = await generateGeminiPost(apiKey, model);
                 else if (provider === 'openai') post = await generateOpenAIPost(apiKey, model);
-                else if (provider === 'xai')    post = await generateXAIPost(apiKey, model);
+                else if (provider === 'xai') post = await generateXAIPost(apiKey, model);
                 else if (provider === 'claude') post = await generateClaudePost(apiKey, model);
                 else {
                     this.sendError('Unsupported AI provider.');
@@ -393,7 +393,7 @@ export class PostHandler {
         // Sync local credentials to backend first (fire and forget to not block UI immediately)
         // We await it here so the subsequent getConnections includes them if newly added.
         try {
-            const platformsToSync = ['telegram', 'devto', 'medium', 'bluesky', 'facebook'] as SocialPlatform[];
+            const platformsToSync = ['telegram', 'devto', 'medium', 'bluesky', 'facebook', 'linkedin', 'x'] as SocialPlatform[];
             await SchedulerClient.syncLocalCredentials(this.context, platformsToSync);
         } catch (err) {
             Logger.warn('[PostHandler] Failed to sync local credentials', err);
@@ -407,14 +407,14 @@ export class PostHandler {
 
     private async handleCancelScheduledPost(message: Message): Promise<void> {
         const msg = message as unknown as { scheduledPostId: string };
-        
+
         if (!msg.scheduledPostId) {
             this.sendError('Invalid cancel request: missing post ID');
             return;
         }
 
         const success = await SchedulerClient.cancelPost(this.context, msg.scheduledPostId);
-        
+
         if (success) {
             this.sendSuccess('Scheduled post cancelled successfully!');
             await this.handleLoadScheduledPosts();
@@ -456,7 +456,7 @@ export class PostHandler {
             const scheme = vscode.env.uriScheme;
             const DOTSUITE_LOGIN_URL = `${BASE_URL}/en/login?intent=vscode&scheme=${scheme}`;
             await vscode.env.openExternal(vscode.Uri.parse(DOTSUITE_LOGIN_URL));
-            
+
             // Note: Scheduling will resume after the user logs in and the extension URI handler catches the token
             return;
         }
@@ -665,7 +665,7 @@ export class PostHandler {
         scheduleDate?: Date
     ): Promise<void> {
         try {
-            const bot  = telegramBot  || await this.context.secrets.get('telegramBot')  || '';
+            const bot = telegramBot || await this.context.secrets.get('telegramBot') || '';
             const chat = telegramChat || await this.context.secrets.get('telegramChat') || '';
 
             await shareToTelegram(post, bot, chat, {
@@ -687,9 +687,9 @@ export class PostHandler {
 
     private async shareToFacebookWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         try {
-            const facebookToken     = await this.context.secrets.get('facebookToken')     || '';
+            const facebookToken = await this.context.secrets.get('facebookToken') || '';
             const facebookPageToken = await this.context.secrets.get('facebookPageToken') || null;
-            const facebookPageId    = await this.context.secrets.get('facebookPageId')    || undefined;
+            const facebookPageId = await this.context.secrets.get('facebookPageId') || undefined;
 
             await shareToFacebook(facebookToken, facebookPageToken, { ...post, pageId: facebookPageId });
 
@@ -710,7 +710,7 @@ export class PostHandler {
 
     private async shareToXWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         try {
-            const xAccessToken  = await this.context.secrets.get('xAccessToken')  || '';
+            const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
             const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
 
             await shareToX(xAccessToken, xAccessSecret, post);
@@ -740,13 +740,13 @@ export class PostHandler {
             };
 
             const redditPostData = {
-                text:       msg.post || post.text,
-                media:      post.media,
-                subreddit:  msg.redditSubreddit || '',
-                title:      msg.redditTitle,
-                flairId:    msg.redditFlairId,
+                text: msg.post || post.text,
+                media: post.media,
+                subreddit: msg.redditSubreddit || '',
+                title: msg.redditTitle,
+                flairId: msg.redditFlairId,
                 isSelfPost: msg.redditPostType !== 'link',
-                spoiler:    msg.redditSpoiler
+                spoiler: msg.redditSpoiler
             };
 
             const postIdOnPlatform = await shareToReddit(redditPostData);
@@ -778,7 +778,7 @@ export class PostHandler {
                     errorMessage = String(obj);
                 }
             }
-            
+
             if (postId) this.historyService.recordShare(postId, 'reddit', false, errorMessage);
             throw new Error(`Reddit sharing failed: ${errorMessage}`);
         }
@@ -787,7 +787,7 @@ export class PostHandler {
     private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         try {
             const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
-            const password   = (await this.context.secrets.get('blueskyPassword')   || '').trim();
+            const password = (await this.context.secrets.get('blueskyPassword') || '').trim();
 
             if (!identifier || !password) {
                 throw new Error('BlueSky credentials not configured. Go to Settings to add them.');
@@ -828,9 +828,9 @@ export class PostHandler {
             // ── Pre-publish validation ────────────────────────────────────────
             const bodyText = msg.post || post.text;
             const validation = validateDevTo({
-                title:       msg.title,
-                body:        bodyText,
-                tags:        msg.tags,
+                title: msg.title,
+                body: bodyText,
+                tags: msg.tags,
                 description: msg.description,
             });
 
@@ -850,15 +850,15 @@ export class PostHandler {
             // ─────────────────────────────────────────────────────────────────
 
             const result = await shareToDevTo(devtoApiKey, {
-                text:         bodyText,
-                media:        msg.mediaFilePaths || post.media,
-                title:        msg.title,
-                tags:         validation.sanitizedTags ?? msg.tags,
-                description:  msg.description,
-                coverImage:   msg.coverImage,
-                published:    msg.published,
+                text: bodyText,
+                media: msg.mediaFilePaths || post.media,
+                title: msg.title,
+                tags: validation.sanitizedTags ?? msg.tags,
+                description: msg.description,
+                coverImage: msg.coverImage,
+                published: msg.published,
                 canonicalUrl: msg.canonicalUrl,
-                series:       msg.series
+                series: msg.series
             });
 
             if (postId) this.historyService.recordShare(postId, 'devto', true, undefined, result.id.toString());
@@ -890,8 +890,8 @@ export class PostHandler {
             const bodyText = msg.post || post.text;
             const validation = validateMedium({
                 title: msg.title,
-                body:  bodyText,
-                tags:  msg.tags,
+                body: bodyText,
+                tags: msg.tags,
             });
 
             // Surface each warning as an individual info toast
@@ -910,12 +910,12 @@ export class PostHandler {
             // ─────────────────────────────────────────────────────────────────
 
             await shareToMedium(mediumAccessToken, {
-                text:          bodyText,
-                media:         msg.mediaFilePaths || post.media,
-                title:         msg.title,
-                tags:          validation.sanitizedTags ?? msg.tags,
+                text: bodyText,
+                media: msg.mediaFilePaths || post.media,
+                title: msg.title,
+                tags: validation.sanitizedTags ?? msg.tags,
                 publishStatus: msg.publishStatus as 'public' | 'draft' | 'unlisted' | 'published' | undefined,
-                canonicalUrl:  msg.canonicalUrl
+                canonicalUrl: msg.canonicalUrl
             });
 
             if (postId) this.historyService.recordShare(postId, 'medium', true);
@@ -968,14 +968,14 @@ export class PostHandler {
                         const redditMeta = metadata?.redditMetadata || {};
                         const redditMessage: Message = {
                             command: 'shareToReddit',
-                            redditAccessToken:  await this.context.secrets.get('redditAccessToken')  || '',
+                            redditAccessToken: await this.context.secrets.get('redditAccessToken') || '',
                             redditRefreshToken: await this.context.secrets.get('redditRefreshToken') || '',
-                            redditSubreddit:    (redditMeta.subreddit as string) || await this.context.secrets.get('redditSubreddit') || '',
-                            redditTitle:        (redditMeta.title as string)     || post.text.substring(0, 300),
-                            redditFlairId:      (redditMeta.flair as string)     || '',
-                            redditPostType:     (redditMeta.postType as string)  || 'self',
-                            redditSpoiler:      (redditMeta.spoiler as boolean)  || false,
-                            post:               post.text,
+                            redditSubreddit: (redditMeta.subreddit as string) || await this.context.secrets.get('redditSubreddit') || '',
+                            redditTitle: (redditMeta.title as string) || post.text.substring(0, 300),
+                            redditFlairId: (redditMeta.flair as string) || '',
+                            redditPostType: (redditMeta.postType as string) || 'self',
+                            redditSpoiler: (redditMeta.spoiler as boolean) || false,
+                            post: post.text,
                             mediaFilePaths
                         };
                         await this.shareToRedditWithUpdate(post, redditMessage, postId);
@@ -985,9 +985,9 @@ export class PostHandler {
                         await this.shareToBlueSkyWithUpdate(post, postId);
                         break;
                     case 'devto': {
-                        const devtoMsg: Message = { 
-                            command: 'shareToDevTo', 
-                            post: post.text, 
+                        const devtoMsg: Message = {
+                            command: 'shareToDevTo',
+                            post: post.text,
                             mediaFilePaths,
                             title: post.text.split('\n')[0].substring(0, 100),
                             published: false
@@ -996,12 +996,12 @@ export class PostHandler {
                         break;
                     }
                     case 'medium': {
-                        const mediumMsg: Message = { 
-                            command: 'shareToMedium', 
-                            post: post.text, 
-                            mediaFilePaths, 
+                        const mediumMsg: Message = {
+                            command: 'shareToMedium',
+                            post: post.text,
+                            mediaFilePaths,
                             title: post.text.split('\n')[0].substring(0, 100),
-                            publishStatus: 'public' 
+                            publishStatus: 'public'
                         };
                         await this.shareToMediumWithUpdate(post, mediumMsg, postId);
                         break;
@@ -1045,7 +1045,7 @@ export class PostHandler {
 
     private async handleShareThread(message: Message): Promise<void> {
         const platform = message.platform as string;
-        const posts    = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string; mediaFilePaths?: string[] }>;
+        const posts = message.posts as Array<{ text: string; mediaBase64?: string; mediaType?: string; mediaFilePaths?: string[] }>;
 
         // Use platform-config to validate thread support
         const platformConfig = PLATFORM_CONFIGS[platform];
@@ -1097,14 +1097,14 @@ export class PostHandler {
             }
 
             if (platform === 'x') {
-                const xAccessToken  = await this.context.secrets.get('xAccessToken')  || '';
+                const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
                 const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
                 // Pass structured posts to x platform handler
                 await shareToX(xAccessToken, xAccessSecret, { text: '', posts: processedPosts });
 
             } else if (platform === 'bluesky') {
                 const identifier = (await this.context.secrets.get('blueskyIdentifier') || '').trim();
-                const password   = (await this.context.secrets.get('blueskyPassword')   || '').trim();
+                const password = (await this.context.secrets.get('blueskyPassword') || '').trim();
 
                 if (!identifier || !password) {
                     this.sendError('BlueSky credentials not configured. Go to Settings to add them.');
@@ -1242,7 +1242,7 @@ export class PostHandler {
 
                     const doc = mdEditor.document;
                     const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
-                    
+
                     mdEditor.edit(editBuilder => {
                         editBuilder.replace(fullRange, fm);
                     });
@@ -1259,7 +1259,7 @@ export class PostHandler {
             this.sendError('Dev.to API Key not configured.');
             return;
         }
-        
+
         try {
             const articles = await fetchDevToArticles(devtoApiKey);
             const draftsArr = articles.filter(a => !a.published).map(a => {
@@ -1285,11 +1285,11 @@ export class PostHandler {
                 };
                 return mapped;
             });
-            
-            this.view.webview.postMessage({ 
-                command: 'remoteDraftsLoaded', 
-                platform: 'devto', 
-                drafts: draftsArr 
+
+            this.view.webview.postMessage({
+                command: 'remoteDraftsLoaded',
+                platform: 'devto',
+                drafts: draftsArr
             });
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1303,24 +1303,24 @@ export class PostHandler {
             this.sendError('Dev.to API Key not configured.');
             return;
         }
-        
+
         const remoteId = message.remoteId as string;
         const data = message.data as Partial<BlogPost>;
-        
+
         if (!remoteId || !data) return;
-        
+
         try {
             const result = await updateDevToArticle(devtoApiKey, parseInt(remoteId, 10), {
-                text:         data.bodyMarkdown ?? '',
-                title:        data.title,
-                tags:         data.tags,
-                published:    data.status === 'published',
-                description:  data.description,
-                coverImage:   data.coverImage,
+                text: data.bodyMarkdown ?? '',
+                title: data.title,
+                tags: data.tags,
+                published: data.status === 'published',
+                description: data.description,
+                coverImage: data.coverImage,
                 canonicalUrl: data.canonicalUrl,
-                series:       data.series
+                series: data.series
             });
-            
+
             this.sendSuccess(`Successfully updated article on Dev.to! URL: ${result.url}`);
             await this.handleFetchDevToDrafts();
         } catch (error: unknown) {
@@ -1334,7 +1334,7 @@ export class PostHandler {
         if (mdEditor) {
             const doc = mdEditor.document;
             const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
-            
+
             const boilerplate = `---
 title: add ur title
 tags: [add, tags, max, 4]
@@ -1343,12 +1343,12 @@ description: add ur description
 ---
 Start writing your article here...
 `;
-            
+
             mdEditor.edit(editBuilder => {
                 editBuilder.replace(fullRange, boilerplate);
             });
             this.sendSuccess('Markdown boilerplate reset!');
-            
+
             // Push empty state to frontend
             this.view.webview.postMessage({
                 command: 'updateBlogFrontmatter',

@@ -3,6 +3,7 @@ import { DotShareAuth } from './DotShareAuth';
 import { PostData, SocialPlatform, ScheduledPost } from '../types';
 import { Logger } from '../utils/Logger';
 import FormData from 'form-data';
+import axios from 'axios';
 
 
 export class SchedulerClient {
@@ -42,7 +43,6 @@ export class SchedulerClient {
 
             // Use axios — native fetch doesn't handle the form-data npm package
             // correctly: the multipart boundary is missing/broken in the request body.
-            const axios = require('axios');
             const response = await axios.post(
                 `${this.getApiBaseUrl()}/v1/media/upload`,
                 formData,
@@ -109,6 +109,15 @@ export class SchedulerClient {
                 const pageId = await context.secrets.get('facebookPageId');
                 if (fbToken) {
                     credToken = pageId ? `${fbToken}::${pageId}` : fbToken;
+                }
+            } else if (platform === 'linkedin') {
+                const token = await context.secrets.get('linkedinToken');
+                if (token) credToken = token;
+            } else if (platform === 'x') {
+                const accessToken = await context.secrets.get('xAccessToken');
+                const accessSecret = await context.secrets.get('xAccessSecret');
+                if (accessToken && accessSecret) {
+                    credToken = `${accessToken}::${accessSecret}`;
                 }
             }
 
@@ -192,7 +201,7 @@ export class SchedulerClient {
                             errorCode: errorData.error.code 
                         };
                     }
-                } catch (e) {
+                } catch {
                     // Not JSON, fallback to generic
                 }
                 
