@@ -8,12 +8,12 @@ export class Analytics {
         let linkedinShares = 0;
         let telegramShares = 0;
         let xShares = 0;
-        let facebookShares = 0;
+
         let discordShares = 0;
-        let redditShares = 0;
+
         let blueskyShares = 0;
         let devtoShares = 0;
-        let mediumShares = 0;
+
 
         for (const post of history) {
             for (const share of post.shares) {
@@ -21,12 +21,12 @@ export class Analytics {
                     case 'linkedin': linkedinShares++; break;
                     case 'telegram': telegramShares++; break;
                     case 'x': xShares++; break;
-                    case 'facebook': facebookShares++; break;
+
                     case 'discord': discordShares++; break;
-                    case 'reddit': redditShares++; break;
+
                     case 'bluesky': blueskyShares++; break;
                     case 'devto': devtoShares++; break;
-                    case 'medium': mediumShares++; break;
+
                 }
 
                 if (share.success) {
@@ -47,12 +47,12 @@ export class Analytics {
             linkedinShares,
             telegramShares,
             xShares,
-            facebookShares,
+
             discordShares,
-            redditShares,
+
             blueskyShares,
             devtoShares,
-            mediumShares,
+
             successRate
         };
     }

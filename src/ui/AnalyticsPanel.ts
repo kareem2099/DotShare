@@ -8,6 +8,7 @@ export class AnalyticsPanel {
     public static currentPanel: AnalyticsPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
+    public get extensionUri() { return this._extensionUri; }
     private _disposables: vscode.Disposable[] = [];
     private readonly _version: string;
 
@@ -91,7 +92,7 @@ export class AnalyticsPanel {
 
         const maxPlatformShares = Math.max(
             stats.linkedinShares, stats.telegramShares, stats.xShares,
-            stats.facebookShares, stats.discordShares, stats.redditShares,
+            stats.discordShares,
             stats.blueskyShares,
             1
         );
@@ -291,13 +292,13 @@ export class AnalyticsPanel {
     <div class="chart-container">
         <h3>Platform Distribution</h3>
         <div class="bar-chart">
-            ${this._renderBar('LinkedIn',   stats.linkedinShares,  maxPlatformShares)}
-            ${this._renderBar('Twitter / X', stats.xShares,        maxPlatformShares)}
-            ${this._renderBar('Telegram',   stats.telegramShares,  maxPlatformShares)}
-            ${this._renderBar('Reddit',     stats.redditShares,    maxPlatformShares)}
-            ${this._renderBar('Discord',    stats.discordShares,   maxPlatformShares)}
-            ${this._renderBar('Facebook',   stats.facebookShares,  maxPlatformShares)}
-            ${this._renderBar('BlueSky',    stats.blueskyShares,   maxPlatformShares)}
+            ${this._renderBar('LinkedIn', stats.linkedinShares, maxPlatformShares)}
+            ${this._renderBar('Twitter / X', stats.xShares, maxPlatformShares)}
+            ${this._renderBar('Telegram', stats.telegramShares, maxPlatformShares)}
+
+            ${this._renderBar('Discord', stats.discordShares, maxPlatformShares)}
+
+            ${this._renderBar('BlueSky', stats.blueskyShares, maxPlatformShares)}
         </div>
     </div>
 

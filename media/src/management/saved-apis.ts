@@ -1,5 +1,5 @@
 // Saved API configuration management functions - extracted from app.ts
-import { ApiConfiguration, AccountOption } from '../../types';
+import { ApiConfiguration, AccountOption } from '../../../src/types';
 import { showStatus } from '../core/utils';
 import { logger } from '../utils/Logger';
 
@@ -24,7 +24,7 @@ export function loadSavedApisForPlatform(platform: string): void {
 
 export function loadSavedApisForAllPlatforms(): void {
     // Load saved APIs for all platforms and populate account selectors
-    const platforms = ['linkedin', 'telegram', 'x', 'facebook', 'discord', 'reddit', 'bluesky'];
+    const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky'];
 
     platforms.forEach(platform => {
         getVscode()?.postMessage({ command: 'loadSavedApis', platform });
@@ -96,7 +96,8 @@ export function deleteApiConfiguration(apiId: string): void {
 export function getCredentialPreview(apiConfig: ApiConfiguration): string {
     const previews: string[] = [];
 
-    Object.entries(apiConfig.credentials).forEach(([key, value]) => {
+    Object.entries(apiConfig.credentials).forEach(([key, val]) => {
+        const value = val as string;
         if (value && value.trim()) {
             // Mask sensitive values
             if (key.toLowerCase().includes('token') || key.toLowerCase().includes('secret') || key.toLowerCase().includes('password')) {

@@ -282,16 +282,6 @@ export const translations: {[key: string]: {[key: string]: string}} = {
         "ar": "اجتماعي",
         "ru": "Социальные"
     },
-    "facebook": {
-        "en": "Facebook",
-        "ar": "Facebook",
-        "ru": "Facebook"
-    },
-    "facebookDescription": {
-        "en": "Connect with audience",
-        "ar": "تواصل مع الجمهور",
-        "ru": "Связь с аудиторией"
-    },
     "instagram": {
         "en": "Instagram",
         "ar": "Instagram",
@@ -321,16 +311,6 @@ export const translations: {[key: string]: {[key: string]: string}} = {
         "en": "Community engagement",
         "ar": "تفاعل المجتمع",
         "ru": "Вовлеченность сообщества"
-    },
-    "reddit": {
-        "en": "Reddit",
-        "ar": "Reddit",
-        "ru": "Reddit"
-    },
-    "redditDescription": {
-        "en": "Discussion forums",
-        "ar": "منتديات النقاش",
-        "ru": "Форумы обсуждения"
     },
     "decentralized": {
         "en": "Decentralized",

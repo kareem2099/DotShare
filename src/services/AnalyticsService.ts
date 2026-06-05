@@ -30,12 +30,12 @@ export class AnalyticsService {
             linkedinShares: platformCounts['linkedin'] ?? 0,
             telegramShares: platformCounts['telegram'] ?? 0,
             xShares:        platformCounts['x']        ?? 0,
-            facebookShares: platformCounts['facebook'] ?? 0,
+
             discordShares:  platformCounts['discord']  ?? 0,
-            redditShares:   platformCounts['reddit']   ?? 0,
+
             blueskyShares:  platformCounts['bluesky']  ?? 0,
             devtoShares:    platformCounts['devto']    ?? 0,
-            mediumShares:   platformCounts['medium']   ?? 0,
+
             successRate
         };
     }

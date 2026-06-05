@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Logger } from '../utils/Logger';
 import { GistService } from '../services/GistService';
+import { DotShareAuth } from '../services/DotShareAuth';
 
 interface Message {
     command: string;
@@ -91,11 +92,15 @@ export class GistHandler {
             if (gistUrl) {
                 Logger.info('[GistHandler] Gist created successfully:', gistUrl);
 
+                const tierInfo = await DotShareAuth.getTierInfo(this.context);
+                const isPaid = tierInfo?.is_paid ?? false;
+
                 // Send success response to webview
                 this.view.webview.postMessage({
                     command: 'gistCreated',
                     success: true,
-                    url: gistUrl
+                    url: gistUrl,
+                    isPaid
                 });
 
                 this.sendSuccess(`✅ Gist created! Opened in browser.`);

@@ -80,9 +80,6 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
         vscode.commands.registerCommand('dotshare.shareToDevTo', () => {
             DotShareWebView.createPlatformPost(context, 'devto');
-        }),
-        vscode.commands.registerCommand('dotshare.shareToMedium', () => {
-            DotShareWebView.createPlatformPost(context, 'medium');
         })
     );
 
@@ -170,7 +167,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             if (!fileName) return; // Cancelled
 
-            await handleGistCreation(text, fileName);
+            await handleGistCreation(context, text, fileName);
         }),
 
         vscode.commands.registerCommand('dotshare.createGistFromFile', async (uri?: vscode.Uri) => {
@@ -189,7 +186,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 const text = new TextDecoder().decode(fileData);
                 const fileName = path.basename(fileUri.fsPath);
 
-                await handleGistCreation(text, fileName);
+                await handleGistCreation(context, text, fileName);
             } catch (err) {
                 Logger.error('[Extension] Failed to read file for gist', err);
                 vscode.window.showErrorMessage('DotShare: Failed to read file for Gist.');
@@ -341,26 +338,8 @@ export async function activate(context: vscode.ExtensionContext) {
                             });
                         }
                         break;
-                    case 'facebook':
-                        await TokenManager.storeToken(
-                            'facebook',
-                            accessToken,
-                            undefined,
-                            expiresIn ? Number(expiresIn) : undefined,
-                            expiresAt ? Number(expiresAt) : undefined,
-                            shouldRefreshSoon
-                        );
                         break;
-                    case 'reddit':
-                        await TokenManager.storeToken(
-                            'reddit',
-                            accessToken,
-                            refreshToken ?? undefined,
-                            expiresIn ? Number(expiresIn) : undefined,
-                            expiresAt ? Number(expiresAt) : undefined,
-                            shouldRefreshSoon
-                        );
-                        break;
+
                     default:
                         vscode.window.showErrorMessage(`DotShare: Unknown platform "${platform}"`);
                         return;
@@ -444,7 +423,7 @@ export function deactivate(): void {
     Logger.info('[Extension] DotShare deactivated');
 }
 
-async function handleGistCreation(content: string, fileName: string) {
+async function handleGistCreation(context: vscode.ExtensionContext, content: string, fileName: string) {
     const description = await vscode.window.showInputBox({
         prompt: 'Enter a description for your Gist',
         placeHolder: 'e.g., Useful utility function'
@@ -470,7 +449,19 @@ async function handleGistCreation(content: string, fileName: string) {
             const url = await GistService.createGist(files, description, isPublic);
 
             if (url) {
-                vscode.window.showInformationMessage(`✓ DotShare: Gist created successfully!`, 'Copy Link', 'Open in Browser', '🚀 Share via DotShare').then(async sel => {
+                // Determine if user is Pro/Max
+                const tierInfo = await DotShareAuth.getTierInfo(context);
+                const isPaid = tierInfo?.is_paid ?? false;
+
+                const parts = url.split('/');
+                const gistId = parts[parts.length - 1];
+
+                const options = ['Copy Link', 'Open in Browser', '🚀 Share via DotShare'];
+                if (isPaid) {
+                    options.push('🔗 Copy Dynamic CodeSnap Markdown');
+                }
+
+                vscode.window.showInformationMessage(`✓ DotShare: Gist created successfully!`, ...options).then(async sel => {
                     if (sel === 'Copy Link') {
                         await vscode.env.clipboard.writeText(url);
                         vscode.window.showInformationMessage('DotShare: Gist link copied to clipboard.');
@@ -484,6 +475,10 @@ async function handleGistCreation(content: string, fileName: string) {
                             vscode.commands.executeCommand('dotshare.injectToWebview', url);
                         }, 1500);
                         vscode.window.showInformationMessage('DotShare: Gist link added to your post!');
+                    } else if (sel === '🔗 Copy Dynamic CodeSnap Markdown') {
+                        const dynamicUrl = `![CodeSnap](https://codesnap.dotsuite.dev/gist/${gistId})`;
+                        await vscode.env.clipboard.writeText(dynamicUrl);
+                        vscode.window.showInformationMessage('DotShare: Dynamic Gist Markdown copied to clipboard! Paste it into any README.');
                     }
                 });
             } else {

@@ -4,8 +4,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { CodeSnapService, CodeSnapData } from '../services/CodeSnapService';
 import { MediaService } from '../services/MediaService';
+import { DotShareAuth } from '../services/DotShareAuth';
 import { Logger } from '../utils/Logger';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
+import { TierInfo } from '../types';
 
 /**
  * CodeSnapPanel
@@ -13,13 +15,9 @@ import { PLATFORM_CONFIGS } from '../platforms/platform-config';
  * Manages the CodeSnap WebviewPanel lifecycle.
  * One singleton panel at a time — re-uses the existing panel if already open.
  *
- * Key design decisions:
- *  - Zero native deps: rendering via HTML Canvas in the webview
- *  - Offline: HL.js & theme CSS served from local vendor/ via webview.asWebviewUri()
- *  - Race condition fix: webviewReady handshake instead of setTimeout
- *  - Two-way integration:
- *      Pull: Composer has a "📸 Add CodeSnap" button → opens this panel
- *      Push: "🚀 Share" button here → QuickPick platform → opens Composer with image attached
+ * Tier enforcement (client-side):
+ *  - Free : watermark locked ON, custom brand hidden
+ *  - Pro/Max: watermark toggleable, custom brand input visible
  */
 export class CodeSnapPanel {
     public static readonly viewType = 'dotshare.codeSnap';
@@ -38,21 +36,18 @@ export class CodeSnapPanel {
         context: vscode.ExtensionContext,
         mediaService: MediaService,
     ) {
-        this._panel        = panel;
-        this._context      = context;
+        this._panel = panel;
+        this._context = context;
         this._mediaService = mediaService;
 
-        // Set HTML content
         this._panel.webview.html = this._buildHtml();
 
-        // Handle messages from the WebView
         this._panel.webview.onDidReceiveMessage(
             (msg) => this._handleMessage(msg),
             undefined,
             context.subscriptions,
         );
 
-        // Cleanup on close
         this._panel.onDidDispose(
             () => { CodeSnapPanel._instance = undefined; },
             undefined,
@@ -62,13 +57,6 @@ export class CodeSnapPanel {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /**
-     * Open (or focus) the CodeSnap panel and load the current selection.
-     * Called from:
-     *   - Right-click context menu
-     *   - Editor title bar button (when editorHasSelection)
-     *   - "📸 Add CodeSnap" button inside the Composer
-     */
     public static open(context: vscode.ExtensionContext, mediaService: MediaService): void {
         const data = CodeSnapService.capture();
 
@@ -78,7 +66,6 @@ export class CodeSnapPanel {
         }
 
         if (CodeSnapPanel._instance) {
-            // Already open — just push new data and reveal
             CodeSnapPanel._instance._panel.reveal(vscode.ViewColumn.Beside);
             CodeSnapPanel._instance._sendData(data);
             return;
@@ -89,9 +76,9 @@ export class CodeSnapPanel {
             '📸 CodeSnap',
             vscode.ViewColumn.Beside,
             {
-                enableScripts:           true,
+                enableScripts: true,
                 retainContextWhenHidden: true,
-                localResourceRoots:      [context.extensionUri],
+                localResourceRoots: [context.extensionUri],
             },
         );
 
@@ -99,71 +86,64 @@ export class CodeSnapPanel {
         CodeSnapPanel._instance._sendData(data);
     }
 
-    /**
-     * Called by the `dotshare.attachSnapToComposer` command.
-     * The Composer's webview will fire webviewReady when it mounts;
-     * at that point we broadcast the pending image via DotShareWebView.postMessage().
-     * This method is the deferred entry point — stores the snap path until the Composer is ready.
-     */
     public static setPendingSnap(filePath: string, fileName: string): void {
         CodeSnapPanel._instance?._pendingSnaps.push({ filePath, fileName });
     }
 
-    /**
-     * Atomically reads and clears the pending snap.
-     * Called by the `dotshare._composerReady` command the moment a Composer panel mounts.
-     * Returns null if no snap is pending.
-     */
     public static consumePendingSnap(): { filePath: string; fileName: string } | null {
         return CodeSnapPanel._instance?._pendingSnaps.shift() ?? null;
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private _sendData(data: CodeSnapData): void {
-        this._panel.webview.postMessage({ command: 'loadCode', data });
+    /**
+     * Fetch tier (fail-silent — if unauthenticated we just send null and the
+     * webview defaults to Free restrictions).
+     */
+    private async _fetchTier(): Promise<TierInfo | null> {
+        try {
+            return await DotShareAuth.fetchTierInfo(this._context);
+        } catch {
+            return null;
+        }
     }
 
-    private async _handleMessage(msg: { command: string; [key: string]: unknown }): Promise<void> {
+    private async _sendData(data: CodeSnapData): Promise<void> {
+        const tierInfo = await this._fetchTier();
+        this._panel.webview.postMessage({ command: 'loadCode', data, tierInfo });
+    }
+
+    private async _handleMessage(msg: { command: string;[key: string]: unknown }): Promise<void> {
         switch (msg.command) {
 
-            // ── webviewReady: WebView mounted and ready ────────────────────────
-            // (Not typically sent by the CodeSnap panel itself, but the Composer
-            //  sends this. We handle it here only for completeness.)
             case 'webviewReady':
                 Logger.info('[CodeSnapPanel] WebView reports ready');
                 break;
 
-            // ── snapReady: WebView finished rendering → save PNG ──────────────
             case 'snapReady': {
                 try {
                     const base64Data = (msg.base64 as string).replace(/^data:image\/png;base64,/, '');
-                    const fileName   = `codesnap-${Date.now()}.png`;
+                    const fileName = `codesnap-${Date.now()}.png`;
 
                     const savedPath = await this._mediaService.saveUploadedFile({
-                        name:       fileName,
+                        name: fileName,
                         base64Data: base64Data,
-                        size:       Math.floor(base64Data.length * 0.75),
+                        size: Math.floor(base64Data.length * 0.75),
                     });
 
                     Logger.info(`[CodeSnapPanel] Saved snap: ${savedPath}`);
-
-                    // Post "saved" state back to the snap panel
                     this._panel.webview.postMessage({ command: 'snapSaved', filePath: savedPath });
 
-                    // ── QuickPick: ask the user where to share ────────────────
                     const shareItems = this._buildPlatformQuickPick();
-                    const selected   = await vscode.window.showQuickPick(shareItems, {
+                    const selected = await vscode.window.showQuickPick(shareItems, {
                         placeHolder: '📸 Where do you want to share this CodeSnap?',
                         matchOnDescription: true,
                     });
 
-                    if (!selected) return; // user dismissed
+                    if (!selected) return;
 
-                    // Enqueue the snap path — will be picked up when Composer fires webviewReady
                     this._pendingSnaps.push({ filePath: savedPath, fileName });
 
-                    // Open the chosen platform's Composer
                     vscode.commands.executeCommand(
                         'dotshare.openFullWebview',
                         'post',
@@ -178,23 +158,23 @@ export class CodeSnapPanel {
                 break;
             }
 
-            // ── composerReady: Composer webview finished mounting ─────────────
-            // The Composer's app.ts posts { command: 'webviewReady' } on DOMContentLoaded.
-            // The extension.ts bridges it here via CodeSnapPanel.setPendingSnap() +
-            // DotShareWebView.postMessage(). We handle the actual broadcast in extension.ts.
-            // Nothing extra to do here.
-
-            // ── saveAsFile: user wants native Save dialog ─────────────────────
             case 'saveAsFile': {
-                const base64Data = (msg.base64 as string).replace(/^data:image\/png;base64,/, '');
+                const ext      = (msg.ext as string | undefined) || 'png';
+                const base64Data = (msg.base64 as string)
+                    .replace(/^data:image\/[^;]+;base64,/, '');
+
                 const defaultUri = vscode.Uri.file(
-                    path.join(os.homedir(), `codesnap-${Date.now()}.png`),
+                    path.join(os.homedir(), `codesnap-${Date.now()}.${ext}`),
                 );
 
                 const dest = await vscode.window.showSaveDialog({
                     defaultUri,
-                    filters: { 'PNG Image': ['png'] },
-                    title:   'Save CodeSnap',
+                    filters: {
+                        'PNG Image':  ['png'],
+                        'JPEG Image': ['jpg', 'jpeg'],
+                        'WebP Image': ['webp'],
+                    },
+                    title: 'Save CodeSnap',
                 });
 
                 if (dest) {
@@ -205,41 +185,47 @@ export class CodeSnapPanel {
                 break;
             }
 
+            // Pro/Max upgrade prompt — webview sends this when a free user tries
+            // to interact with a locked feature.
+            case 'upgradeToPro': {
+                const action = await vscode.window.showInformationMessage(
+                    '🚀 This feature requires DotShare Pro. Unlock custom branding, watermark removal, and more!',
+                    'Upgrade Now',
+                    'Maybe Later',
+                );
+                if (action === 'Upgrade Now') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://dotsuite.dev/pricing'));
+                }
+                break;
+            }
+
             default:
                 Logger.info('[CodeSnapPanel] Unhandled message:', msg.command);
         }
     }
 
-    /**
-     * Build the QuickPick items from PLATFORM_CONFIGS.
-     * Respects the user's defaultPlatform setting (shown first).
-     */
     private _buildPlatformQuickPick(): Array<vscode.QuickPickItem & { id: string }> {
         const defaultPlatform = vscode.workspace
             .getConfiguration('dotshare')
             .get<string>('defaultPlatform', 'linkedin');
 
         const ICON_MAP: Record<string, string> = {
-            linkedin:  '$(person)',
-            x:         '$(twitter)',
-            bluesky:   '$(cloud)',
-            telegram:  '$(comment)',
-            facebook:  '$(globe)',
-            discord:   '$(comment-discussion)',
-            reddit:    '$(flame)',
-            devto:     '$(code)',
-            medium:    '$(edit)',
+            linkedin: '$(person)',
+            x: '$(twitter)',
+            bluesky: '$(cloud)',
+            discord: '$(comment-discussion)',
+
+            devto: '$(code)',
         };
 
         const items = Object.entries(PLATFORM_CONFIGS)
-            .filter(([key]) => key !== 'gist') // Gist doesn't make sense for image sharing
+            .filter(([key]) => key !== 'gist')
             .map(([key, cfg]) => ({
-                id:          key,
-                label:       `${ICON_MAP[key] ?? '$(share)'} ${cfg.name}`,
+                id: key,
+                label: `${ICON_MAP[key] ?? '$(share)'} ${cfg.name}`,
                 description: cfg.workspaceType === 'blogs' ? 'Blog platform' : undefined,
             }));
 
-        // Move default platform to top
         const idx = items.findIndex(i => i.id === defaultPlatform);
         if (idx > 0) {
             const [item] = items.splice(idx, 1);
@@ -253,15 +239,13 @@ export class CodeSnapPanel {
 
     private _buildHtml(): string {
         const webview = this._panel.webview;
-        const extUri  = this._context.extensionUri;
-        const nonce   = getNonce();
+        const extUri = this._context.extensionUri;
+        const nonce = getNonce();
 
-        // Resolve local vendor URIs (offline — no CDN)
         const hljsUri = webview.asWebviewUri(
             vscode.Uri.joinPath(extUri, 'media', 'webview', 'vendor', 'highlight.min.js'),
         );
 
-        // Build theme CSS URI map (only include files that exist on disk)
         const stylesDir = vscode.Uri.joinPath(extUri, 'media', 'webview', 'vendor', 'styles');
         const themes = [
             'atom-one-dark', 'github-dark', 'monokai', 'dracula',
@@ -273,19 +257,18 @@ export class CodeSnapPanel {
         for (const t of themes) {
             const localPath = vscode.Uri.joinPath(stylesDir, `${t}.min.css`);
             try {
-                // Check file exists on disk before registering URI
                 fs.accessSync(localPath.fsPath);
                 themeCssMap[t] = webview.asWebviewUri(localPath).toString();
             } catch {
-                // Skip missing files silently
+                // skip missing theme files silently
             }
         }
 
-        // Default theme CSS (always atom-one-dark)
         const defaultThemeCssUri = themeCssMap['atom-one-dark'] ?? '';
-
-        // Build a JS-safe JSON string for the theme URI map
-        const themeCssMapJson = JSON.stringify(themeCssMap);
+        // Escape < and > to prevent script-context breakout (XSS)
+        const safeThemeCssMapJson = JSON.stringify(themeCssMap)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e');
 
         const csp = [
             `default-src 'none'`,
@@ -299,26 +282,20 @@ export class CodeSnapPanel {
 
         try {
             let html = fs.readFileSync(snapHtmlPath, 'utf-8');
-            html = html.replace(/\{\{CSP\}\}/g,              csp);
-            html = html.replace(/\{\{NONCE\}\}/g,            nonce);
-            html = html.replace(/\{\{HLJS_JS_URI\}\}/g,      hljsUri.toString());
-            html = html.replace(/\{\{DEFAULT_CSS_URI\}\}/g,  defaultThemeCssUri);
-            // Escape < and > to prevent script-context breakout (XSS)
-            const safeThemeCssMapJson = themeCssMapJson
-                .replace(/</g, '\\u003c')
-                .replace(/>/g, '\\u003e');
-            html = html.replace(/\{\{THEME_CSS_MAP\}\}/g,    safeThemeCssMapJson);
+            html = html.replace(/\{\{CSP\}\}/g, csp);
+            html = html.replace(/\{\{NONCE\}\}/g, nonce);
+            html = html.replace(/\{\{HLJS_JS_URI\}\}/g, hljsUri.toString());
+            html = html.replace(/\{\{DEFAULT_CSS_URI\}\}/g, defaultThemeCssUri);
+            html = html.replace(/\{\{THEME_CSS_MAP\}\}/g, safeThemeCssMapJson);
             return html;
         } catch {
             return `<!DOCTYPE html>
 <html><head>
   <meta http-equiv="Content-Security-Policy" content="${csp}">
-  <meta charset="UTF-8">
-  <title>CodeSnap</title>
+  <meta charset="UTF-8"><title>CodeSnap</title>
 </head>
 <body style="background:#1e1e1e;color:#ccc;font-family:monospace;padding:2rem;">
   <p>⚠️ codesnap.html not found at media/webview/codesnap.html</p>
-  <p>Run <code>npm run compile</code> and try again.</p>
 </body></html>`;
         }
     }

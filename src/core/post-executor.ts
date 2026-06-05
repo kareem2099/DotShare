@@ -1,9 +1,9 @@
 import { shareToLinkedIn } from '../platforms/linkedin';
 import { shareToTelegram } from '../platforms/telegram';
 import { shareToX } from '../platforms/x';
-import { shareToFacebook } from '../platforms/facebook';
+
 import { shareToDiscord } from '../platforms/discord';
-import { shareToReddit } from '../platforms/reddit';
+
 import { shareToBlueSky } from '../platforms/bluesky';
 import { CredentialProvider } from '../storage/credential-provider';
 import { PostData } from '../types';
@@ -39,12 +39,10 @@ export class PostExecutor {
                     return await this.executeTelegramPost(postData, scheduledTime);
                 case 'x':
                     return await this.executeXPost(postData);
-                case 'facebook':
-                    return await this.executeFacebookPost(postData);
+
                 case 'discord':
                     return await this.executeDiscordPost(postData);
-                case 'reddit':
-                    return await this.executeRedditPost(postData);
+
                 case 'bluesky':
                     return await this.executeBlueSkyPost(postData);
                 default:
@@ -99,20 +97,6 @@ export class PostExecutor {
         return { success: true };
     }
 
-    private async executeFacebookPost(postData: PostData): Promise<PlatformResult> {
-        const { token, pageToken, pageId } = await this.credentialProvider.getFacebookCredentials();
-        if (!token) {
-            return { success: false, errorMessage: 'Facebook token not configured' };
-        }
-
-        await shareToFacebook(token, pageToken || null, {
-            text: postData.text,
-            media: postData.media,
-            pageId
-        });
-        return { success: true };
-    }
-
     private async executeDiscordPost(postData: PostData): Promise<PlatformResult> {
         const webhookUrl = await this.credentialProvider.getDiscordWebhookUrl();
         if (!webhookUrl) {
@@ -124,39 +108,6 @@ export class PostExecutor {
             media: postData.media
         });
         return { success: true };
-    }
-
-    private async executeRedditPost(postData: PostData): Promise<PlatformResult> {
-        // Validate credentials are configured before attempting to post.
-        // Note: shareToReddit fetches its own token via TokenManager internally,
-        // so we don't pass the token here, but this early validation ensures
-        // we fail fast with a clear error if credentials are missing.
-        const { accessToken } = await this.credentialProvider.getRedditCredentials();
-        if (!accessToken) {
-            return { success: false, errorMessage: 'Reddit credentials not configured' };
-        }
-
-        const subreddit = await this.credentialProvider.getRedditSubreddit();
-        if (!subreddit) {
-            return {
-                success: false,
-                errorMessage: 'Reddit subreddit not configured. Go to Settings to set your target community.'
-            };
-        }
-
-        const cleanSubreddit = subreddit.startsWith('r/') ? subreddit.substring(2) : subreddit;
-
-        const postName = await shareToReddit(
-            {
-                text:       postData.text,
-                media:      postData.media,
-                subreddit:  cleanSubreddit,
-                title:      postData.text.substring(0, 300),
-                postType: 'self'
-            }
-        );
-
-        return { success: true, postName: postName || undefined };
     }
 
     private async executeBlueSkyPost(postData: PostData): Promise<PlatformResult> {

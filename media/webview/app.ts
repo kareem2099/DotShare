@@ -5,7 +5,7 @@
  * Scope: This file handles ONLY what platform-post.html needs:
  *   - Social Composer (text, media, Reddit options)
  *   - Thread Composer (X / Bluesky)
- *   - Blog Publisher (Dev.to / Medium)
+ *   - Blog Publisher (Dev.to)
  *   - AI Model modal
  *   - Message handler from the extension host
  */
@@ -136,7 +136,7 @@ const isCurrentPlatformConnected = () => {
 // ── Max chars fallback map ────────────────────────────────────────────────────
 const MAX_CHARS_MAP: Record<string, number> = {
     x: 280, bluesky: 300, linkedin: 3000, telegram: 4096,
-    facebook: 63206, discord: 2000, reddit: 40000, devto: 100000, medium: 100000,
+    discord: 2000, devto: 100000,
 };
 
 // ── Compose Area ──────────────────────────────────────────────────────────────
@@ -384,12 +384,7 @@ btnShare?.addEventListener('click', () => {
     btnShare.textContent = '⏳ Sharing…';
     const platforms = activeCommandPlatform ? [activeCommandPlatform] : [];
     const payload: Record<string, unknown> = { post: text, platforms, mediaFilePaths: activeMediaPaths };
-    if (activeCommandPlatform === 'reddit') {
-        const val = (id: string) => (get<HTMLInputElement>(id)?.value ?? '').trim();
-        const subreddit = val('redditSubreddit');
-        if (!subreddit) { toast('Please enter a subreddit (e.g. r/programming)', 'warning'); setComposerLocked(false); btnShare.disabled = false; btnShare.textContent = '🚀 Share to Reddit'; btnShare.classList.remove('loading'); return; }
-        payload.redditMetadata = { subreddit, title: val('redditTitle') || text.split('\n')[0].substring(0, 300), flair: get<HTMLSelectElement>('redditFlair')?.value || '', postType: document.querySelector<HTMLInputElement>('input[name="redditPostType"]:checked')?.value || 'self', spoiler: get<HTMLInputElement>('redditSpoiler')?.checked ?? false };
-    }
+
     send('share', payload);
 });
 
@@ -600,18 +595,17 @@ function getBlogBodyText(): string {
     return get<HTMLTextAreaElement>('blog-body')?.value.trim() || get<HTMLTextAreaElement>('post-text')?.value.trim() || '';
 }
 
-function getSingleBlogPlatform(): 'devto' | 'medium' | null {
+function getSingleBlogPlatform(): 'devto' | null {
     const v = get<HTMLInputElement>('blog-single-platform')?.value?.trim();
-    return v === 'devto' || v === 'medium' ? v : null;
+    return v === 'devto' ? v : null;
 }
 
 function updateBlogPublishButtonsState(): void {
     const has = getBlogBodyText().length > 0;
-    (['btn-publish-blog-devto', 'btn-publish-blog-medium', 'btn-publish-blog', 'btn-schedule-blog'] as const).forEach(id => {
+    (['btn-publish-blog-devto', 'btn-publish-blog', 'btn-schedule-blog'] as const).forEach(id => {
         const b = get<HTMLButtonElement>(id);
         if (b) {
             const platform = id.includes('devto') ? 'devto'
-                           : id.includes('medium') ? 'medium'
                            : (getSingleBlogPlatform() || '');
 
             if (platform && !globalConnectedPlatforms.includes(platform)) {
@@ -622,7 +616,7 @@ function updateBlogPublishButtonsState(): void {
                 } else {
                     // For regular publish buttons, we allow local tokens.
                     b.disabled = !has;
-                    const label = platform === 'devto' ? 'Dev.to' : platform === 'medium' ? 'Medium' : platform;
+                    const label = platform === 'devto' ? 'Dev.to' : platform;
                     b.textContent = label ? `🚀 Publish to ${label}` : '🚀 Publish Article';
                 }
             } else {
@@ -630,7 +624,7 @@ function updateBlogPublishButtonsState(): void {
                 if (id.includes('schedule')) {
                     b.title = '';
                 } else {
-                    const label = platform === 'devto' ? 'Dev.to' : platform === 'medium' ? 'Medium' : platform;
+                    const label = platform === 'devto' ? 'Dev.to' : platform;
                     b.textContent = label ? `🚀 Publish to ${label}` : '🚀 Publish Article';
                 }
             }
@@ -641,12 +635,10 @@ function updateBlogPublishButtonsState(): void {
 function resetBlogPublishUi(): void {
     const bDev = get<HTMLButtonElement>('btn-publish-blog-devto');
     if (bDev) { setBtnLoading('btn-publish-blog-devto', false); }
-    const bMed = get<HTMLButtonElement>('btn-publish-blog-medium');
-    if (bMed) { setBtnLoading('btn-publish-blog-medium', false); }
     updateBlogPublishButtonsState();
 }
 
-function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): void {
+function sendBlogShare(platform: 'devto', publishStatus: string): void {
     const body = getBlogBodyText();
     if (!body) { toast('No article body to publish. Read a Markdown file first.', 'warning'); return; }
     send('shareBlog', {
@@ -663,7 +655,7 @@ function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): voi
     toast('Publishing article…', 'info');
 }
 
-function wireBlogPublishButton(btn: HTMLButtonElement | null, platform: 'devto' | 'medium', getStatus: () => string): void {
+function wireBlogPublishButton(btn: HTMLButtonElement | null, platform: 'devto', getStatus: () => string): void {
     if (!btn) return;
     btn.addEventListener('click', () => {
         try {
@@ -690,7 +682,6 @@ get('btn-reset-blog-md')?.addEventListener('click', () => {
 get<HTMLTextAreaElement>('blog-body')?.addEventListener('input', () => updateBlogPublishButtonsState());
 
 wireBlogPublishButton(get<HTMLButtonElement>('btn-publish-blog-devto'), 'devto', () => get<HTMLSelectElement>('blog-publish-status-devto')?.value || 'draft');
-wireBlogPublishButton(get<HTMLButtonElement>('btn-publish-blog-medium'), 'medium', () => get<HTMLSelectElement>('blog-publish-status-medium')?.value || 'draft');
 
 const singlePlat = getSingleBlogPlatform();
 if (singlePlat) wireBlogPublishButton(get<HTMLButtonElement>('btn-publish-blog'), singlePlat, () => get<HTMLSelectElement>('blog-publish-status')?.value || 'draft');
@@ -916,15 +907,6 @@ document.querySelectorAll<HTMLElement>('.modal').forEach(modal => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 });
 
-// Reddit subreddit input: show/hide fields for DM vs subreddit
-get<HTMLInputElement>('redditSubreddit')?.addEventListener('input', () => {
-    const input = get<HTMLInputElement>('redditSubreddit');
-    const isDM = (input?.value.trim().toLowerCase() || '').startsWith('u/');
-    (['[for="redditTitle"]', '[for="redditFlair"]', '[for="redditSpoiler"]'] as const).forEach(sel => {
-        const group = document.querySelector(sel)?.closest('.input-group, .checkbox-group') as HTMLElement | null;
-        if (group) group.style.display = isDM ? 'none' : '';
-    });
-});
 
 // ── Message Handler ───────────────────────────────────────────────────────────
 window.addEventListener('message', (event: MessageEvent) => {
@@ -950,8 +932,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                 // platform-post panels receive navigate to set the active platform
                 if ((msg.options as { platform?: string })?.platform) {
                     activeCommandPlatform = String((msg.options as { platform?: string }).platform);
-                    const redditCard = get('reddit-options-card');
-                    if (redditCard) redditCard.style.display = activeCommandPlatform === 'reddit' ? 'block' : 'none';
+
                     setBtnLoading('btn-share', false);
                     setBtnLoading('btn-read-md-file', false);
                     setBtnLoading('btn-generate-ai', false);
@@ -1020,7 +1001,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                 const eSeries = get<HTMLInputElement>('blog-series'); if (eSeries) eSeries.value = fm.series || '';
                 if (fm.published !== undefined) {
                     const v = fm.published ? 'published' : 'draft';
-                    [get<HTMLSelectElement>('blog-publish-status-devto'), get<HTMLSelectElement>('blog-publish-status-medium'), get<HTMLSelectElement>('blog-publish-status')].forEach(s => { if (s) s.value = v; });
+                    [get<HTMLSelectElement>('blog-publish-status-devto'), get<HTMLSelectElement>('blog-publish-status')].forEach(s => { if (s) s.value = v; });
                 }
                 toast('Frontmatter loaded!', 'success');
                 break;
@@ -1030,7 +1011,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                 toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info');
                 if (msg.type === 'error') {
                     setComposerLocked(false);
-                    ['btn-share', 'btn-publish-blog', 'btn-publish-blog-devto', 'btn-publish-blog-medium', 'btn-read-md-file', 'btn-generate-ai'].forEach(id => setBtnLoading(id, false));
+                    ['btn-share', 'btn-publish-blog', 'btn-publish-blog-devto', 'btn-read-md-file', 'btn-generate-ai'].forEach(id => setBtnLoading(id, false));
                     const tBtn = get<HTMLButtonElement>('btn-share-thread');
                     if (tBtn) { tBtn.classList.remove('loading'); tBtn.disabled = false; tBtn.textContent = '🚀 Share Thread'; }
                     resetBlogPublishUi();
@@ -1053,7 +1034,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                 setBtnLoading('btn-read-md-file', false);
                 const platform = String(msg.platform || '');
                 const url = msg.url ? String(msg.url) : '';
-                const platformLabel = platform === 'devto' ? 'Dev.to' : platform === 'medium' ? 'Medium' : platform;
+                const platformLabel = platform === 'devto' ? 'Dev.to' : platform;
                 const successMsg = url
                     ? `Successfully published to ${platformLabel}! 🎉 ${url}`
                     : `Successfully published to ${platformLabel}! 🎉`;
@@ -1157,7 +1138,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                         // بنضيف الصورة للمصفوفة
                         activeMediaPaths.push(f.mediaPath);
                         
-                        // لو إحنا في البلوج (Dev.to أو Medium)، بنعملها Insert جوه الـ Markdown
+                        // لو إحنا في البلوج (Dev.to)، بنعملها Insert جوه الـ Markdown
                         if (scheduleMode === 'blog') {
                             const activeEditor = get<HTMLTextAreaElement>('blog-body');
                             if (activeEditor) {
@@ -1186,11 +1167,6 @@ window.addEventListener('message', (event: MessageEvent) => {
 
             case 'mediaRemoved':
                 activeMediaPaths = [];
-                break;
-
-            case 'themeChanged':
-                if (msg.theme === 'dark') document.body.classList.add('dark');
-                else document.body.classList.remove('dark');
                 break;
 
             case 'draftsLoaded': {

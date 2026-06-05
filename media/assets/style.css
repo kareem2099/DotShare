@@ -1,42 +1,26 @@
 /* ── CSS Variables ─────────────────────────────────────────── */
 :root {
-    --primary-bg: #f8fafc;
-    --secondary-bg: #ffffff;
-    --text-color: #1e293b;
-    --text-secondary: #64748b;
-    --border-color: #e2e8f0;
-    --input-bg: #ffffff;
-    --input-border: #cbd5e1;
-    --input-text: #334155;
-    --button-bg: #3b82f6;
-    --button-hover: #1d4ed8;
-    --button-text: #ffffff;
-    --focus: #3b82f6;
-    --success: #10b981;
-    --error: #ef4444;
-    --accent: #8b5cf6;
-    --warning: #f59e0b;
+    --primary-bg: var(--vscode-sideBar-background);
+    --secondary-bg: var(--vscode-editor-background);
+    --text-color: var(--vscode-foreground);
+    --text-secondary: var(--vscode-descriptionForeground);
+    --border-color: var(--vscode-panel-border);
+    --input-bg: var(--vscode-input-background);
+    --input-border: var(--vscode-input-border);
+    --input-text: var(--vscode-input-foreground);
+    --button-bg: var(--vscode-button-background);
+    --button-hover: var(--vscode-button-hoverBackground);
+    --button-text: var(--vscode-button-foreground);
+    --focus: var(--vscode-focusBorder);
+    --success: var(--vscode-testing-iconPassed);
+    --error: var(--vscode-errorForeground);
+    --accent: var(--vscode-textLink-foreground);
+    --warning: var(--vscode-editorWarning-foreground);
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     --radius: 12px;
     --radius-sm: 8px;
     --radius-lg: 16px;
-}
-
-body.dark {
-    --primary-bg: #1e1e1e;
-    --secondary-bg: #252526;
-    --text-color: #ffffff;
-    --text-secondary: #cccccc;
-    --border-color: #3e3e42;
-    --input-bg: #3c3c3c;
-    --input-border: #454545;
-    --input-text: #ffffff;
-    --button-bg: #0e639c;
-    --button-hover: #1177bb;
-    --focus: #007fd4;
-    --success: #4caf50;
-    --error: #f44336;
 }
 
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -49,7 +33,7 @@ body.dark {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     font-size: 13px;
     color: var(--text-color);
     background: var(--primary-bg);
@@ -115,24 +99,7 @@ header {
     border-color: var(--focus);
 }
 
-/* ── Theme Toggle ─────────────────────────────────────────── */
-.theme-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--button-bg);
-    color: var(--button-text);
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background-color 0.2s ease;
-}
 
-.theme-toggle:hover {
-    background: var(--button-hover);
-}
 
 /* ── Sidebar Content ──────────────────────────────────────── */
 .sidebar-content {
@@ -200,17 +167,11 @@ header {
     border-left-color: #14171a;
 }
 
-.platform-card.facebook {
-    border-left-color: #1877f2;
-}
 
 .platform-card.discord {
     border-left-color: #5865f2;
 }
 
-.platform-card.reddit {
-    border-left-color: #ff4500;
-}
 
 .platform-card.bluesky {
     border-left-color: #0085ff;
@@ -388,13 +349,7 @@ header {
     background: linear-gradient(135deg, #14171a, #2d2d2d);
 }
 
-.oauth-connect-btn--facebook {
-    background: linear-gradient(135deg, #1877f2, #0a5dc2);
-}
 
-.oauth-connect-btn--reddit {
-    background: linear-gradient(135deg, #ff4500, #cc3700);
-}
 
 .oauth-disconnect-btn {
     padding: 6px 10px;

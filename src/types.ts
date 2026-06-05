@@ -2,7 +2,7 @@
 // Core Types
 // ---------------------------------------------------------
 
-export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky' | 'devto' | 'medium';
+export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'devto';
 export type AIProvider = 'gemini' | 'openai' | 'xai' | 'claude';
 export type PostStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying' | 'server-scheduled';
 
@@ -50,12 +50,10 @@ export interface AnalyticsSummary {
     linkedinShares: number;
     telegramShares: number;
     xShares: number;
-    facebookShares: number;
+
     discordShares: number;
-    redditShares: number;
     blueskyShares: number;
     devtoShares: number;
-    mediumShares: number;
     successRate: number;
 }
 
@@ -83,14 +81,6 @@ export interface LinkedInPostTarget {
     name?: string;
 }
 
-export interface RedditPost {
-    id: string;
-    title: string;
-    subreddit: string;
-    score: number;
-    permalink: string;
-    created: number;
-}
 
 export interface AccountOption {
     id: string;
@@ -143,18 +133,9 @@ export interface Message {
     telegramChat?: string;
     xAccessToken?: string;
     xAccessSecret?: string;
-    facebookToken?: string;
-    facebookPageToken?: string;
-    facebookPageId?: string;
+
     discordWebhookUrl?: string;
-    redditAccessToken?: string;
-    redditRefreshToken?: string;
-    redditSubreddit?: string;
-    redditClientId?: string;
-    redditClientSecret?: string;
-    redditUsername?: string;
-    redditPassword?: string;
-    redditApiName?: string;
+
     blueskyIdentifier?: string;
     blueskyPassword?: string;
     
@@ -177,11 +158,7 @@ export interface Message {
     type?: 'success' | 'error' | 'warning';
     showSupportAction?: boolean;
     
-    // Reddit Specific
-    redditTitle?: string;
-    redditFlairId?: string;
-    redditPostType?: 'self' | 'link';
-    redditSpoiler?: boolean;
+
     
     // Scheduling
     scheduledPosts?: ScheduledPost[];
@@ -195,16 +172,7 @@ export interface Message {
     apiId?: string;
     apiConfig?: ApiConfiguration;
     
-    // Reddit Token Flow
-    tokens?: {
-        accessToken: string;
-        refreshToken: string;
-        clientId: string;
-        clientSecret: string;
-    };
-    
-    // Reddit Management
-    posts?: RedditPost[];
+
     username?: string;
     limit?: number;
     postId?: string;
@@ -246,13 +214,6 @@ export interface LinkedInError {
     status: number;
 }
 
-export interface RedditError {
-    error?: {
-        message: string;
-        type: string;
-    };
-    errors?: Array<[string, string, string?]>;
-}
 
 // ---------------------------------------------------------
 // Configuration & Credentials Types
@@ -264,13 +225,8 @@ export interface SchedulerCredentials {
     telegramChat: string;
     xAccessToken: string;
     xAccessSecret: string;
-    facebookToken: string;
-    facebookPageToken: string;
-    facebookPageId: string;
+
     discordWebhookUrl: string;
-    redditAccessToken: string;
-    redditRefreshToken: string;
-    redditSubreddit: string;
     blueskyIdentifier: string;
     blueskyPassword: string;
 }
@@ -278,18 +234,17 @@ export interface SchedulerCredentials {
 export interface LinkedInApiConfig { linkedinToken: string; }
 export interface TelegramApiConfig { telegramBot: string; telegramChat: string; }
 export interface XApiConfig { xAccessToken: string; xAccessSecret: string; }
-export interface FacebookApiConfig { facebookToken: string; facebookPageToken?: string; facebookPageId?: string; }
+
 export interface DiscordApiConfig { discordWebhook: string; }
-export interface RedditApiConfig { redditAccessToken: string; redditRefreshToken: string; }
+
 export interface BlueskyApiConfig { blueskyIdentifier: string; blueskyPassword: string; }
 
 export type ApiCredentials =
     | LinkedInApiConfig
     | TelegramApiConfig
     | XApiConfig
-    | FacebookApiConfig
+
     | DiscordApiConfig
-    | RedditApiConfig
     | BlueskyApiConfig;
 
 export interface SavedApiConfiguration {
@@ -318,7 +273,7 @@ export interface ApiConfiguration {
 // v3.0 — Blog / Publisher Types
 // ==========================================================
 
-export type BlogPlatform = 'devto' | 'medium';
+export type BlogPlatform = 'devto';
 export type DraftStatus = 'draft' | 'published' | 'unlisted';
 export type WebViewPage = 'post' | 'publish' | 'analytics' | 'settings' | 'drafts';
 
@@ -399,31 +354,6 @@ export interface DevToArticleResponse {
     published_at?: string;
 }
 
-// Medium API shapes
-export interface MediumPost {
-    title: string;
-    contentFormat: 'markdown' | 'html';
-    content: string;
-    tags?: string[];        // max 5
-    canonicalUrl?: string;
-    publishStatus: 'public' | 'draft' | 'unlisted';
-    notifyFollowers?: boolean;
-}
-
-export interface MediumPostResponse {
-    id: string;
-    title: string;
-    url: string;
-    publishStatus: string;
-    publishedAt?: number;
-}
-
-export interface MediumUser {
-    id: string;
-    username: string;
-    name: string;
-    url: string;
-}
 
 // ==========================================================
 // v3.0 — WebView State (WEBVIEW_STATE / StateManager)

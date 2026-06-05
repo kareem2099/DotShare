@@ -67,7 +67,7 @@ export class StorageManager {
         this._context.globalState.update('lastPost', postData);
     }
 
-    public recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky' | 'devto' | 'medium', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
+    public recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'devto', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
         const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
         const postIndex = history.findIndex(post => post.id === postId);
 
@@ -109,20 +109,11 @@ export class StorageManager {
         telegramChat: string;
         xAccessToken: string;
         xAccessSecret: string;
-        facebookToken: string;
-        facebookPageToken: string;
-        facebookPageId: string;
+
         discordWebhookUrl: string;
-        redditAccessToken: string;
-        redditRefreshToken: string;
+
         blueskyIdentifier: string;
         blueskyPassword: string;
-        // Reddit configuration details
-        redditClientId?: string;
-        redditClientSecret?: string;
-        redditUsername?: string;
-        redditPassword?: string;
-        redditApiName?: string;
     }> {
         const savedModel = this._context.globalState.get('selectedModel') as {
             provider: 'gemini' | 'openai' | 'xai';
@@ -153,21 +144,18 @@ export class StorageManager {
         const linkedinConfig = await loadPlatformConfig('linkedin') as { linkedinToken: string } | null;
         const telegramConfig = await loadPlatformConfig('telegram') as { telegramBot: string; telegramChat: string } | null;
         const xConfig = await loadPlatformConfig('x') as { xAccessToken: string; xAccessSecret: string } | null;
-        const facebookConfig = await loadPlatformConfig('facebook') as { facebookToken: string; facebookPageToken?: string; facebookPageId?: string } | null;
+
         const discordConfig = await loadPlatformConfig('discord') as { discordWebhook: string } | null;
-        const redditConfig = await loadPlatformConfig('reddit') as { redditAccessToken: string; redditRefreshToken: string } | null;
+
         const blueskyConfig = await loadPlatformConfig('bluesky') as { blueskyIdentifier: string; blueskyPassword: string } | null;
 
         // Extract values from configurations, with fallbacks to individual secrets
         const linkedinToken = linkedinConfig?.linkedinToken || await this._context.secrets.get('linkedinToken') || '';
         const telegramBot = telegramConfig?.telegramBot || await this._context.secrets.get('telegramBot') || '';
         const telegramChat = telegramConfig?.telegramChat || await this._context.secrets.get('telegramChat') || '';
-        const facebookToken = facebookConfig?.facebookToken || await this._context.secrets.get('facebookToken') || '';
-        const facebookPageToken = facebookConfig?.facebookPageToken || await this._context.secrets.get('facebookPageToken') || '';
-        const facebookPageId = facebookConfig?.facebookPageId || await this._context.secrets.get('facebookPageId') || '';
+
         const discordWebhookUrl = discordConfig?.discordWebhook || await this._context.secrets.get('discordWebhookUrl') || '';
-        const redditAccessToken = redditConfig?.redditAccessToken || await this._context.secrets.get('redditAccessToken') || '';
-        const redditRefreshToken = redditConfig?.redditRefreshToken || await this._context.secrets.get('redditRefreshToken') || '';
+
         const blueskyIdentifier = blueskyConfig?.blueskyIdentifier || await this._context.secrets.get('blueskyIdentifier') || '';
         const blueskyPassword = blueskyConfig?.blueskyPassword || await this._context.secrets.get('blueskyPassword') || '';
 
@@ -182,13 +170,6 @@ export class StorageManager {
             xAccessSecret = await this._context.secrets.get('xAccessSecret') || '';
         }
 
-        // Get Reddit additional details (for token generation)
-        const redditClientId = await this._context.secrets.get('redditClientId') || '';
-        const redditClientSecret = await this._context.secrets.get('redditClientSecret') || '';
-        const redditUsername = await this._context.secrets.get('redditUsername') || '';
-        const redditPassword = await this._context.secrets.get('redditPassword') || '';
-        const redditApiName = this._context.globalState.get('redditApiName', 'Reddit Account');
-
         return {
             selectedModel: savedModel,
             apiKey,
@@ -197,19 +178,12 @@ export class StorageManager {
             telegramChat,
             xAccessToken,
             xAccessSecret,
-            facebookToken,
-            facebookPageToken,
-            facebookPageId,
+
             discordWebhookUrl,
-            redditAccessToken,
-            redditRefreshToken,
+
             blueskyIdentifier,
             blueskyPassword,
-            redditClientId,
-            redditClientSecret,
-            redditUsername,
-            redditPassword,
-            redditApiName
+
         };
     }
 
@@ -238,12 +212,12 @@ export class StorageManager {
         let linkedinShares = 0;
         let telegramShares = 0;
         let xShares = 0;
-        let facebookShares = 0;
+
         let discordShares = 0;
-        let redditShares = 0;
+
         let blueskyShares = 0;
         let devtoShares = 0;
-        let mediumShares = 0;
+
 
         for (const post of history) {
             for (const share of post.shares) {
@@ -251,12 +225,12 @@ export class StorageManager {
                     case 'linkedin': linkedinShares++; break;
                     case 'telegram': telegramShares++; break;
                     case 'x': xShares++; break;
-                    case 'facebook': facebookShares++; break;
+
                     case 'discord': discordShares++; break;
-                    case 'reddit': redditShares++; break;
+
                     case 'bluesky': blueskyShares++; break;
                     case 'devto': devtoShares++; break;
-                    case 'medium': mediumShares++; break;
+
                 }
 
                 if (share.success) {
@@ -277,12 +251,12 @@ export class StorageManager {
             linkedinShares,
             telegramShares,
             xShares,
-            facebookShares,
+
             discordShares,
-            redditShares,
+
             blueskyShares,
             devtoShares,
-            mediumShares,
+
             successRate
         };
     }
@@ -407,16 +381,11 @@ export class StorageManager {
             const secretKeys = [
                 'linkedinToken',
                 'telegramBot', 'telegramChat',
-                'facebookToken', 'facebookPageToken', 'facebookPageId',
                 'discordWebhookUrl',
-                'redditAccessToken', 'redditRefreshToken',
-                'blueskyIdentifier', 'blueskyPassword',
-                'xAccessToken', 'xAccessSecret', 'xRefreshToken',
-                'redditClientId', 'redditClientSecret', 'redditUsername', 'redditPassword',
                 'geminiApiKey', 'openaiApiKey', 'xaiApiKey',
-                'devtoApiKey', 'mediumAccessToken',
+                'devtoApiKey',
                 // TokenManager expiry timestamps
-                'x_expires_at', 'reddit_expires_at', 'facebook_expires_at',
+                'x_expires_at',
             ];
 
             for (const key of secretKeys) {
@@ -424,7 +393,7 @@ export class StorageManager {
             }
 
             // 2. Clear all saved API configurations lists (both from secrets and globalState)
-            const platforms = ['linkedin', 'telegram', 'x', 'facebook', 'discord', 'reddit', 'bluesky', 'devto', 'medium'];
+            const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky', 'devto'];
             for (const platform of platforms) {
                 const key = `savedApis_${platform}`;
                 await this._context.secrets.delete(key);
@@ -454,12 +423,8 @@ export class StorageManager {
                 'telegramChat': 'telegram',
                 'xAccessToken': 'x',
                 'xAccessSecret': 'x',
-                'facebookToken': 'facebook',
-                'facebookPageToken': 'facebook',
-                'facebookPageId': 'facebook',
                 'discordWebhook': 'discord',
-                'redditAccessToken': 'reddit',
-                'redditRefreshToken': 'reddit',
+
                 'blueskyIdentifier': 'bluesky',
                 'blueskyPassword': 'bluesky'
             };
@@ -480,7 +445,7 @@ export class StorageManager {
 
     // Migration methods
     public async migrateLegacyData(): Promise<void> {
-        const platforms = ['linkedin', 'telegram', 'x', 'facebook', 'discord', 'reddit', 'bluesky'];
+        const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky'];
 
         for (const platform of platforms) {
             const key = `savedApis_${platform}`;

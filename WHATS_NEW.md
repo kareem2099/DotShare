@@ -28,7 +28,7 @@ Meet **CodeSnap** — your new favorite way to share code visually. Highlight an
 **🚀 One-Click Platform Sharing**
 1. Customize your snapshot
 2. Click "🚀 Share"
-3. Select a platform from the QuickPick (LinkedIn, X, BlueSky, Telegram, Facebook, Discord, Reddit, Dev.to, Medium)
+3. Select a platform from the QuickPick (LinkedIn, X, BlueSky, Telegram, Discord, Dev.to)
 4. Composer opens automatically with your snapshot attached
 5. Add caption, adjust settings, and post directly
 

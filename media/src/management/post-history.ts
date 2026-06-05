@@ -12,26 +12,20 @@ const getVscode = () => (window as { vscode?: { postMessage: (message: Record<st
 let postHistory!: HTMLElement;
 let historyList!: HTMLElement;
 let totalPostsValue!: HTMLElement;
-let successRateValue!: HTMLElement;
-let linkedinSharesValue!: HTMLElement;
+
 let telegramSharesValue!: HTMLElement;
-let facebookSharesValue!: HTMLElement;
 let discordSharesValue!: HTMLElement;
 let blueskySharesValue!: HTMLElement;
-let redditSharesValue!: HTMLElement;
 
 // Initialize DOM elements (would be called from ui-initialization.ts)
 export function initializePostHistoryElements(): void {
     postHistory = document.getElementById('postHistory') as HTMLElement;
     historyList = document.getElementById('historyList') as HTMLElement;
     totalPostsValue = document.getElementById('totalPostsValue') as HTMLElement;
-    successRateValue = document.getElementById('successRateValue') as HTMLElement;
-    linkedinSharesValue = document.getElementById('linkedinSharesValue') as HTMLElement;
+
     telegramSharesValue = document.getElementById('telegramSharesValue') as HTMLElement;
-    facebookSharesValue = document.getElementById('facebookSharesValue') as HTMLElement;
     discordSharesValue = document.getElementById('discordSharesValue') as HTMLElement;
     blueskySharesValue = document.getElementById('blueskySharesValue') as HTMLElement;
-    redditSharesValue = document.getElementById('redditSharesValue') as HTMLElement;
 }
 
 export function updatePostHistory(history: HistoricalPost[]): void {
@@ -81,14 +75,9 @@ export function updatePostHistory(history: HistoricalPost[]): void {
 
 export function updateAnalytics(analytics: AnalyticsSummary): void {
     totalPostsValue.textContent = analytics.totalPosts.toString();
-    successRateValue.textContent = `${analytics.successRate}%`;
-    linkedinSharesValue.textContent = analytics.linkedinShares.toString();
     telegramSharesValue.textContent = analytics.telegramShares.toString();
-    // Update additional analytics values
-    if (facebookSharesValue) facebookSharesValue.textContent = '0'; // Will be updated when analytics are properly calculated
     if (discordSharesValue) discordSharesValue.textContent = '0';
     if (blueskySharesValue) blueskySharesValue.textContent = '0';
-    if (redditSharesValue) redditSharesValue.textContent = analytics.redditShares?.toString() || '0';
 }
 
 export function showPostHistory(): void {

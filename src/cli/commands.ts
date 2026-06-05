@@ -22,16 +22,8 @@ interface LinkedInPayload {
     access_token: string;
 }
 
-interface RedditPayload {
-    text: string;
-    media_urls: string[];
-    access_token: string;
-    subreddit: string;
-    title: string;
-}
-
 // Union type for payload that can be any platform-specific type
-type PlatformPayload = TelegramPayload | LinkedInPayload | RedditPayload;
+type PlatformPayload = TelegramPayload | LinkedInPayload;
 
 const configManager = new ConfigManager();
 
@@ -87,7 +79,7 @@ export function setupInitCommand(program: Command) {
                 Logger.info('Next steps:');
                 Logger.info('  • Run "dotshare login telegram" to authenticate Telegram');
                 Logger.info('  • Run "dotshare login linkedin" to authenticate LinkedIn');
-                Logger.info('  • Run "dotshare login reddit" to authenticate Reddit');
+
                 Logger.info('  • Run "dotshare whoami" to check your setup');
                 Logger.info('  • Run "dotshare \'Hello World!\'" to post to all platforms');
 
@@ -201,53 +193,7 @@ export function setupLoginCommand(program: Command) {
             }
         });
 
-    loginCmd
-        .command('reddit')
-        .description('Authenticate with Reddit')
-        .action(async () => {
-            Logger.info('🔐 Reddit Authentication');
-            Logger.info('This will open your browser to authenticate with Reddit.\n');
 
-            const config = configManager.getConfig();
-            const serverUrl = config.serverUrl;
-
-            try {
-                // Check server connection
-                await axios.get(`${serverUrl}/`, { timeout: 3000 });
-
-                // Open browser to Python server
-                const authUrl = `${serverUrl}/?provider=reddit`;
-                Logger.info(`🌐 Opening: ${authUrl}`);
-                const open = (await import('open')).default;
-                await open(authUrl);
-
-                Logger.info('\n📝 Instructions:');
-                Logger.info('1. Complete the Reddit OAuth flow in your browser');
-                Logger.info('2. Copy the access token from the success page');
-                Logger.info('3. Run the following command with your token:');
-                Logger.info('   dotshare login reddit --token YOUR_TOKEN');
-
-                // Wait for user to provide token
-                const rl = createReadlineInterface();
-                try {
-                    const token = await question(rl, '\nEnter Reddit access token: ');
-                    const refreshToken = await question(rl, 'Enter Reddit refresh token (optional): ');
-
-                    if (token.trim()) {
-                        configManager.setRedditCredentials(token.trim(), refreshToken.trim() || undefined);
-                        Logger.info('✅ Reddit credentials saved!');
-                    } else {
-                        Logger.info('❌ Token cannot be empty');
-                    }
-                } finally {
-                    rl.close();
-                }
-
-            } catch (error) {
-                Logger.error('❌ Error:', error instanceof Error ? error.message : 'Unknown error');
-                Logger.info('💡 Make sure the Python server is running on', serverUrl);
-            }
-        });
 }
 
 // Whoami command
@@ -290,7 +236,7 @@ export function setupDefaultCommand(program: Command) {
     program
         .arguments('[message]')
         .option('--media <path>', 'Path to media file')
-        .option('--platforms <list>', 'Comma-separated list of platforms (telegram,linkedin,reddit)')
+        .option('--platforms <list>', 'Comma-separated list of platforms (telegram,linkedin)')
         .description('Post message to configured platforms')
         .action(async (message: string | undefined, options: { media?: string; platforms?: string }) => {
             if (!message && !options.media) {
@@ -311,9 +257,9 @@ export function setupDefaultCommand(program: Command) {
             }
 
             // Parse platforms option
-            let targetPlatforms: ('telegram' | 'linkedin' | 'reddit')[];
+            let targetPlatforms: ('telegram' | 'linkedin')[];
             if (options.platforms) {
-                targetPlatforms = options.platforms.split(',').map(p => p.trim().toLowerCase()) as ('telegram' | 'linkedin' | 'reddit')[];
+                targetPlatforms = options.platforms.split(',').map(p => p.trim().toLowerCase()) as ('telegram' | 'linkedin')[];
                 // Validate platforms
                 const invalidPlatforms = targetPlatforms.filter(p => !availablePlatforms.includes(p));
                 if (invalidPlatforms.length > 0) {
@@ -378,19 +324,7 @@ export function setupDefaultCommand(program: Command) {
                                 access_token: config.credentials.linkedin.accessToken
                             };
                             break;
-                        case 'reddit':
-                            endpoint = '/api/post/reddit';
-                            if (!config.credentials.reddit?.accessToken) {
-                                throw new Error('Reddit credentials not configured');
-                            }
-                            payload = {
-                                text: message || '',
-                                media_urls: mediaUrls,
-                                access_token: config.credentials.reddit.accessToken,
-                                subreddit: 'test', // Default subreddit
-                                title: message?.substring(0, 300) || 'Posted from DotShare CLI'
-                            };
-                            break;
+
                         default:
                             throw new Error(`Unsupported platform: ${platform}`);
                     }

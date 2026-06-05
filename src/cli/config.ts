@@ -14,12 +14,8 @@ export interface DotShareConfig {
         linkedin?: {
             accessToken: string;
         };
-        reddit?: {
-            accessToken: string;
-            refreshToken?: string;
-        };
     };
-    defaultPlatforms: ('telegram' | 'linkedin' | 'reddit')[];
+    defaultPlatforms: ('telegram' | 'linkedin')[];
 }
 
 export class ConfigManager {
@@ -109,15 +105,7 @@ export class ConfigManager {
         }
     }
 
-    public setRedditCredentials(accessToken: string, refreshToken?: string): void {
-        this.loadConfig();
-        if (this.config) {
-            this.config.credentials.reddit = { accessToken, refreshToken };
-            this.saveConfig();
-        }
-    }
-
-    public setDefaultPlatforms(platforms: ('telegram' | 'linkedin' | 'reddit')[]): void {
+    public setDefaultPlatforms(platforms: ('telegram' | 'linkedin')[]): void {
         this.loadConfig();
         if (this.config) {
             this.config.defaultPlatforms = platforms;
@@ -125,18 +113,15 @@ export class ConfigManager {
         }
     }
 
-    public getConfiguredPlatforms(): ('telegram' | 'linkedin' | 'reddit')[] {
+    public getConfiguredPlatforms(): ('telegram' | 'linkedin')[] {
         const config = this.loadConfig();
-        const platforms: ('telegram' | 'linkedin' | 'reddit')[] = [];
+        const platforms: ('telegram' | 'linkedin')[] = [];
 
         if (config.credentials.telegram?.botToken && config.credentials.telegram?.chatId) {
             platforms.push('telegram');
         }
         if (config.credentials.linkedin?.accessToken) {
             platforms.push('linkedin');
-        }
-        if (config.credentials.reddit?.accessToken) {
-            platforms.push('reddit');
         }
 
         return platforms;

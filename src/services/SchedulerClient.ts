@@ -95,21 +95,13 @@ export class SchedulerClient {
             } else if (platform === 'devto') {
                 const key = await context.secrets.get('devtoApiKey');
                 if (key) credToken = key;
-            } else if (platform === 'medium') {
-                const key = await context.secrets.get('mediumAccessToken');
-                if (key) credToken = key;
             } else if (platform === 'bluesky') {
                 const id = await context.secrets.get('blueskyIdentifier');
                 const pw = await context.secrets.get('blueskyPassword');
                 if (id && pw) {
                     credToken = `${id}::${pw}`; // assuming bluesky needs identifier::password
                 }
-            } else if (platform === 'facebook') {
-                const fbToken = await context.secrets.get('facebookToken');
-                const pageId = await context.secrets.get('facebookPageId');
-                if (fbToken) {
-                    credToken = pageId ? `${fbToken}::${pageId}` : fbToken;
-                }
+
             } else if (platform === 'linkedin') {
                 const token = await context.secrets.get('linkedinToken');
                 if (token) credToken = token;

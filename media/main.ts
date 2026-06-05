@@ -63,17 +63,14 @@ const platformSavers: Record<string, () => void> = {
     linkedin: () => send({ command: 'saveLinkedinToken', linkedinToken: getValue('linkedinToken') }),
     telegram: () => send({ command: 'saveTelegramCredentials', telegramBot: getValue('telegramBot'), telegramChat: getValue('telegramChat') }),
     x: () => send({ command: 'saveXCredentials', xAccessToken: getValue('xAccessToken'), xAccessSecret: getValue('xAccessSecret') }),
-    facebook: () => send({ command: 'saveFacebookToken', facebookToken: getValue('facebookToken'), facebookPageToken: getValue('facebookPageToken'), facebookPageId: getValue('facebookPageId') }),
-    discord: () => send({ command: 'saveDiscordWebhook', discordWebhookUrl: getValue('discordWebhook') }),
-    reddit: () => send({ command: 'saveRedditCredentials', redditAccessToken: getValue('redditAccessToken'), redditRefreshToken: '' }),
+
     bluesky: () => send({ command: 'saveBlueSkyCredentials', blueskyIdentifier: getValue('blueskyIdentifier'), blueskyPassword: getValue('blueskyPassword') }),
+    discord: () => send({ command: 'saveDiscordWebhook', discordWebhookUrl: getValue('discordWebhook') }),
     devto: () => send({ command: 'saveDevToCredentials', devtoApiKey: getValue('devtoApiKey') }),
-    medium: () => send({ command: 'saveMediumCredentials', mediumAccessToken: getValue('mediumAccessToken') }),
 };
 
-// ── Article publisher (Dev.to / Medium) — mirrors media/webview ─────────
+// ── Article publisher (Dev.to) — mirrors media/webview ─────────
 const BLOG_BTN_LABEL_DEVTO = '🚀 Publish to Dev.to';
-const BLOG_BTN_LABEL_MEDIUM = '🚀 Publish to Medium';
 
 function getBlogBodyText(): string {
     return getEl<HTMLTextAreaElement>('blog-body')?.value.trim() || '';
@@ -83,18 +80,14 @@ function revealBlogPublisherUi(): void {
     const preview = getEl('blog-preview');
     if (preview) preview.style.display = 'block';
     const devtoCard = getEl('blog-publish-devto-card');
-    const mediumCard = getEl('blog-publish-medium-card');
     if (devtoCard) devtoCard.style.display = 'block';
-    if (mediumCard) mediumCard.style.display = 'block';
     updateBlogPublishButtonsState();
 }
 
 function updateBlogPublishButtonsState(): void {
     const has = getBlogBodyText().length > 0;
     const bDev = getEl<HTMLButtonElement>('btn-publish-blog-devto');
-    const bMed = getEl<HTMLButtonElement>('btn-publish-blog-medium');
     if (bDev) bDev.disabled = !has;
-    if (bMed) bMed.disabled = !has;
 }
 
 function resetBlogPublishUi(): void {
@@ -104,14 +97,9 @@ function resetBlogPublishUi(): void {
         bDev.disabled = !has;
         bDev.textContent = BLOG_BTN_LABEL_DEVTO;
     }
-    const bMed = getEl<HTMLButtonElement>('btn-publish-blog-medium');
-    if (bMed) {
-        bMed.disabled = !has;
-        bMed.textContent = BLOG_BTN_LABEL_MEDIUM;
-    }
 }
 
-function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): void {
+function sendBlogShare(platform: 'devto', publishStatus: string): void {
     const postText = getBlogBodyText();
     if (!postText) {
         showStatus('No article body to publish. Read a Markdown file or paste content first.', 'error');
@@ -140,7 +128,7 @@ function sendBlogShare(platform: 'devto' | 'medium', publishStatus: string): voi
     showStatus('Publishing article…', 'info');
 }
 
-function wireBlogPublishButton(btn: HTMLButtonElement | null, platform: 'devto' | 'medium', getStatus: () => string): void {
+function wireBlogPublishButton(btn: HTMLButtonElement | null, platform: 'devto', getStatus: () => string): void {
     if (!btn) return;
     btn.addEventListener('click', () => {
         try {
@@ -169,7 +157,7 @@ function disconnectOAuth(platform: string): void {
 
 // ── OAuth Button UI Sync ─────────────────────────────────────
 // Platforms that use OAuth (connect/disconnect flow)
-const OAUTH_PLATFORMS = ['linkedin', 'x', 'facebook', 'reddit', 'gist'] as const;
+const OAUTH_PLATFORMS = ['linkedin', 'x', 'gist'] as const;
 type OAuthPlatform = typeof OAUTH_PLATFORMS[number];
 
 function updateOAuthButtons(tokenMap: Record<string, string | undefined>): void {
@@ -180,17 +168,6 @@ function updateOAuthButtons(tokenMap: Record<string, string | undefined>): void 
         if (connectBtn) connectBtn.style.display = hasToken ? 'none' : 'inline-flex';
         if (disconnectBtn) disconnectBtn.style.display = hasToken ? 'inline-block' : 'none';
     });
-}
-
-// ── Theme Button Sync ────────────────────────────────────────
-function updateThemeButton(): void {
-    const btn = getEl('themeToggle');
-    if (!btn) return;
-    const isDark = document.body.classList.contains('dark');
-    const icon = btn.querySelector<HTMLElement>('.icon');
-    const text = btn.querySelector<HTMLElement>('.text');
-    if (icon) icon.textContent = isDark ? '☀️' : '🌙';
-    if (text) text.textContent = isDark ? 'Light Mode' : 'Dark Mode';
 }
 
 // ── Apply Translations ───────────────────────────────────────
@@ -345,15 +322,10 @@ function initEventListeners(): void {
         telegramChat: 'telegram',
         xAccessToken: 'x',
         xAccessSecret: 'x',
-        facebookToken: 'facebook',
-        facebookPageToken: 'facebook',
-        facebookPageId: 'facebook',
         discordWebhook: 'discord',
-        redditAccessToken: 'reddit',
         blueskyIdentifier: 'bluesky',
         blueskyPassword: 'bluesky',
-        devtoApiKey: 'devto',
-        mediumAccessToken: 'medium'
+        devtoApiKey: 'devto'
     };
 
     Object.entries(blurAutoSaves).forEach(([inputId, platform]) => {
@@ -478,10 +450,6 @@ function initEventListeners(): void {
         send({ command: 'changeLanguage', language: lang });
     });
 
-    // ⑬ Theme toggle
-    getEl('themeToggle')?.addEventListener('click', () => {
-        send({ command: 'toggleTheme' });
-    });
 
     // ⑭ Quick action buttons (if present in sidebar)
     getEl('openPostBtn')?.addEventListener('click', () => {
@@ -552,31 +520,18 @@ window.addEventListener('message', (event: MessageEvent) => {
             setInputValue('telegramChat', msg.telegramChat ?? '');
             setInputValue('xAccessToken', msg.xAccessToken ?? '');
             setInputValue('xAccessSecret', msg.xAccessSecret ?? '');
-            setInputValue('facebookToken', msg.facebookToken ?? '');
-            setInputValue('facebookPageToken', msg.facebookPageToken ?? '');
-            setInputValue('facebookPageId', msg.facebookPageId ?? '');
             setInputValue('discordWebhook', msg.discordWebhookUrl ?? '');
-            setInputValue('redditAccessToken', msg.redditAccessToken ?? '');
             setInputValue('blueskyIdentifier', msg.blueskyIdentifier ?? '');
             setInputValue('blueskyPassword', msg.blueskyPassword ?? '');
             setInputValue('devtoApiKey', msg.devtoApiKey ?? '');
-            setInputValue('mediumAccessToken', msg.mediumAccessToken ?? '');
 
             // OAuth buttons
             updateOAuthButtons({
                 linkedin: msg.linkedinToken,
                 x: msg.xAccessToken,
-                facebook: msg.facebookToken,
-                reddit: msg.redditAccessToken,
+
                 gist: msg.githubConnected ? 'connected' : undefined,
             });
-
-            // Theme
-            if (msg.theme !== undefined) {
-                if (msg.theme === 'dark') document.body.classList.add('dark');
-                else document.body.classList.remove('dark');
-                updateThemeButton();
-            }
 
             // Language select sync
             if (msg.language) {
@@ -588,19 +543,13 @@ window.addEventListener('message', (event: MessageEvent) => {
             if (msg.translations) applyTranslations(msg.translations);
 
             // AEGIS 1.4.0: Proactive Refresh Badges & Expiry Dates
-            ['linkedin', 'x', 'facebook', 'reddit'].forEach(plt => {
+            ['linkedin', 'x'].forEach(plt => {
                 const soon = msg[`${plt}ShouldRefreshSoon`];
                 const expiresAt = msg[`${plt}ExpiresAt`];
                 updateAegisStatus(plt, soon, expiresAt);
             });
             break;
         }
-
-        case 'themeChanged':
-            if (msg.theme === 'dark') document.body.classList.add('dark');
-            else document.body.classList.remove('dark');
-            updateThemeButton();
-            break;
 
         case 'languageChanged':
             if (msg.translations) applyTranslations(msg.translations);
@@ -653,9 +602,7 @@ window.addEventListener('message', (event: MessageEvent) => {
             if (fm.published !== undefined) {
                 const v = fm.published ? 'published' : 'draft';
                 const sd = getEl<HTMLSelectElement>('blog-publish-status-devto');
-                const sm = getEl<HTMLSelectElement>('blog-publish-status-medium');
                 if (sd) sd.value = v;
-                if (sm) sm.value = v;
             }
             showStatus('Frontmatter loaded', 'success');
             break;

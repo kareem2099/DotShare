@@ -2,16 +2,13 @@ interface VSCodeAPI {
     postMessage(message: unknown): void;
 }
 
-interface PendingRedditShare {
-    text: string;
-    mediaFilePaths: string[];
-}
+
 
 declare const vscode: VSCodeAPI;
 
 declare global {
     interface Window {
-        pendingRedditShare?: PendingRedditShare;
+
     }
 }
 
@@ -26,22 +23,15 @@ import {
     linkedinToken,
     telegramBot,
     telegramChat,
-    facebookToken,
     discordWebhook,
-    redditAccessToken,
     blueskyIdentifier,
     blueskyPassword,
     selectedModel,
     updateButtonStates,
     checkPlatformAvailability,
-    themes,
-    applyTheme,
-    currentThemeVariant,
+    showStatus,
     currentLang,
-    updateThemeToggle,
-    updateThemeVariant,
-    updateCurrentLang,
-    showStatus
+    updateCurrentLang
 } from '../core/utils';
 import { updateTexts } from '../core/translations';
 import { logger } from '../utils/Logger';
@@ -71,26 +61,14 @@ export const platformConfigs: { [key: string]: { name: string; fields: { key: st
             { key: 'xAccessSecret', label: 'Access Secret', type: 'password', placeholder: 'Enter your X Access Secret' }
         ]
     },
-    facebook: {
-        name: 'Facebook',
-        fields: [
-            { key: 'facebookToken', label: 'Access Token', type: 'password', placeholder: 'Enter your Facebook Access Token' },
-            { key: 'facebookPageToken', label: 'Page Token (Optional)', type: 'password', placeholder: 'Page access token for posting to pages' },
-            { key: 'facebookPageId', label: 'Page ID (Optional)', type: 'text', placeholder: 'Facebook page ID' }
-        ]
-    },
+
     discord: {
         name: 'Discord',
         fields: [
             { key: 'discordWebhook', label: 'Webhook URL', type: 'url', placeholder: 'Enter your Discord webhook URL' }
         ]
     },
-    reddit: {
-        name: 'Reddit',
-        fields: [
-            { key: 'redditAccessToken', label: 'Access Token', type: 'password', placeholder: 'Enter your Reddit Access Token' }
-        ]
-    },
+
     bluesky: {
         name: 'BlueSky',
         fields: [
@@ -144,47 +122,7 @@ export function setupPlatformEventListeners() {
         });
     }
 
-    // Facebook
-    const facebookTokenInput = document.getElementById('facebookToken') as HTMLInputElement;
-    const facebookPageTokenInput = document.getElementById('facebookPageToken') as HTMLInputElement;
-    const facebookPageIdInput = document.getElementById('facebookPageId') as HTMLInputElement;
-    if (facebookTokenInput) {
-        facebookTokenInput.addEventListener('input', updateButtonStates);
-        facebookTokenInput.addEventListener('blur', () => {
-            if (facebookTokenInput.value.trim() || facebookPageTokenInput?.value.trim() || facebookPageIdInput?.value.trim()) {
-                getVscode()?.postMessage({
-                    command: 'saveFacebookToken',
-                    facebookToken: facebookTokenInput.value,
-                    facebookPageToken: facebookPageTokenInput?.value || '',
-                    facebookPageId: facebookPageIdInput?.value || ''
-                });
-            }
-        });
-    }
-    if (facebookPageTokenInput) {
-        facebookPageTokenInput.addEventListener('blur', () => {
-            if (facebookTokenInput?.value.trim() || facebookPageTokenInput.value.trim() || facebookPageIdInput?.value.trim()) {
-                getVscode()?.postMessage({
-                    command: 'saveFacebookToken',
-                    facebookToken: facebookTokenInput?.value || '',
-                    facebookPageToken: facebookPageTokenInput.value,
-                    facebookPageId: facebookPageIdInput?.value || ''
-                });
-            }
-        });
-    }
-    if (facebookPageIdInput) {
-        facebookPageIdInput.addEventListener('blur', () => {
-            if (facebookTokenInput?.value.trim() || facebookPageTokenInput?.value.trim() || facebookPageIdInput.value.trim()) {
-                getVscode()?.postMessage({
-                    command: 'saveFacebookToken',
-                    facebookToken: facebookTokenInput?.value || '',
-                    facebookPageToken: facebookPageTokenInput?.value || '',
-                    facebookPageId: facebookPageIdInput.value
-                });
-            }
-        });
-    }
+
 
     // Discord
     const discordWebhookInput = document.getElementById('discordWebhook') as HTMLInputElement;
@@ -269,68 +207,15 @@ export function setupPlatformEventListeners() {
     }
 }
 
-// Function to set up Reddit event listeners
-export function setupRedditEventListeners() {
-    const redditAccessToken = document.getElementById('redditAccessToken') as HTMLInputElement;
-    const redditRefreshToken = document.getElementById('redditRefreshToken') as HTMLInputElement;
-    const generateRedditTokensBtn = document.getElementById('generateRedditTokensBtn') as HTMLButtonElement;
-    const redditClientId = document.getElementById('redditClientId') as HTMLInputElement;
-    const redditClientSecret = document.getElementById('redditClientSecret') as HTMLInputElement;
-    const redditUsername = document.getElementById('redditUsername') as HTMLInputElement;
-    const redditPassword = document.getElementById('redditPassword') as HTMLInputElement;
-    const redditApiName = document.getElementById('redditApiName') as HTMLInputElement;
 
-    // Add listener for Reddit token generation
-    if (generateRedditTokensBtn) {
-        generateRedditTokensBtn.addEventListener('click', () => {
-            const clientId = redditClientId?.value.trim();
-            const clientSecret = redditClientSecret?.value.trim();
-            const username = redditUsername?.value.trim();
-            const password = redditPassword?.value.trim();
-            const apiName = redditApiName?.value.trim() || 'Reddit Account';
-
-            if (!clientId || !clientSecret || !username || !password) {
-                showStatus('All Reddit credentials are required.', 'error');
-                return;
-            }
-
-            generateRedditTokensBtn.disabled = true;
-            generateRedditTokensBtn.textContent = '🔄 Generating...';
-
-            getVscode()?.postMessage({
-                command: 'generateRedditTokens',
-                redditClientId: clientId,
-                redditClientSecret: clientSecret,
-                redditUsername: username,
-                redditPassword: password,
-                redditApiName: apiName
-            });
-        });
-    }
-
-    if (redditAccessToken) {
-        redditAccessToken.addEventListener('input', updateButtonStates);
-        redditAccessToken.addEventListener('blur', () => {
-            if (redditAccessToken.value.trim() || redditRefreshToken?.value.trim()) {
-                getVscode()?.postMessage({
-                    command: 'saveRedditCredentials',
-                    redditAccessToken: redditAccessToken.value,
-                    redditRefreshToken: redditRefreshToken?.value || ''
-                });
-            }
-        });
-    }
-}
 
 // ── OAuth Connect Buttons ──────────────────────────────────────────────────────
 
-/** Wire up the "Connect with X" OAuth buttons for LinkedIn, X, Facebook, Reddit. */
+/** Wire up OAuth buttons for LinkedIn and X. */
 export function setupOAuthButtons() {
     const oauthPlatforms = [
         { platform: 'linkedin', label: 'Connect with LinkedIn' },
         { platform: 'x',        label: 'Connect with X'        },
-        { platform: 'facebook', label: 'Connect with Facebook' },
-        { platform: 'reddit',   label: 'Connect with Reddit'   },
     ];
 
     oauthPlatforms.forEach(({ platform, label }) => {
@@ -365,10 +250,6 @@ export function setupOAuthButtons() {
                     getVscode()?.postMessage({ command: 'saveLinkedinToken', linkedinToken: '' });
                 } else if (platform === 'x') {
                     getVscode()?.postMessage({ command: 'saveXCredentials', xAccessToken: '', xAccessSecret: '' });
-                } else if (platform === 'facebook') {
-                    getVscode()?.postMessage({ command: 'saveFacebookToken', facebookToken: '', facebookPageToken: '', facebookPageId: '' });
-                } else if (platform === 'reddit') {
-                    getVscode()?.postMessage({ command: 'saveRedditCredentials', redditAccessToken: '', redditRefreshToken: '' });
                 }
                 
                 // Immediately request a config reload to update the UI
@@ -403,14 +284,10 @@ export function setupOAuthButtons() {
 export function showOAuthStatus(config: {
     linkedinToken?: string;
     xAccessToken?: string;
-    facebookToken?: string;
-    redditAccessToken?: string;
 }) {
     const map = [
-        { platform: 'linkedin', token: config.linkedinToken,     label: 'Connect with LinkedIn', connectedText: 'LinkedIn Connected' },
-        { platform: 'x',        token: config.xAccessToken,      label: 'Connect with X',        connectedText: 'X Connected' },
-        { platform: 'facebook', token: config.facebookToken,     label: 'Connect with Facebook', connectedText: 'Facebook Connected' },
-        { platform: 'reddit',   token: config.redditAccessToken, label: 'Connect with Reddit',   connectedText: 'Reddit Connected' },
+        { platform: 'linkedin', token: config.linkedinToken, label: 'Connect with LinkedIn', connectedText: 'LinkedIn Connected' },
+        { platform: 'x',        token: config.xAccessToken,  label: 'Connect with X',        connectedText: 'X Connected' },
     ];
 
     map.forEach(({ platform, token, label, connectedText }) => {
@@ -435,15 +312,8 @@ export function showOAuthStatus(config: {
         } else {
             // Disconnected State
             btn.classList.remove('oauth-connect-btn--connected');
-            
-            if (platform === 'reddit') {
-                btn.disabled = true;
-                btn.title = 'Due to Vercel leaks, we are waiting until they restore access. Sorry for the delay. You can use your own credentials to connect.';
-            } else {
-                btn.disabled = false;
-                btn.title = '';
-            }
-            
+            btn.disabled = false;
+            btn.title = '';
             btn.innerHTML = `<span class="oauth-icon">🔗</span><span class="oauth-btn-text">${label}</span>`;
             
             if (disconnectBtn) disconnectBtn.style.display = 'none';
@@ -469,10 +339,9 @@ export function initializeCriticalEventListeners() {
     const generateBtnElement = document.getElementById('generateBtn') as HTMLButtonElement;
     const shareLinkedInBtnElement = document.getElementById('shareLinkedInBtn') as HTMLButtonElement;
     const shareTelegramBtnElement = document.getElementById('shareTelegramBtn') as HTMLButtonElement;
-    const shareFacebookBtn = document.getElementById('shareFacebookBtn') as HTMLButtonElement;
+
     const shareDiscordBtn = document.getElementById('shareDiscordBtn') as HTMLButtonElement;
     const shareBlueSkyBtn = document.getElementById('shareBlueSkyBtn') as HTMLButtonElement;
-    const themeToggle = document.getElementById('themeToggle') as HTMLButtonElement;
     const languageSelect = document.getElementById('languageSelect') as HTMLSelectElement;
     const savedApiButtons = document.querySelectorAll('.saved-apis-btn');
     const shareBtn = document.getElementById('shareBtn') as HTMLButtonElement;
@@ -480,24 +349,11 @@ export function initializeCriticalEventListeners() {
     const savePostBtnElement = document.getElementById('savePostBtn') as HTMLButtonElement;
     const cancelPostBtnElement = document.getElementById('cancelPostBtn') as HTMLButtonElement;
     const scheduleBtnElement = document.getElementById('scheduleBtn') as HTMLButtonElement;
-    const loadRedditPostsBtn = document.getElementById('loadRedditPostsBtn') as HTMLButtonElement;
+
 
     // AI Model selection button
     if (selectModelBtn) {
         selectModelBtn.addEventListener('click', openModal);
-    }
-
-    // Theme toggle button
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
-            const currentIndex = themes.indexOf(currentThemeVariant);
-            const nextIndex = (currentIndex + 1) % themes.length;
-            const newTheme = themes[nextIndex];
-            updateThemeVariant(newTheme);
-            localStorage.setItem('theme', newTheme);
-            applyTheme();
-            updateThemeToggle();
-        });
     }
 
     // Language select dropdown
@@ -510,7 +366,6 @@ export function initializeCriticalEventListeners() {
             document.documentElement.lang = newLang;
             document.body.classList.toggle('rtl', newLang === 'ar');
             updateTexts();
-            updateThemeToggle();
         });
     }
 
@@ -564,12 +419,6 @@ export function initializeCriticalEventListeners() {
                 telegramChat: telegramChat?.value,
                 post: postText.value
             });
-        });
-    }
-
-    if (shareFacebookBtn) {
-        shareFacebookBtn.addEventListener('click', () => {
-            getVscode()?.postMessage({ command: 'shareToFacebook', facebookToken: facebookToken?.value });
         });
     }
 
@@ -689,162 +538,7 @@ export function initializeCriticalEventListeners() {
     if (confirmScheduleBtn) confirmScheduleBtn.addEventListener('click', schedulePost);
     if (closeScheduleModalBtn) closeScheduleModalBtn.addEventListener('click', closeScheduleModalFunc);
 
-    // Load Reddit posts button
-    if (loadRedditPostsBtn) {
-        loadRedditPostsBtn.addEventListener('click', () => {
-            const accessToken = document.getElementById('redditAccessToken') as HTMLInputElement;
-            if (!accessToken?.value.trim()) {
-                showStatus('Reddit access token required.', 'error');
-                return;
-            }
 
-            getVscode()?.postMessage({
-                command: 'getRedditUserPosts',
-                username: 'me' // Get current user's posts
-            });
-        });
-    }
-
-    // Reddit subreddit input and suggestions
-    const redditPostSubreddit = document.getElementById('redditPostSubreddit') as HTMLInputElement;
-    const subredditSuggestions = document.querySelectorAll('.subreddit-suggestion') as NodeListOf<HTMLButtonElement>;
-
-    // Handle dynamic prefix updating for subreddit/user input
-    if (redditPostSubreddit) {
-        redditPostSubreddit.addEventListener('input', (e) => {
-            const input = e.target as HTMLInputElement;
-            const value = input.value;
-            const prefixElement = input.previousElementSibling as HTMLElement;
-
-            if (value.startsWith('u/')) {
-                prefixElement.textContent = 'u/';
-                input.value = value.substring(2); // Remove prefix from input value
-            } else if (value.startsWith('r/')) {
-                prefixElement.textContent = 'r/';
-                input.value = value.substring(2); // Remove prefix from input value
-            } else {
-                prefixElement.textContent = 'r/'; // Default to r/
-            }
-        });
-    }
-
-    // Handle subreddit suggestion buttons
-    subredditSuggestions.forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            const subreddit = button.getAttribute('data-subreddit');
-            if (subreddit && redditPostSubreddit) {
-                const prefixElement = redditPostSubreddit.parentElement?.previousElementSibling as HTMLElement;
-                if (subreddit.startsWith('r/') && prefixElement) {
-                    prefixElement.textContent = 'r/';
-                    redditPostSubreddit.value = subreddit.substring(2);
-                } else if (subreddit.startsWith('u/') && prefixElement) {
-                    prefixElement.textContent = 'u/';
-                    redditPostSubreddit.value = subreddit.substring(2);
-                } else {
-                    redditPostSubreddit.value = subreddit;
-                }
-            }
-        });
-    });
-
-    // Reddit modal buttons (fallback for any existing modal usage)
-    const shareRedditPostBtn = document.getElementById('shareRedditPostBtn') as HTMLButtonElement;
-    const cancelRedditPostBtn = document.getElementById('cancelRedditPostBtn') as HTMLButtonElement;
-    const closeRedditPostModal = document.getElementById('closeRedditPostModal') as HTMLElement;
-
-    // Share Reddit post button (modal-based sharing - now secondary)
-    if (shareRedditPostBtn) {
-        shareRedditPostBtn.addEventListener('click', () => {
-            const subredditInput = document.getElementById('redditSubreddit') as HTMLInputElement;
-            const titleInput = document.getElementById('redditTitle') as HTMLInputElement;
-            const flairSelect = document.getElementById('redditFlair') as HTMLSelectElement;
-            const spoilerCheckbox = document.getElementById('redditSpoiler') as HTMLInputElement;
-            const postTypeInputs = document.querySelectorAll('input[name="redditPostType"]') as NodeListOf<HTMLInputElement>;
-
-            if (!subredditInput?.value.trim()) {
-                showStatus('Please enter a subreddit name.', 'error');
-                return;
-            }
-
-            if (!titleInput?.value.trim()) {
-                showStatus('Please enter a post title.', 'error');
-                return;
-            }
-
-            // Get pending share data from window
-            const pendingShare = window.pendingRedditShare;
-            if (!pendingShare) {
-                showStatus('No post data found. Please try again.', 'error');
-                return;
-            }
-
-            // Determine post type
-            let postType = 'self'; // default
-            postTypeInputs.forEach(input => {
-                if (input.checked) postType = input.value;
-            });
-
-            // Collect data and share
-            const postData = {
-                text: pendingShare.text,
-                mediaFilePaths: pendingShare.mediaFilePaths ?? [],
-                subreddit: subredditInput.value.trim(),
-                title: titleInput.value.trim(),
-                flairId: flairSelect?.value || undefined,
-                isSelfPost: postType === 'self',
-                spoiler: spoilerCheckbox?.checked || false
-            };
-
-            getVscode()?.postMessage({
-                command: 'shareToReddit',
-                redditAccessToken: redditAccessToken?.value || '',
-                redditRefreshToken: (document.getElementById('redditRefreshToken') as HTMLInputElement)?.value || '',
-                subreddit: postData.subreddit,
-                title: postData.title,
-                text: postData.text,
-                postType: postType,
-                flairId: postData.flairId,
-                spoiler: postData.spoiler,
-                mediaFilePaths: postData.mediaFilePaths
-            });
-
-            // Close modal
-            const redditModal = document.getElementById('redditPostModal') as HTMLElement;
-            if (redditModal) redditModal.style.display = 'none';
-
-            // Clear pending data
-            if (window.pendingRedditShare) delete window.pendingRedditShare;
-
-            showStatus('Sharing to Reddit...', 'success');
-        });
-    }
-
-    // Cancel Reddit post button
-    if (cancelRedditPostBtn) {
-        cancelRedditPostBtn.addEventListener('click', () => {
-            const redditModal = document.getElementById('redditPostModal') as HTMLElement;
-            if (redditModal) redditModal.style.display = 'none';
-
-            // Clear pending data
-            if (window.pendingRedditShare) delete window.pendingRedditShare;
-
-            showStatus('Reddit sharing cancelled.', 'success');
-        });
-    }
-
-    // Close Reddit modal
-    if (closeRedditPostModal) {
-        closeRedditPostModal.addEventListener('click', () => {
-            const redditModal = document.getElementById('redditPostModal') as HTMLElement;
-            if (redditModal) redditModal.style.display = 'none';
-
-            // Clear pending data
-            if (window.pendingRedditShare) delete window.pendingRedditShare;
-
-            showStatus('Reddit sharing cancelled.', 'success');
-        });
-    }
 
     logger.info('Critical event listeners initialized - buttons should now work!');
 }

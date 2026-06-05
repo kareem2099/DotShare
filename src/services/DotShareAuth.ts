@@ -12,6 +12,8 @@ export class DotShareAuth {
     
     private static cachedTierInfo: TierInfo | null = null;
     private static _context: vscode.ExtensionContext | null = null;
+    // Note: _context is set via setContext() for future ban-check use
+    public static getContext() { return this._context; }
 
     /** Call once during activation to allow ban checks from inside auth methods. */
     public static setContext(ctx: vscode.ExtensionContext): void {

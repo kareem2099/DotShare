@@ -20,14 +20,14 @@ import { generatePost as generateOpenAIPost } from '../ai/openai';
 import { generatePost as generateXAIPost } from '../ai/xai';
 import { shareToLinkedIn } from '../platforms/linkedin';
 import { shareToTelegram } from '../platforms/telegram';
-import { shareToReddit } from '../platforms/reddit';
+
 import { shareToX } from '../platforms/x';
-import { shareToFacebook } from '../platforms/facebook';
+
 import { shareToBlueSky } from '../platforms/bluesky';
 import { shareToDevTo } from '../platforms/devto';
-import { shareToMedium } from '../platforms/medium';
+
 import { parseFrontMatter } from '../utils/frontmatter-parser';
-import { validateDevTo, validateMedium } from '../utils/blog-validator';
+import { validateDevTo } from '../utils/blog-validator';
 import { generatePost as generateClaudePost } from '../ai/claude';
 import { DraftsService } from '../services/DraftsService';
 import { fetchDevToArticles, updateDevToArticle } from '../platforms/devto';
@@ -44,7 +44,7 @@ export class PostHandler {
         private context: vscode.ExtensionContext,
         private historyService: HistoryService,
         private analyticsService: AnalyticsService,
-        private mediaService: MediaService,
+        _mediaService: MediaService,
         private draftsService: DraftsService
     ) { }
 
@@ -65,9 +65,7 @@ export class PostHandler {
                     await this.handleShareToTelegram(message);
                     break;
 
-                case 'shareToFacebook':
-                    await this.handleShareToFacebook(message);
-                    break;
+
 
                 case 'shareToDiscord':
                     await this.handleShareToDiscord(message);
@@ -77,9 +75,6 @@ export class PostHandler {
                     await this.handleShareToX(message);
                     break;
 
-                case 'shareToReddit':
-                    await this.handleShareToReddit(message);
-                    break;
 
                 case 'shareToBlueSky':
                     await this.handleShareToBlueSky(message);
@@ -89,9 +84,7 @@ export class PostHandler {
                     await this.handleShareToDevTo(message);
                     break;
 
-                case 'shareToMedium':
-                    await this.handleShareToMedium(message);
-                    break;
+
 
                 case 'shareBlog':
                     await this.handleShareBlog(message);
@@ -103,7 +96,7 @@ export class PostHandler {
 
                 case 'scheduleBlog':
                     // Rust backend scheduler doesn't yet support blog metadata (title, tags, etc).
-                    this.sendSuccess('☁️ Blog scheduling (Dev.to / Medium) will be available in the next DotSuite Cloud update!');
+                    this.sendSuccess('☁️ Blog scheduling (Dev.to) will be available in the next DotSuite Cloud update!');
                     break;
 
                 case 'scheduleThread':
@@ -248,12 +241,7 @@ export class PostHandler {
         await this.shareToTelegramWithUpdate(postData, msg.telegramBot, msg.telegramChat, undefined);
     }
 
-    private async handleShareToFacebook(message: Message): Promise<void> {
-        const msg = message as { post?: string; mediaFilePaths?: string[] };
-        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
-        const history = this.historyService.getHistory();
-        await this.shareToFacebookWithUpdate(postData, history[0]?.id);
-    }
+
 
     private async handleShareToDiscord(message: Message): Promise<void> {
         const msg = message as { post?: string; mediaFilePaths?: string[] };
@@ -269,11 +257,6 @@ export class PostHandler {
         await this.shareToXWithUpdate(postData, history[0]?.id);
     }
 
-    private async handleShareToReddit(message: Message): Promise<void> {
-        const msg = message as { post?: string; mediaFilePaths?: string[] };
-        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
-        await this.shareToRedditWithUpdate(postData, message, undefined);
-    }
 
     private async handleShareToBlueSky(message: Message): Promise<void> {
         const msg = message as { post?: string; mediaFilePaths?: string[] };
@@ -289,12 +272,7 @@ export class PostHandler {
         await this.shareToDevToWithUpdate(postData, message, history[0]?.id);
     }
 
-    private async handleShareToMedium(message: Message): Promise<void> {
-        const msg = message as { post?: string; mediaFilePaths?: string[]; title?: string; tags?: string[]; publishStatus?: string };
-        const postData: PostData = { text: msg.post || '', media: msg.mediaFilePaths || [] };
-        const history = this.historyService.getHistory();
-        await this.shareToMediumWithUpdate(postData, message, history[0]?.id);
-    }
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // Unified Share
@@ -324,8 +302,7 @@ export class PostHandler {
             type: 'info'
         });
 
-        const redditMetadata = message.redditMetadata as Record<string, unknown> | undefined;
-        await this.unifiedSharePost(platforms, postData, mediaFilePaths, history[0]?.id, { redditMetadata });
+        await this.unifiedSharePost(platforms, postData, mediaFilePaths, history[0]?.id);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -393,7 +370,7 @@ export class PostHandler {
         // Sync local credentials to backend first (fire and forget to not block UI immediately)
         // We await it here so the subsequent getConnections includes them if newly added.
         try {
-            const platformsToSync = ['telegram', 'devto', 'medium', 'bluesky', 'facebook', 'linkedin', 'x'] as SocialPlatform[];
+            const platformsToSync = ['telegram', 'devto', 'bluesky', 'linkedin', 'x'] as SocialPlatform[];
             await SchedulerClient.syncLocalCredentials(this.context, platformsToSync);
         } catch (err) {
             Logger.warn('[PostHandler] Failed to sync local credentials', err);
@@ -475,7 +452,7 @@ export class PostHandler {
         const result = await SchedulerClient.schedulePost(
             this.context,
             postData,
-            msg.platforms as ('linkedin' | 'telegram' | 'x' | 'facebook' | 'discord' | 'reddit' | 'bluesky')[],
+            msg.platforms as ('linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky')[],
             scheduledTimeLocal
         );
 
@@ -607,9 +584,7 @@ export class PostHandler {
                 if (platform === 'devto') {
                     await this.shareToDevToWithUpdate(postData, blogMessage, undefined);
                     successCount++;
-                } else if (platform === 'medium') {
-                    await this.shareToMediumWithUpdate(postData, blogMessage, undefined);
-                    successCount++;
+
                 } else {
                     Logger.info(`[PostHandler] Unknown blog platform: ${platform}`);
                 }
@@ -685,22 +660,7 @@ export class PostHandler {
         }
     }
 
-    private async shareToFacebookWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
-        try {
-            const facebookToken = await this.context.secrets.get('facebookToken') || '';
-            const facebookPageToken = await this.context.secrets.get('facebookPageToken') || null;
-            const facebookPageId = await this.context.secrets.get('facebookPageId') || undefined;
 
-            await shareToFacebook(facebookToken, facebookPageToken, { ...post, pageId: facebookPageId });
-
-            this.sendSuccess('Successfully posted to Facebook!');
-            if (postId) this.historyService.recordShare(postId, 'facebook', true);
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) this.historyService.recordShare(postId, 'facebook', false, errorMessage);
-            throw new Error(`Error sharing to Facebook: ${errorMessage}`);
-        }
-    }
 
     private async shareToDiscordWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         // TODO: implement Discord webhook sharing
@@ -726,63 +686,6 @@ export class PostHandler {
         }
     }
 
-    private async shareToRedditWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<string | undefined> {
-        try {
-            const msg = message as {
-                redditAccessToken?: string;
-                redditRefreshToken?: string;
-                post?: string;
-                redditSubreddit?: string;
-                redditTitle?: string;
-                redditFlairId?: string;
-                redditPostType?: string;
-                redditSpoiler?: boolean;
-            };
-
-            const redditPostData = {
-                text: msg.post || post.text,
-                media: post.media,
-                subreddit: msg.redditSubreddit || '',
-                title: msg.redditTitle,
-                flairId: msg.redditFlairId,
-                isSelfPost: msg.redditPostType !== 'link',
-                spoiler: msg.redditSpoiler
-            };
-
-            const postIdOnPlatform = await shareToReddit(redditPostData);
-
-            if (postId) this.historyService.recordShare(postId, 'reddit', true, undefined, postIdOnPlatform);
-
-            // v3.1.0: append AutoMod silent-removal disclaimer to success toast
-            const subredditLabel = msg.redditSubreddit
-                ? ` to ${msg.redditSubreddit.startsWith('r/') ? msg.redditSubreddit : `r/${msg.redditSubreddit}`}`
-                : '';
-            this.sendSuccess(
-                `Successfully posted${subredditLabel}! ` +
-                `⚠️ Note: AutoModerator may silently remove posts that don't meet account age or karma requirements — check the subreddit rules if your post doesn't appear.`
-            );
-
-            return postIdOnPlatform;
-        } catch (error: unknown) {
-            // Properly extract error message from any error type
-            let errorMessage = 'Unknown error';
-            if (error instanceof Error) {
-                errorMessage = error.message;
-            } else if (typeof error === 'string') {
-                errorMessage = error;
-            } else if (error && typeof error === 'object') {
-                const obj = error as Record<string, unknown>;
-                if (obj.message && typeof obj.message === 'string') {
-                    errorMessage = obj.message;
-                } else {
-                    errorMessage = String(obj);
-                }
-            }
-
-            if (postId) this.historyService.recordShare(postId, 'reddit', false, errorMessage);
-            throw new Error(`Reddit sharing failed: ${errorMessage}`);
-        }
-    }
 
     private async shareToBlueSkyWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         try {
@@ -870,62 +773,7 @@ export class PostHandler {
         }
     }
 
-    private async shareToMediumWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<void> {
-        try {
-            const msg = message as {
-                post?: string;
-                mediaFilePaths?: string[];
-                title?: string;
-                tags?: string[];
-                publishStatus?: string;
-                canonicalUrl?: string;
-            };
 
-            const mediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
-            if (!mediumAccessToken) {
-                throw new Error('Medium Access Token not configured. Go to Settings to add it.');
-            }
-
-            // ── Pre-publish validation ────────────────────────────────────────
-            const bodyText = msg.post || post.text;
-            const validation = validateMedium({
-                title: msg.title,
-                body: bodyText,
-                tags: msg.tags,
-            });
-
-            // Surface each warning as an individual info toast
-            for (const issue of validation.issues.filter(i => i.severity === 'warning')) {
-                this.view.webview.postMessage({ command: 'status', status: issue.message, type: 'warning' });
-            }
-
-            // Block on errors — throw so handleShareBlog correctly records failure
-            if (!validation.valid) {
-                const errors = validation.issues
-                    .filter(i => i.severity === 'error')
-                    .map(i => i.message)
-                    .join(' | ');
-                throw new Error(errors);
-            }
-            // ─────────────────────────────────────────────────────────────────
-
-            await shareToMedium(mediumAccessToken, {
-                text: bodyText,
-                media: msg.mediaFilePaths || post.media,
-                title: msg.title,
-                tags: validation.sanitizedTags ?? msg.tags,
-                publishStatus: msg.publishStatus as 'public' | 'draft' | 'unlisted' | 'published' | undefined,
-                canonicalUrl: msg.canonicalUrl
-            });
-
-            if (postId) this.historyService.recordShare(postId, 'medium', true);
-            this.view.webview.postMessage({ command: 'blogShareComplete', platform: 'medium' });
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (postId) this.historyService.recordShare(postId, 'medium', false, errorMessage);
-            throw new Error(`Error sharing to Medium: ${errorMessage}`);
-        }
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Unified Share (multi-platform)
@@ -935,8 +783,7 @@ export class PostHandler {
         platforms: string[],
         post: PostData,
         mediaFilePaths: string[] = [],
-        postId?: string,
-        metadata?: { redditMetadata?: Record<string, unknown> }
+        postId?: string
     ): Promise<void> {
         // Ensure all media paths are merged into the post object
         if (mediaFilePaths.length > 0) {
@@ -958,29 +805,10 @@ export class PostHandler {
                     case 'x':
                         await this.shareToXWithUpdate(post, postId);
                         break;
-                    case 'facebook':
-                        await this.shareToFacebookWithUpdate(post, postId);
-                        break;
+
                     case 'discord':
                         await this.shareToDiscordWithUpdate(post, postId);
                         break;
-                    case 'reddit': {
-                        const redditMeta = metadata?.redditMetadata || {};
-                        const redditMessage: Message = {
-                            command: 'shareToReddit',
-                            redditAccessToken: await this.context.secrets.get('redditAccessToken') || '',
-                            redditRefreshToken: await this.context.secrets.get('redditRefreshToken') || '',
-                            redditSubreddit: (redditMeta.subreddit as string) || await this.context.secrets.get('redditSubreddit') || '',
-                            redditTitle: (redditMeta.title as string) || post.text.substring(0, 300),
-                            redditFlairId: (redditMeta.flair as string) || '',
-                            redditPostType: (redditMeta.postType as string) || 'self',
-                            redditSpoiler: (redditMeta.spoiler as boolean) || false,
-                            post: post.text,
-                            mediaFilePaths
-                        };
-                        await this.shareToRedditWithUpdate(post, redditMessage, postId);
-                        break;
-                    }
                     case 'bluesky':
                         await this.shareToBlueSkyWithUpdate(post, postId);
                         break;
@@ -995,17 +823,7 @@ export class PostHandler {
                         await this.shareToDevToWithUpdate(post, devtoMsg, postId);
                         break;
                     }
-                    case 'medium': {
-                        const mediumMsg: Message = {
-                            command: 'shareToMedium',
-                            post: post.text,
-                            mediaFilePaths,
-                            title: post.text.split('\n')[0].substring(0, 100),
-                            publishStatus: 'public'
-                        };
-                        await this.shareToMediumWithUpdate(post, mediumMsg, postId);
-                        break;
-                    }
+
                     default:
                         Logger.info(`[PostHandler] Unknown platform: ${platform}`);
                         continue;
@@ -1018,7 +836,7 @@ export class PostHandler {
                 if (postId) {
                     this.historyService.recordShare(
                         postId,
-                        platform as 'linkedin' | 'telegram' | 'facebook' | 'discord' | 'x' | 'reddit' | 'bluesky' | 'devto' | 'medium',
+                        platform as 'linkedin' | 'telegram' | 'discord' | 'x' | 'bluesky' | 'devto',
                         false,
                         errorMessage
                     );

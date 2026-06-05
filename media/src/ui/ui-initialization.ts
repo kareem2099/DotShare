@@ -32,20 +32,7 @@ export function getDomElements() {
     };
 }
 
-// Function to show/hide Reddit subreddit selection based on Reddit availability
-export function updateRedditSubredditSectionVisibility() {
-    const redditSection = document.getElementById('redditSubredditSection') as HTMLElement;
-    if (!redditSection) return;
 
-    const redditAccessToken = (document.getElementById('redditAccessToken') as HTMLInputElement)?.value.trim();
-    const redditAvailable = redditAccessToken && redditAccessToken.length > 0;
-
-    if (redditAvailable) {
-        redditSection.style.display = 'block';
-    } else {
-        redditSection.style.display = 'none';
-    }
-}
 
 // Modal elements - for AI model selection modal
 export const providerTabBtns = document.querySelectorAll('.tab-btn');

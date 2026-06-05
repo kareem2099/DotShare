@@ -45,14 +45,14 @@ export class HashtagService {
         'linkedin': ['#Tech', '#Innovation', '#Professional', '#Career', '#Industry'],
         'twitter': ['#TechTwitter', '#DevTwitter', '#Code', '#Programming', '#Startup'],
         'telegram': ['#Tech', '#Crypto', '#Blockchain', '#Programming', '#OpenSource'],
-        'facebook': ['#Tech', '#Programming', '#Developer', '#Code', '#Innovation'],
+
         'discord': ['#Gaming', '#Tech', '#Programming', '#Community', '#Code'],
-        'reddit': ['#Programming', '#Technology', '#Dev', '#Code', '#Tech'],
+
         'bluesky': ['#Tech', '#Programming', '#OpenSource', '#Web3', '#Decentralized']
     };
 
     /** Platforms where hashtags have no functional effect and should NOT be appended */
-    private static readonly HASHTAG_UNSUPPORTED_PLATFORMS = new Set(['reddit', 'discord']);
+    private static readonly HASHTAG_UNSUPPORTED_PLATFORMS = new Set(['discord']);
 
     /**
      * Returns true if the given platform supports/benefits from hashtags.

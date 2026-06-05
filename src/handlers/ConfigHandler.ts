@@ -32,9 +32,7 @@ export class ConfigHandler {
                     await this.handleSaveTelegramCredentials(message);
                     break;
 
-                case 'saveFacebookToken':
-                    await this.handleSaveFacebookToken(message);
-                    break;
+
 
                 case 'saveDiscordWebhook':
                     await this.handleSaveDiscordWebhook(message);
@@ -44,9 +42,6 @@ export class ConfigHandler {
                     await this.handleSaveXCredentials(message);
                     break;
 
-                case 'saveRedditCredentials':
-                    await this.handleSaveRedditCredentials(message);
-                    break;
 
                 case 'saveBlueSkyCredentials':
                     await this.handleSaveBlueSkyCredentials(message);
@@ -56,9 +51,7 @@ export class ConfigHandler {
                     await this.handleSaveDevToCredentials(message);
                     break;
 
-                case 'saveMediumCredentials':
-                    await this.handleSaveMediumCredentials(message);
-                    break;
+
 
                 case 'loadConfiguration':
                     await this.handleLoadConfiguration();
@@ -124,15 +117,6 @@ export class ConfigHandler {
         this.sendSuccess('Telegram credentials saved!');
     }
 
-    private async handleSaveFacebookToken(message: Message): Promise<void> {
-        const token = message.facebookToken as string | undefined;
-        const pageToken = message.facebookPageToken as string | undefined;
-        const pageId = message.facebookPageId as string | undefined;
-        await this.context.secrets.store('facebookToken', token || '');
-        await this.context.secrets.store('facebookPageToken', pageToken || '');
-        await this.context.secrets.store('facebookPageId', pageId || '');
-        this.sendSuccess('Facebook credentials saved!');
-    }
 
     private async handleSaveDiscordWebhook(message: Message): Promise<void> {
         const webhook = message.discordWebhookUrl as string | undefined;
@@ -148,13 +132,6 @@ export class ConfigHandler {
         this.sendSuccess('X/Twitter credentials saved!');
     }
 
-    private async handleSaveRedditCredentials(message: Message): Promise<void> {
-        const token = message.redditAccessToken as string | undefined;
-        const refresh = message.redditRefreshToken as string | undefined;
-        await this.context.secrets.store('redditAccessToken', token || '');
-        await this.context.secrets.store('redditRefreshToken', refresh || '');
-        this.sendSuccess('Reddit credentials saved!');
-    }
 
     private async handleSaveBlueSkyCredentials(message: Message): Promise<void> {
         const identifier = message.blueskyIdentifier as string | undefined;
@@ -170,11 +147,7 @@ export class ConfigHandler {
         this.sendSuccess('Dev.to API key saved!');
     }
 
-    private async handleSaveMediumCredentials(message: Message): Promise<void> {
-        const accessToken = message.mediumAccessToken as string | undefined;
-        await this.context.secrets.store('mediumAccessToken', accessToken || '');
-        this.sendSuccess('Medium integration token saved!');
-    }
+
 
     private async handleLoadConfiguration(): Promise<void> {
         const savedModel = this.context.globalState.get('selectedModel');
@@ -189,22 +162,13 @@ export class ConfigHandler {
         const savedTelegramChat = await this.context.secrets.get('telegramChat') || '';
         const savedXToken = await this.context.secrets.get('xAccessToken') || '';
         const savedXSecret = await this.context.secrets.get('xAccessSecret') || '';
-        const savedFacebookToken = await this.context.secrets.get('facebookToken') || '';
-        const savedFacebookPageToken = await this.context.secrets.get('facebookPageToken') || '';
-        const savedFacebookPageId = await this.context.secrets.get('facebookPageId') || '';
+
         const savedDiscordWebhook = await this.context.secrets.get('discordWebhook') || '';
-        const savedRedditToken = await this.context.secrets.get('redditAccessToken') || '';
-        const savedRedditRefresh = await this.context.secrets.get('redditRefreshToken') || '';
-        const savedRedditClientId = await this.context.secrets.get('redditClientId') || '';
-        const savedRedditClientSecret = await this.context.secrets.get('redditClientSecret') || '';
-        const savedRedditUsername = await this.context.secrets.get('redditUsername') || '';
-        const savedRedditPassword = await this.context.secrets.get('redditPassword') || '';
-        const savedRedditApiName = this.context.globalState.get('redditApiName', 'Reddit Account');
         const savedBlueSkyIdentifier = await this.context.secrets.get('blueskyIdentifier') || '';
         const savedBlueSkyPassword = await this.context.secrets.get('blueskyPassword') || '';
         const savedDevToApiKey = await this.context.secrets.get('devtoApiKey') || '';
-        const savedMediumAccessToken = await this.context.secrets.get('mediumAccessToken') || '';
-        const currentTheme = this.context.globalState.get('dotshareTheme') || 'light';
+
+
         const currentLanguage = this.context.globalState.get('dotshareLanguage') || 'en';
 
         let translations = {};
@@ -233,32 +197,19 @@ export class ConfigHandler {
             telegramChat: savedTelegramChat,
             xAccessToken: savedXToken,
             xAccessSecret: savedXSecret,
-            facebookToken: savedFacebookToken,
-            facebookPageToken: savedFacebookPageToken,
-            facebookPageId: savedFacebookPageId,
+
             discordWebhookUrl: savedDiscordWebhook,
-            redditAccessToken: savedRedditToken,
-            redditRefreshToken: savedRedditRefresh,
-            redditClientId: savedRedditClientId,
-            redditClientSecret: savedRedditClientSecret,
-            redditUsername: savedRedditUsername,
-            redditPassword: savedRedditPassword,
-            redditApiName: savedRedditApiName,
             blueskyIdentifier: savedBlueSkyIdentifier,
             blueskyPassword: savedBlueSkyPassword,
             devtoApiKey: savedDevToApiKey,
-            mediumAccessToken: savedMediumAccessToken,
+
             githubConnected,
-            theme: currentTheme,
+
             language: currentLanguage,
             translations: translations,
             // AEGIS 1.4.0: Proactive refresh flags & expiry timestamps
             xShouldRefreshSoon: this.context.globalState.get<boolean>('x_should_refresh_soon'),
-            redditShouldRefreshSoon: this.context.globalState.get<boolean>('reddit_should_refresh_soon'),
-            facebookShouldRefreshSoon: this.context.globalState.get<boolean>('facebook_should_refresh_soon'),
             xExpiresAt: await this.context.secrets.get('x_expires_at'),
-            redditExpiresAt: await this.context.secrets.get('reddit_expires_at'),
-            facebookExpiresAt: await this.context.secrets.get('facebook_expires_at'),
         });
     }
 

@@ -22,9 +22,6 @@
                     <option value="ar">العربية</option>
                     <option value="ru">Русский</option>
                 </select>
-                <button id="themeToggle" class="theme-toggle" title="Toggle Theme">
-                    <span class="icon">🌙</span>
-                </button>
             </div>
         </div>
     </header>
@@ -247,69 +244,6 @@
                         </details>
                     </div>
 
-                    <div class="platform-card facebook">
-                        <div class="card-header">
-                            <h3 data-key="facebook">Facebook</h3>
-                            <div class="card-actions">
-                                <button class="create-post-btn" data-platform="facebook" data-key="createPostBtn">✨
-                                    Create Post</button>
-                                <button class="saved-apis-btn" data-platform="facebook" data-key="savedApisBtn">📚 Saved
-                                    APIs</button>
-                            </div>
-                        </div>
-                        <p data-key="facebookDescription">Share to Facebook profiles and pages</p>
-
-                        <div class="oauth-connect-section" id="oauthSection_facebook">
-                            <div class="oauth-btn-row" id="oauthBtnRow_facebook">
-                                <button class="oauth-connect-btn oauth-connect-btn--facebook" id="oauthConnect_facebook"
-                                    data-platform="facebook">
-                                    <span class="oauth-icon" data-key="connectWithFacebook">🔗 Connect with
-                                        Facebook</span>
-                                    <span class="oauth-btn-text" id="oauthBtnText_facebook"
-                                        style="display:none;"></span>
-                                </button>
-                                <button class="oauth-disconnect-btn" id="oauthDisconnect_facebook"
-                                    data-platform="facebook" style="display:none;" title="Disconnect Facebook"
-                                    data-key="disconnect">Disconnect</button>
-                                <button class="oauth-refresh-btn" id="oauthRefresh_facebook" data-platform="facebook"
-                                    style="display:none;" title="Refresh Connection">Refresh Connection</button>
-                            </div>
-                            <div class="aegis-badge" id="aegisBadge_facebook" style="display:none;">
-                                <span class="warning-icon">⚠️</span>
-                                <span class="expiry-text" id="expiryText_facebook">Token expires soon</span>
-                            </div>
-                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_facebook">
-                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
-                                <span class="toggle-icon">⌄</span>
-                            </div>
-                        </div>
-
-                        <div class="oauth-advanced-content" id="oauthAdvancedContent_facebook" style="display:none;">
-                            <div class="input-group">
-                                <label for="facebookToken">Access Token</label>
-                                <input type="password" id="facebookToken"
-                                    placeholder="Enter your Facebook Access Token">
-                            </div>
-                            <div class="input-group">
-                                <label for="facebookPageToken">Page Token (Optional)</label>
-                                <input type="password" id="facebookPageToken"
-                                    placeholder="Page access token for posting to pages">
-                            </div>
-                            <div class="input-group">
-                                <label for="facebookPageId">Page ID (Optional)</label>
-                                <input type="text" id="facebookPageId" placeholder="Facebook page ID">
-                            </div>
-                        </div>
-                        <details class="guidelines">
-                            <summary>How to get Facebook tokens</summary>
-                            <ol>
-                                <li>Create a Facebook App at <a href="https://developers.facebook.com/"
-                                        target="_blank">developers.facebook.com</a></li>
-                                <li>Get your user access token for profile posting</li>
-                                <li>For pages: Get page access token and page ID</li>
-                            </ol>
-                        </details>
-                    </div>
 
                     <div class="platform-card discord">
                         <div class="card-header">
@@ -336,62 +270,6 @@
                         </details>
                     </div>
 
-                    <div class="platform-card reddit">
-                        <div class="card-header">
-                            <h3 data-key="reddit">Reddit</h3>
-                            <div class="card-actions">
-                                <button class="create-post-btn" data-platform="reddit" data-key="createPostBtn">✨ Create
-                                    Post</button>
-                                <button class="saved-apis-btn" data-platform="reddit" data-key="savedApisBtn">📚 Saved
-                                    APIs</button>
-                            </div>
-                        </div>
-                        <p data-key="redditDescription">Share posts to Reddit communities</p>
-
-                        <div class="oauth-connect-section" id="oauthSection_reddit">
-                            <div class="oauth-btn-row" id="oauthBtnRow_reddit">
-                                <button class="oauth-connect-btn oauth-connect-btn--reddit" id="oauthConnect_reddit"
-                                    data-platform="reddit" disabled
-                                    title="Due to Vercel leaks, we are waiting until they restore access. Sorry for the delay. You can use your own credentials to connect.">
-                                    <span class="oauth-icon" data-key="connectWithReddit">🔗 Connect with Reddit</span>
-                                    <span class="oauth-btn-text" id="oauthBtnText_reddit" style="display:none;"></span>
-                                </button>
-                                <button class="oauth-disconnect-btn" id="oauthDisconnect_reddit" data-platform="reddit"
-                                    style="display:none;" title="Disconnect Reddit"
-                                    data-key="disconnect">Disconnect</button>
-                                <button class="oauth-refresh-btn" id="oauthRefresh_reddit" data-platform="reddit"
-                                    style="display:none;" title="Refresh Connection">Refresh Connection</button>
-                            </div>
-                            <div class="aegis-badge" id="aegisBadge_reddit" style="display:none;">
-                                <span class="warning-icon">⚠️</span>
-                                <span class="expiry-text" id="expiryText_reddit">Token expires soon</span>
-                            </div>
-                            <div class="oauth-advanced-toggle" id="oauthAdvancedToggle_reddit">
-                                <span class="toggle-text" data-key="advancedToken">Advanced: Enter token manually</span>
-                                <span class="toggle-icon">⌄</span>
-                            </div>
-                        </div>
-
-                        <div class="oauth-advanced-content" id="oauthAdvancedContent_reddit" style="display:none;">
-                            <div class="input-group">
-                                <label for="redditAccessToken">Access Token</label>
-                                <input type="password" id="redditAccessToken"
-                                    placeholder="Enter your Reddit Access Token">
-                            </div>
-                        </div>
-                        <details class="guidelines">
-                            <summary>How to get Reddit credentials</summary>
-                            <ol>
-                                <li>Go to <a href="https://www.reddit.com/prefs/apps" target="_blank">Reddit Apps</a>
-                                </li>
-                                <li>Create a "script" type app with redirect URI <code>http://localhost:8080</code></li>
-                                <li>Copy Client ID and Client Secret</li>
-                                <li>Enter your login details and generate tokens from the extension UI</li>
-                            </ol>
-                            <p><strong>💡 Tip:</strong> The system handles token refresh automatically — setup only
-                                once!</p>
-                        </details>
-                    </div>
 
                     <div class="platform-card bluesky">
                         <div class="card-header">
@@ -448,41 +326,7 @@
                         </details>
                     </div>
 
-                    <div class="platform-card medium">
-                        <div class="card-header">
-                            <h3>Medium</h3>
-                            <div class="card-actions">
-                                <button class="create-post-btn" data-platform="medium" data-key="createPostBtn">✨
-                                    Create Post</button>
-                                <button class="saved-apis-btn" data-platform="medium" data-key="savedApisBtn">📚 Saved
-                                    APIs</button>
-                            </div>
-                        </div>
 
-                        <div class="status-box warning"
-                            style="background: rgba(255, 165, 0, 0.1); border-left: 4px solid #ffa500; padding: 10px; margin-bottom: 12px; font-size: 11px;">
-                            <strong>⚠️ Notice:</strong> Medium has restricted its API. If "Integration Tokens" is
-                            missing from your
-                            <a href="https://medium.com/me/settings/publishing" target="_blank"
-                                style="color: var(--vscode-link-foreground);">Publishing Settings</a>,
-                            you <u>must</u> email <code
-                                style="color: var(--vscode-textPreformat-foreground);">yourfriends@medium.com</code> to
-                            request manual activation.
-                        </div>
-
-                        <div class="input-group">
-                            <label for="mediumAccessToken">Integration Token</label>
-                            <input type="password" id="mediumAccessToken" placeholder="Paste your token here...">
-                        </div>
-                        <details class="guidelines">
-                            <summary>How to get Medium Integration Token</summary>
-                            <ol>
-                                <li>Go to your Medium <a href="https://medium.com/me/settings/security"
-                                        target="_blank">Security Settings</a></li>
-                                <li>Click on Integration tokens to generate a new one</li>
-                            </ol>
-                        </details>
-                    </div>
 
                     <div class="platform-card github">
                         <div class="card-header">

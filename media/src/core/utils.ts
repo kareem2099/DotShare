@@ -22,13 +22,11 @@ export let applyModelBtn: HTMLButtonElement | null = null;
 export let linkedinToken: HTMLInputElement | null = null;
 export let telegramBot: HTMLInputElement | null = null;
 export let telegramChat: HTMLInputElement | null = null;
-export let facebookToken: HTMLInputElement | null = null;
-export let facebookPageToken: HTMLInputElement | null = null;
-export let facebookPageId: HTMLInputElement | null = null;
+
 export let discordWebhook: HTMLInputElement | null = null;
 export let xAccessToken: HTMLInputElement | null = null;
 export let xAccessSecret: HTMLInputElement | null = null;
-export let redditAccessToken: HTMLInputElement | null = null;
+
 export let blueskyIdentifier: HTMLInputElement | null = null;
 export let blueskyPassword: HTMLInputElement | null = null;
 
@@ -49,7 +47,7 @@ export let closeScheduleModal: HTMLSpanElement | null = null;
 export let scheduleDate: HTMLInputElement | null = null;
 export let scheduleLinkedIn: HTMLInputElement | null = null;
 export let scheduleTelegram: HTMLInputElement | null = null;
-export let scheduleReddit: HTMLInputElement | null = null;
+
 export let scheduledPostText: HTMLTextAreaElement | null = null;
 export let scheduledMediaPreview: HTMLDivElement | null = null;
 export let cancelScheduleBtn: HTMLButtonElement | null = null;
@@ -59,17 +57,13 @@ export let closeEditScheduledModal: HTMLSpanElement | null = null;
 export let editScheduleDate: HTMLInputElement | null = null;
 export let editScheduleLinkedIn: HTMLInputElement | null = null;
 export let editScheduleTelegram: HTMLInputElement | null = null;
-export let editScheduleReddit: HTMLInputElement | null = null;
+
 export let editScheduledPostText: HTMLTextAreaElement | null = null;
 export let editScheduledMediaPreview: HTMLDivElement | null = null;
 export let cancelEditScheduledBtn: HTMLButtonElement | null = null;
 export let saveEditScheduledBtn: HTMLButtonElement | null = null;
 export let scheduledPosts: HTMLDivElement | null = null;
 export let scheduledList: HTMLDivElement | null = null;
-
-// Theme variables (moved from app.ts)
-export const themes = ['light-elegant', 'light-pure', 'dark-nebula', 'dark-cyber'];
-export let currentThemeVariant: string = localStorage.getItem('theme') || 'light-elegant';
 
 // Language variable (moved from app.ts)
 export let currentLang: string = localStorage.getItem('lang') || 'en';
@@ -135,11 +129,12 @@ export function formatTimestamp(dateString: string): string {
     return date.toLocaleDateString();
 }
 
-export function getProviderEmoji(provider: 'gemini' | 'openai' | 'xai'): string {
+export function getProviderEmoji(provider: string): string {
     switch (provider) {
         case 'gemini': return '🔮';
         case 'openai': return '🤖';
         case 'xai': return '🦄';
+        case 'claude': return '🧠';
         default: return '🤔';
     }
 }
@@ -162,10 +157,8 @@ export function getPlatformIcon(platform: string): string {
     const icons: { [key: string]: string } = {
         linkedin: '💼',
         x: '🐦',
-        facebook: '📘',
         telegram: '📱',
         discord: '💬',
-        reddit: '🟠',
         bluesky: '🦋'
     };
     return icons[platform] || '🔗';
@@ -185,36 +178,6 @@ export function getDefaultScheduleTime(): string {
 export function getUnixTimestamp(dateString: string): number {
     const date = new Date(dateString);
     return Math.floor(date.getTime() / 1000);
-}
-
-export function updateThemeToggle(): void {
-    const themeIcon = document.querySelector('#themeToggle .icon') as HTMLElement;
-    const themeText = document.querySelector('#themeToggle .text') as HTMLElement;
-    if (themeIcon && themeText) {
-        const themeNames = {
-            'light-elegant': 'Elegant Light 🌿',
-            'light-pure': 'Pure Light ✨',
-            'dark-nebula': 'Nebula Dark 🌌',
-            'dark-cyber': 'Cyber Dark 🤖'
-        };
-        themeText.textContent = themeNames[currentThemeVariant as keyof typeof themeNames] || currentThemeVariant;
-        themeIcon.textContent = currentThemeVariant.startsWith('dark') ? '🌙' : '☀️';
-    }
-}
-
-export function applyTheme(): void {
-    Logger.info('Applying theme:', currentThemeVariant);
-    // Remove all theme classes
-    themes.forEach(theme => document.body.classList.remove(theme));
-    // Add current
-    document.body.classList.add(currentThemeVariant);
-    // Set data-theme
-    document.body.setAttribute('data-theme', currentThemeVariant);
-    // Set dark class if dark theme
-    const isDark = currentThemeVariant.startsWith('dark');
-    document.body.classList.toggle('dark', isDark);
-    Logger.info('Body classes after theme apply:', document.body.className);
-    updateThemeToggle();
 }
 
 
@@ -250,20 +213,9 @@ export function checkPlatformAvailability(): void {
         newAvailablePlatforms.push('telegram');
     }
 
-    // Facebook: requires facebookToken
-    if (facebookToken && facebookToken.value.trim()) {
-        newAvailablePlatforms.push('facebook');
-    }
-
     // Discord: requires discordWebhook
     if (discordWebhook && discordWebhook.value.trim()) {
         newAvailablePlatforms.push('discord');
-    }
-
-    // Reddit: requires redditAccessToken and redditRefreshToken - Reddit uses script app which only needs access_token initially
-    // The refresh token may not be provided for script apps, so we'll just require the access token
-    if (redditAccessToken && redditAccessToken.value.trim()) {
-        newAvailablePlatforms.push('reddit');
     }
 
     // BlueSky: requires blueskyIdentifier and blueskyPassword
@@ -310,10 +262,8 @@ export function updateDynamicPlatformSelector(): void {
     const platformMapping: { [key: string]: { name: string; desc: string; group: keyof typeof groups } } = {
         linkedin: { name: 'LinkedIn', desc: 'Professional network', group: 'professional' },
         x: { name: 'X/Twitter', desc: 'Real-time updates', group: 'professional' },
-        facebook: { name: 'Facebook', desc: 'Connect with audience', group: 'social' },
         telegram: { name: 'Telegram', desc: 'Send to channels/groups', group: 'communities' },
         discord: { name: 'Discord', desc: 'Community engagement', group: 'communities' },
-        reddit: { name: 'Reddit', desc: 'Discussion forums', group: 'communities' },
         bluesky: { name: 'BlueSky', desc: 'Decentralized social', group: 'decentralized' }
     };
 
@@ -385,10 +335,6 @@ export function updatePlatformSelection(): void {
                     icon = '🐦';
                     name = 'X/Twitter';
                     break;
-                case 'platformFacebook':
-                    icon = '📘';
-                    name = 'Facebook';
-                    break;
                 case 'platformInstagram':
                     icon = '📸';
                     name = 'Instagram';
@@ -400,10 +346,6 @@ export function updatePlatformSelection(): void {
                 case 'platformDiscord':
                     icon = '💬';
                     name = 'Discord';
-                    break;
-                case 'platformReddit':
-                    icon = '🟠';
-                    name = 'Reddit';
                     break;
                 case 'platformMastodon':
                     icon = '🦏';
@@ -443,11 +385,7 @@ export function updateButtonStates(): void {
     if (shareLinkedInBtn && linkedinToken) shareLinkedInBtn.disabled = !linkedinToken.value.trim();
     if (shareTelegramBtn && telegramBot && telegramChat) shareTelegramBtn.disabled = !(telegramBot.value.trim() && telegramChat.value.trim());
 
-    // Update new platform buttons
-    if (facebookToken) {
-        const shareFacebookBtn = document.getElementById('shareFacebookBtn') as HTMLButtonElement | null;
-        if (shareFacebookBtn) shareFacebookBtn.disabled = !facebookToken.value.trim();
-    }
+
 
     if (discordWebhook) {
         const shareDiscordBtn = document.getElementById('shareDiscordBtn') as HTMLButtonElement | null;
@@ -539,10 +477,6 @@ export function updateSelectedModel(newModel: SelectedModel): void {
     selectedModel = newModel;
 }
 
-// Function to update current theme
-export function updateThemeVariant(newTheme: string): void {
-    currentThemeVariant = newTheme;
-}
 
 // Function to update current language
 export function updateCurrentLang(newLang: string): void {
@@ -616,15 +550,6 @@ export function initializeGlobalDomElements(): void {
     const telegramChatElement = document.getElementById('telegramChat') as HTMLInputElement;
     if (telegramChatElement) telegramChat = telegramChatElement;
 
-    const facebookTokenElement = document.getElementById('facebookToken') as HTMLInputElement;
-    if (facebookTokenElement) facebookToken = facebookTokenElement;
-
-    const facebookPageTokenElement = document.getElementById('facebookPageToken') as HTMLInputElement;
-    if (facebookPageTokenElement) facebookPageToken = facebookPageTokenElement;
-
-    const facebookPageIdElement = document.getElementById('facebookPageId') as HTMLInputElement;
-    if (facebookPageIdElement) facebookPageId = facebookPageIdElement;
-
     const discordWebhookElement = document.getElementById('discordWebhook') as HTMLInputElement;
     if (discordWebhookElement) discordWebhook = discordWebhookElement;
 
@@ -640,8 +565,7 @@ export function initializeGlobalDomElements(): void {
     const xAccessSecretElement = document.getElementById('xAccessSecret') as HTMLInputElement;
     if (xAccessSecretElement) xAccessSecret = xAccessSecretElement;
 
-    const redditAccessTokenElement = document.getElementById('redditAccessToken') as HTMLInputElement;
-    if (redditAccessTokenElement) redditAccessToken = redditAccessTokenElement;
+
 
     // Media attachment elements
     const mediaAttachmentElement = document.getElementById('mediaAttachment') as HTMLDivElement;
@@ -687,8 +611,7 @@ export function initializeGlobalDomElements(): void {
     const scheduleTelegramElement = document.getElementById('scheduleTelegram') as HTMLInputElement;
     if (scheduleTelegramElement) scheduleTelegram = scheduleTelegramElement;
 
-    const scheduleRedditElement = document.getElementById('scheduleReddit') as HTMLInputElement;
-    if (scheduleRedditElement) scheduleReddit = scheduleRedditElement;
+
 
     const scheduledPostTextElement = document.getElementById('scheduledPostText') as HTMLTextAreaElement;
     if (scheduledPostTextElement) scheduledPostText = scheduledPostTextElement;
@@ -718,8 +641,7 @@ export function initializeGlobalDomElements(): void {
     const editScheduleTelegramElement = document.getElementById('editScheduleTelegram') as HTMLInputElement;
     if (editScheduleTelegramElement) editScheduleTelegram = editScheduleTelegramElement;
 
-    const editScheduleRedditElement = document.getElementById('editScheduleReddit') as HTMLInputElement;
-    if (editScheduleRedditElement) editScheduleReddit = editScheduleRedditElement;
+
 
     const editScheduledPostTextElement = document.getElementById('editScheduledPostText') as HTMLTextAreaElement;
     if (editScheduledPostTextElement) editScheduledPostText = editScheduledPostTextElement;

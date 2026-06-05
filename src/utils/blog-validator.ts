@@ -1,5 +1,5 @@
 /**
- * Blog Validator — Pre-publish validation for Dev.to & Medium
+ * Blog Validator — Pre-publish validation for Dev.to
  *
  * Two severity levels:
  *   error   → blocks publish entirely
@@ -31,11 +31,7 @@ const DEVTO = {
     BOILERPLATE_BODY:  'start writing your article here',
 } as const;
 
-const MEDIUM = {
-    MAX_TAGS:          5,
-    MAX_TITLE_LENGTH:  100,
-    MIN_WORD_COUNT:    50,
-} as const;
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -212,91 +208,6 @@ export function validateDevTo(params: {
     return { valid, issues, sanitizedTags };
 }
 
-// ── Medium Validator ──────────────────────────────────────────────────────────
-
-export function validateMedium(params: {
-    title?:       string;
-    body?:        string;
-    tags?:        string[];
-}): ValidationResult {
-    const issues: ValidationIssue[] = [];
-    const { title = '', body = '', tags = [] } = params;
-
-    // ── Errors ────────────────────────────────────────────────────────────────
-
-    if (!title.trim()) {
-        issues.push({
-            severity: 'error',
-            field:    'title',
-            message:  'Title is required for Medium articles.',
-        });
-    } else if (title.trim().length > MEDIUM.MAX_TITLE_LENGTH) {
-        issues.push({
-            severity: 'warning',
-            field:    'title',
-            message:  `Title is longer than ${MEDIUM.MAX_TITLE_LENGTH} characters. Medium will synthesize a title from your content automatically — your title may be ignored.`,
-        });
-    }
-
-    if (!body.trim()) {
-        issues.push({
-            severity: 'error',
-            field:    'body',
-            message:  'Article body is empty. Write some content before publishing.',
-        });
-    } else if (isBoilerplate(body)) {
-        issues.push({
-            severity: 'error',
-            field:    'body',
-            message:  'Article body still contains the boilerplate placeholder. Replace it with real content.',
-        });
-    }
-
-    // ── Warnings ──────────────────────────────────────────────────────────────
-
-    if (body.trim() && !isBoilerplate(body) && wordCount(body) < MEDIUM.MIN_WORD_COUNT) {
-        issues.push({
-            severity: 'warning',
-            field:    'body',
-            message:  `Article is very short (${wordCount(body)} words). Medium stories generally perform better with more content.`,
-        });
-    }
-
-    let sanitizedTags: string[] | undefined;
-
-    if (tags.length > MEDIUM.MAX_TAGS) {
-        const { sanitized, hadDuplicates } = sanitizeTags(tags, MEDIUM.MAX_TAGS);
-        sanitizedTags = sanitized;
-        issues.push({
-            severity:   'warning',
-            field:      'tags',
-            message:    `Medium supports a maximum of ${MEDIUM.MAX_TAGS} tags. Extra tags removed automatically.`,
-            fixedValue: sanitized,
-        });
-        if (hadDuplicates) {
-            issues.push({
-                severity:   'warning',
-                field:      'tags',
-                message:    'Duplicate tags removed automatically.',
-                fixedValue: sanitized,
-            });
-        }
-    } else if (tags.length > 0) {
-        const { sanitized, hadDuplicates } = sanitizeTags(tags, MEDIUM.MAX_TAGS);
-        sanitizedTags = sanitized;
-        if (hadDuplicates) {
-            issues.push({
-                severity:   'warning',
-                field:      'tags',
-                message:    'Duplicate tags removed automatically.',
-                fixedValue: sanitized,
-            });
-        }
-    }
-
-    const valid = !issues.some(i => i.severity === 'error');
-    return { valid, issues, sanitizedTags };
-}
 
 // ── Format issues as a human-readable summary ─────────────────────────────────
 

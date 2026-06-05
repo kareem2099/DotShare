@@ -1,6 +1,6 @@
 // Scheduled posts management functions - extracted from app.ts
 import { ScheduledPost } from '../../../src/types';
-import { showStatus, getScheduledStatusBadge, scheduledList, scheduledPosts, currentEditingPostId, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduleReddit, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat, setCurrentEditingPostId } from '../core/utils';
+import { getScheduledStatusBadge, scheduledList, scheduledPosts, editScheduleDate, editScheduleLinkedIn, editScheduleTelegram, editScheduledPostText, editScheduledMediaPreview, editScheduledModal, linkedinToken, telegramBot, telegramChat } from '../core/utils';
 import { translations } from '../core/translations';
 import { currentLang } from '../core/utils';
 
@@ -20,11 +20,11 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
 
     // Sort by scheduled time (earliest first)
     const sortedPosts = [...scheduledPostsArray].sort((a, b) =>
-        new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime()
+        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
     );
 
     for (const post of sortedPosts) {
-        const scheduledDate = new Date(post.scheduledTime);
+        const scheduledDate = new Date(post.scheduled_at);
         const now = new Date();
         const isPast = scheduledDate < now;
 
@@ -37,11 +37,11 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
         const platformIcons = post.platforms.map((p: string) => p === 'linkedin' ? '💼' : '📱').join(' ');
 
         // Add scheduling type indicator
-        const schedulingIcon = post.schedulingType === 'server' ? '☁️' : '💻';
+        const schedulingIcon = '☁️';
 
-        const truncatedText = post.postData.text.length > 80
-            ? post.postData.text.substring(0, 80) + '...'
-            : post.postData.text;
+        const truncatedText = post.text_preview.length > 80
+            ? post.text_preview.substring(0, 80) + '...'
+            : post.text_preview;
 
         html += `
             <div class="scheduled-item ${post.status}" data-post-id="${post.id}">
@@ -51,7 +51,7 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
                 </div>
                 <div class="scheduled-content">
                     <div class="scheduled-text">${truncatedText}</div>
-                    ${post.postData.media ? '<div class="scheduled-media">📎 Media attached</div>' : ''}
+                    ${post.has_media ? '<div class="scheduled-media">📎 Media attached</div>' : ''}
                 </div>
                 <div class="scheduled-actions">
                     <button class="cancel-scheduled-btn" data-post-id="${post.id}" title="Cancel Post">❌ Cancel</button>
@@ -65,24 +65,21 @@ export function updateScheduledPosts(scheduledPostsArray: ScheduledPost[]): void
 }
 
 export function populateEditModal(post: ScheduledPost): void {
-    const redditTokenInput = document.getElementById('redditAccessToken') as HTMLInputElement;
-    const redditRefreshInput = document.getElementById('redditRefreshToken') as HTMLInputElement;
+    if (!editScheduleDate || !editScheduleLinkedIn || !editScheduleTelegram || !editScheduledPostText || !editScheduledMediaPreview || !editScheduledModal || !linkedinToken || !telegramBot || !telegramChat) return;
 
-    if (!editScheduleDate || !editScheduleLinkedIn || !editScheduleTelegram || !editScheduleReddit || !editScheduledPostText || !editScheduledMediaPreview || !editScheduledModal || !linkedinToken || !telegramBot || !telegramChat) return;
-
-    // Populate the edit modal with the post data - scheduledTime is now stored as local time string
-    editScheduleDate.value = post.scheduledTime.slice(0, 16);
+    // Populate the edit modal with the post data - scheduled_at is now stored as local time string
+    editScheduleDate.value = post.scheduled_at.slice(0, 16);
 
     // Set platform checkboxes
     editScheduleLinkedIn.checked = post.platforms.includes('linkedin');
     editScheduleTelegram.checked = post.platforms.includes('telegram');
-    editScheduleReddit.checked = post.platforms.includes('reddit');
+
 
     // Set post text
-    editScheduledPostText.value = post.postData.text;
+    editScheduledPostText.value = post.text_preview;
 
     // Show media preview if present
-    if (post.postData.media) {
+    if (post.has_media) {
         editScheduledMediaPreview.innerHTML = '<p>📎 Media attached (cannot be changed currently)</p>';
     } else {
         editScheduledMediaPreview.innerHTML = '<p style="color: #666;">No media attached</p>';
@@ -91,7 +88,7 @@ export function populateEditModal(post: ScheduledPost): void {
     // Disable platforms without tokens
     editScheduleLinkedIn.disabled = !linkedinToken.value.trim();
     editScheduleTelegram.disabled = !(telegramBot.value.trim() && telegramChat.value.trim());
-    editScheduleReddit.disabled = !(redditTokenInput?.value.trim() && redditRefreshInput?.value.trim());
+
 
     editScheduledModal.style.display = 'flex';
 }

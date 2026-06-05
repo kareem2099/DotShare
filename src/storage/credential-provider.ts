@@ -4,13 +4,8 @@ export interface PlatformCredentials {
     telegramChat?: string;
     xAccessToken?: string;
     xAccessSecret?: string;
-    facebookToken?: string;
-    facebookPageToken?: string;
-    facebookPageId?: string;
+
     discordWebhookUrl?: string;
-    redditAccessToken?: string;
-    redditRefreshToken?: string;
-    redditSubreddit?: string;       // ✅ added
     blueskyIdentifier?: string;
     blueskyPassword?: string;
 }
@@ -48,23 +43,12 @@ export class CredentialProvider {
         return { accessToken: c.xAccessToken, accessSecret: c.xAccessSecret };
     }
 
-    public async getFacebookCredentials(): Promise<{ token?: string; pageToken?: string; pageId?: string }> {
-        const c = await this.resolve();
-        return { token: c.facebookToken, pageToken: c.facebookPageToken, pageId: c.facebookPageId };
-    }
+
 
     public async getDiscordWebhookUrl(): Promise<string | undefined> {
         return (await this.resolve()).discordWebhookUrl;
     }
 
-    public async getRedditCredentials(): Promise<{ accessToken?: string; refreshToken?: string }> {
-        const c = await this.resolve();
-        return { accessToken: c.redditAccessToken, refreshToken: c.redditRefreshToken };
-    }
-
-    public async getRedditSubreddit(): Promise<string | undefined> {   // ✅ added
-        return (await this.resolve()).redditSubreddit;
-    }
 
     public async getBlueSkyCredentials(): Promise<{ identifier?: string; password?: string }> {
         const c = await this.resolve();

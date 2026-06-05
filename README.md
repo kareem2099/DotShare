@@ -4,8 +4,8 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-CodeSnap-10b981?style=flat-square&labelColor=0f0f0f)
+[![Version](https://img.shields.io/badge/version-3.4.1-blue.svg)](https://github.com/kareem2099/DotShare)
+![Codename](https://img.shields.io/badge/codename-Cleanup-10b981?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
@@ -19,11 +19,20 @@
 
 ---
 
+## 🆕 What's New — v3.4.1 "Cleanup"
+
+- **🧹 Platform Purge**: Facebook, Reddit, and Medium have been fully removed from DotShare. All backend adapters, OAuth flows, UI components, secret management, and CSS styles related to these platforms are gone.
+- **🔧 TypeScript Cleanup**: Resolved all `noUnusedLocals` errors across `src/` and `media/src/`. Unused constructor parameters, dead imports, and leftover null constants from removed platforms are cleaned up.
+- **🐛 Type Fixes**: Corrected `ScheduledPost` property names (`scheduledTime` → `scheduled_at`, `postData` → `text_preview`/`has_media`), fixed `getProviderEmoji` to accept `claude`, and fixed `saved-apis.ts` module resolution path.
+- **📦 Zero Dead Code**: All `unused variable` and `unused import` warnings silenced without suppression hacks — unused constructor params are now proper plain params or have accessor methods.
+
+---
+
 ## 🆕 What's New — v3.4.0 "CodeSnap"
 
 - **📸 CodeSnap Panel**: Create beautiful, syntax-highlighted code snapshots directly from your editor with full customization controls (themes, font size, padding, line numbers, watermark, background color).
 - **🎨 9+ Professional Themes**: Choose from Atom One Dark, GitHub Dark, Monokai, Dracula, Nord, VS2015, Tokyo Night, GitHub Light, Catppuccin Mocha, and more—with accurate syntax highlighting via Highlight.js.
-- **📱 Share to All Platforms**: Export your CodeSnap directly to LinkedIn, X (Twitter), BlueSky, Telegram, Facebook, Discord, Reddit, Dev.to, Medium, and more—with the Composer automatically loading your snapshot.
+- **📱 Share to All Platforms**: Export your CodeSnap directly to LinkedIn, X (Twitter), BlueSky, Telegram, Discord, Dev.to, and more—with the Composer automatically loading your snapshot.
 - **💾 Local Save**: Download CodeSnap images as PNG files to your computer with one click.
 
 ---
@@ -51,7 +60,7 @@
 
 ## 🎯 Why DotShare?
 
-Building in public shouldn't be hard. DotShare bridges the gap between your code editor and your audience, letting you share achievements, updates, and insights across **9 social and blogging platforms** with AI-powered assistance—all without leaving VS Code.
+Building in public shouldn't be hard. DotShare bridges the gap between your code editor and your audience, letting you share achievements, updates, and insights across **7 platforms** with AI-powered assistance—all without leaving VS Code.
 
 ### The Problem We Solve
 
@@ -86,12 +95,9 @@ Share seamlessly across your entire professional network:
 | 🔗 **LinkedIn** | Social | Profile posts, rich media | ✅ Full Support |
 | 📱 **Telegram** | Social | Channels, groups, scheduling | ✅ Full Support |
 | 𝕏 **X (Twitter)** | Social | Tweets, threads, X Premium (25K chars), **up to 4 images** | ✅ Full Support |
-| 📘 **Facebook** | Social | Profiles, pages | ✅ Full Support |
 | 💬 **Discord** | Social | Webhooks, embeds | ✅ Full Support |
-| 🟠 **Reddit** | Social | Subreddits, profiles (r/, u/) | ✅ Full Support |
 | 🦋 **BlueSky** | Social | Threads, facets, **up to 4 images**, JIT compression | ✅ Full Support |
 | 👨‍💻 **Dev.to** | Blog | Articles, series, drafts | ✅ Full Support |
-| Ⓜ️ **Medium** | Blog | Articles, draft/publish/unlisted | ✅ Full Support |
 | 💻 **GitHub Gist** | Code | Snippets, public/secret, auto-populate | ✅ **New in v3.3.2** |
 
 ### 📰 The Publishing Suite (v3.0 New!)
@@ -101,7 +107,7 @@ DotShare is no longer just a social poster — it's a full **publishing suite**:
 - **Blog Publish Page**: Dedicated UI for long-form article publishing
 - **Active File Reader**: Load your `.md` file directly from VS Code editor
 - **YAML Frontmatter Parser**: Auto-fills title, tags, canonical URL from your markdown
-- **Draft vs. Publish Toggle**: Per-platform — draft to Dev.to, publish live to Medium, simultaneously
+- **Draft vs. Publish Toggle**: Per-platform draft / publish.
 - **Platform-First Navigation**: Click a platform icon → workspace adapts automatically
 - **Universal Drafts System**: Save any social post or blog article as a draft and resume later across all supported platforms. *(New in v3.2.6)*
 
@@ -199,7 +205,7 @@ Context-aware hashtags generated automatically:
 - Reads your project name, type, and `package.json` keywords
 - Scans recent git commit messages for intent
 - Detects tech terms and frameworks in generated post
-- Platform-aware: hashtags **skipped** for Reddit and Discord
+- Platform-aware: hashtags **skipped** for Discord
 - Add permanent tags via **VS Code Settings → DotShare → Custom Hashtags**
 
 ---
@@ -252,7 +258,6 @@ npm install -g dotshare-cli
 dotshare init
 dotshare login linkedin
 dotshare login telegram
-dotshare login reddit
 dotshare whoami
 ```
 
@@ -260,7 +265,7 @@ dotshare whoami
 
 ```bash
 # Simple text post
-dotshare "🚀 Just deployed v3.0 with Dev.to + Medium support!"
+dotshare "🚀 Just deployed v3.0 with Dev.to support!"
 
 # With media
 dotshare "Check out our new UI! 🎨" --media ./screenshot.png
@@ -283,16 +288,6 @@ dotshare "Backend optimization complete ⚡" --platforms linkedin,twitter
 3. Add to DotShare Settings
 
 **Note**: Dev.to does not support image file uploads via API. Use publicly hosted image URLs (Cloudinary, GitHub, Imgur) in your markdown or as cover image.
-</details>
-
-<details>
-<summary><b>Ⓜ️ Medium Integration Token</b></summary>
-
-1. Go to [Medium Settings](https://medium.com/me/settings)
-2. Under "Integration tokens", generate a new token
-3. Add to DotShare Settings
-
-**Note**: Medium does not support local image uploads via API. Use publicly hosted URLs.
 </details>
 
 <details>
@@ -323,17 +318,7 @@ dotshare "Backend optimization complete ⚡" --platforms linkedin,twitter
 4. Add to DotShare settings
 </details>
 
-<details>
-<summary><b>🟠 Reddit App Creation</b></summary>
 
-1. Go to [Reddit Apps](https://www.reddit.com/prefs/apps)
-2. Create app (select "script" type)
-3. Note your client ID and secret
-4. Use the DotShare UI to generate tokens automatically
-5. Set your target subreddit in Settings
-</details>
-
----
 
 ## 🤝 Contributing
 
@@ -389,7 +374,7 @@ If you can't donate, you can still help:
 - [Gemini AI](https://deepmind.google/technologies/gemini/) — Google DeepMind
 - [Anthropic Claude](https://www.anthropic.com/) — Anthropic
 - [Dev.to / Forem API](https://developers.forem.com/api)
-- [Medium API](https://github.com/Medium/medium-api-docs)
+
 - All our [contributors](https://github.com/kareem2099/DotShare/graphs/contributors) ❤️
 
 ---

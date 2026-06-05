@@ -45,7 +45,7 @@ export interface PlatformConfig {
      * Which WebView workspace to open for this platform:
      * - 'threads' → Thread Composer (X, Bluesky)
      * - 'social'  → Single post composer (LinkedIn, Telegram, etc.)
-     * - 'blogs'   → Long-form markdown editor (Dev.to, Medium)
+     * - 'blogs'   → Long-form markdown editor (Dev.to)
      */
     workspaceType: WorkspaceType;
 
@@ -120,18 +120,7 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
         authType:         'token',
     },
 
-    facebook: {
-        name:             'Facebook',
-        icon:             '📘',
-        maxChars:         63206,
-        supportsThreads:  false,
-        supportsMedia:    true,
-        maxMediaCount:    10,
-        supportsScheduling: true,
-        workspaceType:    'social',
-        charCountMethod:  'standard',
-        authType:         'oauth2',
-    },
+
 
     discord: {
         name:             'Discord',
@@ -146,18 +135,6 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
         authType:         'webhook',
     },
 
-    reddit: {
-        name:             'Reddit',
-        icon:             '🟠',
-        maxChars:         40000,
-        supportsThreads:  false,
-        supportsMedia:    true,
-        maxMediaCount:    20,
-        supportsScheduling: false, // Reddit API has no native scheduling
-        workspaceType:    'social',
-        charCountMethod:  'standard',
-        authType:         'oauth2',
-    },
 
     devto: {
         name:             'Dev.to',
@@ -172,18 +149,7 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
         authType:         'api_key',
     },
 
-    medium: {
-        name:             'Medium',
-        icon:             'Ⓜ️',
-        maxChars:         100000,
-        supportsThreads:  false,
-        supportsMedia:    true,
-        maxMediaCount:    50,
-        supportsScheduling: true,
-        workspaceType:    'blogs',
-        charCountMethod:  'standard',
-        authType:         'token',
-    },
+
 
     gist: {
         name:             'GitHub Gist',
@@ -230,7 +196,7 @@ export function getAllPlatforms(): string[] {
  * @example
  * getPlatformsByWorkspaceType('threads'); // ['x', 'bluesky']
  * getPlatformsByWorkspaceType('social');  // ['linkedin', 'telegram', ...]
- * getPlatformsByWorkspaceType('blogs');   // ['devto', 'medium']
+ * getPlatformsByWorkspaceType('blogs');   // ['devto']
  */
 export function getPlatformsByWorkspaceType(type: WorkspaceType): string[] {
     return Object.entries(PLATFORM_CONFIGS)

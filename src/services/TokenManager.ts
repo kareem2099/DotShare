@@ -8,7 +8,7 @@ export const AUTH_SERVER_URL = 'https://dotshare-auth-server.vercel.app';
 // Refresh 5 minutes before expiry
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
-type RefreshablePlatform = 'x' | 'reddit' | 'facebook';
+type RefreshablePlatform = 'x';
 
 interface TokenResponse {
     access_token: string;
@@ -41,13 +41,7 @@ export class TokenManager {
                 await this._context.secrets.store('xAccessToken', accessToken);
                 if (refreshToken) await this._context.secrets.store('xRefreshToken', refreshToken);
                 break;
-            case 'reddit':
-                await this._context.secrets.store('redditAccessToken', accessToken);
-                if (refreshToken) await this._context.secrets.store('redditRefreshToken', refreshToken);
-                break;
-            case 'facebook':
-                await this._context.secrets.store('facebookToken', accessToken);
-                break;
+
         }
 
         // AEGIS 1.4.0: Prefer absolute expires_at if provided
@@ -85,8 +79,7 @@ export class TokenManager {
     // ── Get a valid token — refresh if needed ─────────────────────────────────
 
     static async getValidToken(platform: 'x'): Promise<string>;
-    static async getValidToken(platform: 'reddit'): Promise<string>;
-    static async getValidToken(platform: 'facebook'): Promise<string>;
+
     static async getValidToken(platform: RefreshablePlatform): Promise<string> {
         const expiring = await this.isExpiringSoon(platform);
 
@@ -102,10 +95,7 @@ export class TokenManager {
         switch (platform) {
             case 'x':
                 return await this._context.secrets.get('xAccessToken') || '';
-            case 'reddit':
-                return await this._context.secrets.get('redditAccessToken') || '';
-            case 'facebook':
-                return await this._context.secrets.get('facebookToken') || '';
+
         }
     }
 
@@ -127,8 +117,7 @@ export class TokenManager {
     private static async refresh(platform: RefreshablePlatform): Promise<void> {
         switch (platform) {
             case 'x':       return this.refreshX();
-            case 'reddit':  return this.refreshReddit();
-            case 'facebook': return this.extendFacebook();
+
         }
     }
 
@@ -144,36 +133,13 @@ export class TokenManager {
         await this.handleEnrichedResponse('x', res.data);
     }
 
-    private static async refreshReddit(): Promise<void> {
-        const refreshToken = await this._context.secrets.get('redditRefreshToken');
-        if (!refreshToken) throw new Error('No Reddit refresh token stored');
-
-        const res = await this.post<TokenResponse>(
-            `${AUTH_SERVER_URL}/api/auth/reddit/refresh`,
-            { refreshToken }
-        );
-        
-        await this.handleEnrichedResponse('reddit', res.data);
-    }
-
-    private static async extendFacebook(): Promise<void> {
-        const accessToken = await this._context.secrets.get('facebookToken');
-        if (!accessToken) throw new Error('No Facebook token stored');
-
-        const res = await this.post<TokenResponse>(
-            `${AUTH_SERVER_URL}/api/auth/facebook/extend`,
-            { accessToken }
-        );
-        
-        await this.handleEnrichedResponse('facebook', res.data);
-    }
 
     /** AEGIS 1.4.0: Unified handler for enriched responses */
     private static async handleEnrichedResponse(platform: RefreshablePlatform, data: TokenResponse): Promise<void> {
         const { access_token, refresh_token, expires_in, expires_at, should_refresh_soon, warning } = data;
 
         // 1. Store Access Token
-        const secretKey = platform === 'facebook' ? 'facebookToken' : `${platform}AccessToken`;
+        const secretKey = `${platform}AccessToken`;
         await this._context.secrets.store(secretKey, access_token);
 
         // 2. Store Refresh Token (if provided/rotated)
@@ -232,13 +198,7 @@ export class TokenManager {
                 await this._context.secrets.delete('xAccessToken');
                 await this._context.secrets.delete('xRefreshToken');
                 break;
-            case 'reddit':
-                await this._context.secrets.delete('redditAccessToken');
-                await this._context.secrets.delete('redditRefreshToken');
-                break;
-            case 'facebook':
-                await this._context.secrets.delete('facebookToken');
-                break;
+
         }
         Logger.info(`[TokenManager] ${platform} token cleared`);
     }

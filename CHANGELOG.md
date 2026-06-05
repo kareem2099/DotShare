@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-06-05 — "Cleanup"
+
+### Removed
+- **🧹 Facebook Platform**: Fully removed — all backend adapters (`PostHandler`, `PostExecutor`), OAuth flows (`MessageHandler`, `TokenManager`), Rust core routes, secret keys (`storage-manager.ts`), UI components (`platform-post.html`, CSS), and event listeners (`event-handlers.ts`).
+- **🧹 Reddit Platform**: Fully removed — same scope as Facebook. This includes the Reddit Settings Card UI (subreddit/title/flair/spoiler inputs), `redditMetadata` payload logic, `reddit-disclaimer` CSS, and the `reddit-options-card` DOM element.
+- **🧹 Medium Platform**: Fully removed — all blog publishing integration, API adapters, and type references.
+- **🧹 Legacy CSS & Variables**: Removed old `.theme-toggle` logic, `body.dark` overrides, and unused `themeChanged` listeners. Webviews now natively use VS Code CSS variables (`--vscode-*`).
+
+### Fixed
+- **🔧 TypeScript: `ScheduledPost` property names**: Corrected stale references to `scheduledTime` → `scheduled_at`, `postData.text` → `text_preview`, and `postData.media` → `has_media` in `scheduled-posts.ts` to match the updated `ScheduledPost` interface in `src/types.ts`.
+- **🔧 TypeScript: `getProviderEmoji` signature**: Updated the parameter type from `'gemini' | 'openai' | 'xai'` to `string` and added a `claude` case — preventing a `TS2345` type error in `post-history.ts`.
+- **🔧 TypeScript: `saved-apis.ts` module path**: Fixed broken import (`../../types` → `../../../src/types`) and added explicit `string` cast for `credentials` values to resolve `Property 'trim' does not exist on type '{}'` errors.
+- **🔧 TypeScript: `noUnusedLocals` clean**: All files now pass `tsc --noUnusedLocals --noEmit` with zero errors.
+  - `MessageHandler.ts` / `PostHandler.ts`: Removed `private` shorthand from services that were only passed-through — they are now plain constructor params.
+  - `DotShareAuth.ts`: Added `getContext()` accessor so the static `_context` field is considered read.
+  - `AnalyticsPanel.ts`: Added `get extensionUri()` accessor; restored accidentally-removed `this._update()` call.
+  - `DotShareWebView.ts`: Converted `private constructor(private readonly _context)` to a plain param that assigns to the static field.
+  - `event-handlers.ts`: Removed dead `const shareFacebookBtn = null` and `const loadRedditPostsBtn = null` stubs.
+  - `post-history.ts`: Removed unused `successRateValue` variable declaration and initialization.
+  - `scheduled-posts.ts`: Removed unused `currentEditingPostId` and `setCurrentEditingPostId` imports.
+  - `event-handlers.ts`: Removed unused `themeToggle` declaration and related UI event listeners.
+
+### Enhancements
+- **🚀 Dev.to Integration**: Polished and enhanced the Dev.to article publishing flow for better reliability and consistency with the remaining blogging platforms.
+
+### Changed
+- **`MAX_CHARS_MAP`** in `media/webview/app.ts`: Removed `facebook: 63206` and `reddit: 40000` entries.
+- **Platform count**: DotShare now supports **7 platforms** — LinkedIn, X (Twitter), Telegram, Discord, BlueSky, Dev.to, and GitHub Gist.
+
+---
+
 ## [3.4.0] - 2026-05-31 — "CodeSnap"
 
 ### Added
@@ -24,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Toggle: Window chrome, line numbers, DotShare watermark
   - Background color picker
 - **📱 Platform Integration**: QuickPick platform selector to share CodeSnap to all platforms
-  - Works with: LinkedIn, X (Twitter), BlueSky, Telegram, Facebook, Discord, Reddit, Dev.to, Medium
+  - Works with: LinkedIn, X (Twitter), BlueSky, Telegram, Discord, Dev.to
   - Automatically opens Composer with snapshot attached via internal messaging
 - **💾 Local Save**: Download CodeSnap as PNG via native Save dialog
 - **🔄 Singleton Panel**: One CodeSnap panel at a time, reuses existing panel if already open
@@ -44,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **messaging**: Base64 PNG encoding/decoding for snap data transfer between panels
 
 ---
+
 
 ## [3.3.5] - 2026-05-27 — "Open Privacy Hotfix"
 

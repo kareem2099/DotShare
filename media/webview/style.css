@@ -423,14 +423,6 @@ details[open]>summary::before {
   background: #14171a;
 }
 
-.oauth-connect-btn--facebook {
-  background: #1877f2;
-}
-
-.oauth-connect-btn--reddit {
-  background: #ff4500;
-}
-
 .oauth-disconnect-btn {
   padding: 5px 10px;
   background: transparent;

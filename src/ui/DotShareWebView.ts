@@ -14,11 +14,13 @@ import { getPlatformConfig, PlatformConfig } from '../platforms/platform-config'
  */
 export class DotShareWebView {
     public static readonly viewType = 'dotshare.mainPanel';
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private static _context: vscode.ExtensionContext | undefined;
+    public static getContext() { return DotShareWebView._context; }
     private static _messageHandler?: MessageHandler;
     private static _panels: vscode.WebviewPanel[] = [];
 
-    private constructor(private readonly _context: vscode.ExtensionContext) {}
+    private constructor(context: vscode.ExtensionContext) { DotShareWebView._context = context; }
 
     /**
      * Tells the handler to refresh and push the latest configuration to the WebView
@@ -59,7 +61,7 @@ export class DotShareWebView {
             if (workspaceFolders && workspaceFolders.length > 0) {
                 const fsPath = workspaceFolders[0].uri.fsPath;
                 const mdFilePath = path.join(fsPath, `dotshare-${platformKey}.md`);
-                
+
                 if (!fs.existsSync(mdFilePath)) {
                     const boilerplate = `---
 title: add ur title
@@ -206,11 +208,9 @@ Start writing your article here...
         const blogsActive = config.workspaceType === 'blogs' ? ' active' : '';
         const gistActive = config.workspaceType === 'gist' ? ' active' : '';
 
-        const isBlogPlatform = platformKey === 'devto' || platformKey === 'medium';
+        const isBlogPlatform = platformKey === 'devto';
         const blogIntroText = isBlogPlatform
-            ? (platformKey === 'devto'
-                ? 'Read your current Markdown file, then publish to Dev.to. (Visibility: Draft/Published)'
-                : 'Read your current Markdown file, then publish to Medium. (Visibility: Draft/Published/Unlisted)')
+            ? 'Read your current Markdown file, then publish to Dev.to. (Visibility: Draft/Published)'
             : '';
         const blogSeriesFieldHtml =
             platformKey === 'devto'
@@ -220,8 +220,7 @@ Start writing your article here...
             </div>`
                 : `<div id="blog-series-placeholder"></div>`;
         const blogPublishCardHtml = isBlogPlatform
-            ? (platformKey === 'devto'
-                ? `          <div class="card-title">👨‍💻 Publish to Dev.to</div>
+            ? `          <div class="card-title">👨‍💻 Publish to Dev.to</div>
           <div class="input-group" style="margin-top:12px;">
             <label>Visibility</label>
             <select id="blog-publish-status">
@@ -229,25 +228,9 @@ Start writing your article here...
               <option value="published">Published</option>
             </select>
           </div>`
-                : `          <div class="card-title">Ⓜ️ Publish to Medium</div>
-
-          <div class="status-box warning" style="background: rgba(255, 165, 0, 0.1); border-left: 4px solid #ffa500; padding: 10px; margin-bottom: 12px; font-size: 11px; border-radius: 4px;">
-            <strong>⚠️ Notice:</strong> Medium has restricted its API. If "Integration Tokens" is missing from your 
-            <a href="https://medium.com/me/settings/publishing" target="_blank" style="color: var(--vscode-link-foreground);">Publishing Settings</a>, 
-            you <u>must</u> email <code style="color: var(--vscode-textPreformat-foreground);">yourfriends@medium.com</code> to request manual activation.
-          </div>
-
-          <div class="input-group" style="margin-top:12px;">
-            <label>Visibility</label>
-            <select id="blog-publish-status">
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="unlisted">Unlisted</option>
-            </select>
-          </div>`)
             : '';
         const blogPublishButtonText = isBlogPlatform
-            ? (platformKey === 'devto' ? '🚀 Publish to Dev.to' : '🚀 Publish to Medium')
+            ? '🚀 Publish to Dev.to'
             : '🚀 Publish Article';
 
         try {

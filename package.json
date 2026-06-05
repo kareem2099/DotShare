@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "publisher": "freerave",
   "funding": [
     {
@@ -69,10 +69,6 @@
       {
         "command": "dotshare.shareToDevTo",
         "title": "DotShare: Publish article to Dev.to"
-      },
-      {
-        "command": "dotshare.shareToMedium",
-        "title": "DotShare: Publish article to Medium"
       },
       {
         "command": "dotshare.showAnalytics",
@@ -151,7 +147,6 @@
         }
       ]
     },
-
     "configuration": {
       "title": "DotShare",
       "properties": {
@@ -168,13 +163,10 @@
           "enum": [
             "twitter",
             "linkedin",
-            "facebook",
             "telegram",
             "discord",
-            "reddit",
             "bluesky",
-            "devto",
-            "medium"
+            "devto"
           ],
           "default": "twitter",
           "description": "Default platform used to tailor hashtag suggestions when generating a post."
@@ -227,14 +219,11 @@
     "social",
     "blog",
     "devto",
-    "medium",
     "linkedin",
     "telegram",
     "twitter",
     "x",
-    "facebook",
     "discord",
-    "reddit",
     "bluesky",
     "ai",
     "gemini",

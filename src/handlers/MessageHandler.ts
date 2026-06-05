@@ -6,7 +6,7 @@ import { HistoryService } from '../services/HistoryService';
 import { AnalyticsService } from '../services/AnalyticsService';
 import { MediaService } from '../services/MediaService';
 import { ConfigHandler } from './ConfigHandler';
-import { RedditHandler } from './RedditHandler';
+
 import { PostHandler } from './PostHandler';
 import { GistHandler } from './GistHandler';
 import { Logger } from '../utils/Logger';
@@ -23,7 +23,7 @@ interface Message {
 
 export class MessageHandler {
     private configHandler: ConfigHandler;
-    private redditHandler: RedditHandler;
+
     private postHandler: PostHandler;
     private gistHandler: GistHandler;
     private draftsService: DraftsService;
@@ -31,14 +31,14 @@ export class MessageHandler {
     constructor(
         private view: vscode.WebviewView,
         private context: vscode.ExtensionContext,
-        private historyService: HistoryService,
-        private analyticsService: AnalyticsService,
-        private mediaService: MediaService
+        historyService: HistoryService,
+        analyticsService: AnalyticsService,
+        mediaService: MediaService
     ) {
         // Initialize sub-handlers
         this.draftsService = new DraftsService(context.globalState);
         this.configHandler = new ConfigHandler(view, context);
-        this.redditHandler = new RedditHandler(view, context, historyService);
+
         this.postHandler = new PostHandler(view, context, historyService, analyticsService, mediaService, this.draftsService);
         this.gistHandler = new GistHandler(view, context);
     }
@@ -64,11 +64,6 @@ export class MessageHandler {
             // GitHub Gist operations
             await this.gistHandler.handleMessage(message);
         }
-        else if (cmd.includes('Reddit') || cmd === 'generateRedditTokens' || cmd === 'getRedditFlairs' ||
-            cmd === 'getRedditUserPosts' || cmd === 'editRedditPost' || cmd === 'deleteRedditPost') {
-            // Reddit-specific operations
-            await this.redditHandler.handleMessage(message);
-        }
         else if (cmd.startsWith('save') || cmd === 'loadConfiguration' || cmd.includes('Api')) {
             // Configuration operations (excluding loadPostHistory and loadAnalytics)
             await this.configHandler.handleMessage(message);
@@ -86,20 +81,16 @@ export class MessageHandler {
             switch (cmd) {
                 case 'openOAuth': {
                     const platform = message.platform as string;
-                    
+
                     // GitHub Gist uses VS Code's built-in authentication
                     if (platform === 'gist') {
                         await this.handleGitHubGistAuth();
                         return;
                     }
-                    
-                    const validPlatforms = ['linkedin', 'x', 'facebook', 'reddit'];
+
+                    const validPlatforms = ['linkedin', 'x'];
                     if (!platform || !validPlatforms.includes(platform)) {
                         this.sendError(`DotShare: Unknown OAuth platform "${platform}"`);
-                        return;
-                    }
-                    if (platform === 'reddit') {
-                        vscode.window.showErrorMessage('Due to Vercel leaks, we are waiting until they restore access. Sorry for the delay. You can use your own credentials to connect.');
                         return;
                     }
                     const scheme = vscode.env.uriScheme;
@@ -136,18 +127,10 @@ export class MessageHandler {
                     await this.handleRemoveMedia();
                     break;
 
-                case 'toggleTheme': {
-                    const currentTheme = await this.context.globalState.get('dotshareTheme') || 'light';
-                    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                    await this.context.globalState.update('dotshareTheme', newTheme);
-                    this.view.webview.postMessage({ command: 'themeChanged', theme: newTheme });
-                    this.sendSuccess(`Theme changed to ${newTheme}`);
-                    break;
-                }
 
                 case 'disconnectOAuth': {
                     const platform = message.platform as string;
-                    
+
                     // GitHub Gist
                     if (platform === 'gist') {
                         await TokenManager.clearGitHubToken();
@@ -158,8 +141,8 @@ export class MessageHandler {
                         await cfgHandler.handleMessage({ command: 'loadConfiguration' });
                         return;
                     }
-                    
-                    const validPlatforms = ['linkedin', 'x', 'facebook', 'reddit'];
+
+                    const validPlatforms = ['linkedin', 'x'];
                     if (!platform || !validPlatforms.includes(platform)) {
                         this.sendError(`Unknown platform: ${platform}`);
                         return;
@@ -169,9 +152,7 @@ export class MessageHandler {
                             await this.context.secrets.store('linkedinToken', '');
                             break;
                         case 'x':
-                        case 'facebook':
-                        case 'reddit':
-                            await TokenManager.clearToken(platform as 'x' | 'facebook' | 'reddit');
+                            await TokenManager.clearToken(platform as 'x');
                             break;
                     }
                     // Reload full config so webview reflects disconnected state immediately
@@ -200,7 +181,7 @@ export class MessageHandler {
                 }
 
                 case 'forceRefresh': {
-                    const platform = message.platform as 'x' | 'reddit' | 'facebook';
+                    const platform = message.platform as 'x';
                     Logger.info(`[MessageHandler] Manual refresh requested for ${platform}`);
                     const success = await TokenManager.forceRefresh(platform);
                     if (success) {
@@ -509,11 +490,11 @@ export class MessageHandler {
     private async handleGitHubGistAuth(): Promise<void> {
         try {
             Logger.info('[MessageHandler] Starting VS Code GitHub authentication for Gist...');
-            
+
             // Request GitHub session with 'gist' scope
             // This pops up a dialog asking the user for permission
             const session = await vscode.authentication.getSession('github', ['gist'], { createIfNone: true });
-            
+
             if (!session || !session.accessToken) {
                 this.sendError('Failed to get GitHub authentication token');
                 Logger.warn('[MessageHandler] GitHub authentication session is empty');

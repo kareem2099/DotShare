@@ -227,18 +227,7 @@ export function cancelScheduledPost(postId: string): void {
     }
 }
 
-// Reddit Post Modal functions
-export function openRedditPostModal(): void {
-    // Would show Reddit post modal
-}
 
-export function closeRedditPostModalFunc(): void {
-    // Would close Reddit post modal
-}
-
-export function shareToRedditWithSettings(): void {
-    // Would share to Reddit with settings
-}
 
 // Saved APIs Modal functions
 let currentSavedApisPlatform = '';
@@ -250,9 +239,7 @@ export function openSavedApisModal(platform: string): void {
         linkedin: 'LinkedIn',
         telegram: 'Telegram',
         x: 'X/Twitter',
-        facebook: 'Facebook',
         discord: 'Discord',
-        reddit: 'Reddit',
         bluesky: 'BlueSky'
     };
 
@@ -444,7 +431,7 @@ export function saveApiConfiguration(): void {
             credentials[field.key] = input.value.trim();
 
             // Basic validation - some fields are required
-            if (!input.value.trim() && !field.label.includes('Optional') && field.key !== 'facebookPageToken' && field.key !== 'facebookPageId') {
+            if (!input.value.trim() && !field.label.includes('Optional')) {
                 showStatus(`${field.label} is required.`, 'error');
                 hasErrors = true;
                 return;
@@ -490,26 +477,14 @@ function getPlatformConfig(platform: string) {
                 { key: 'xAccessSecret', label: 'Access Secret', type: 'password', placeholder: 'Enter your X Access Secret' }
             ]
         },
-        facebook: {
-            name: 'Facebook',
-            fields: [
-                { key: 'facebookToken', label: 'Access Token', type: 'password', placeholder: 'Enter your Facebook Access Token' },
-                { key: 'facebookPageToken', label: 'Page Token (Optional)', type: 'password', placeholder: 'Page access token for posting to pages' },
-                { key: 'facebookPageId', label: 'Page ID (Optional)', type: 'text', placeholder: 'Facebook page ID' }
-            ]
-        },
+
         discord: {
             name: 'Discord',
             fields: [
                 { key: 'discordWebhook', label: 'Webhook URL', type: 'url', placeholder: 'Enter your Discord webhook URL' }
             ]
         },
-        reddit: {
-            name: 'Reddit',
-            fields: [
-                { key: 'redditAccessToken', label: 'Access Token', type: 'password', placeholder: 'Enter your Reddit Access Token' }
-            ]
-        },
+
         bluesky: {
             name: 'BlueSky',
             fields: [
