@@ -1,18 +1,3 @@
-// Jest setup file for mocking common dependencies
-
-// Mock VS Code API globally
-jest.mock('vscode', () => ({
-    window: {
-        showErrorMessage: jest.fn(),
-        showInformationMessage: jest.fn()
-    },
-    workspace: {
-        getConfiguration: jest.fn().mockReturnValue({
-            get: jest.fn().mockReturnValue('twitter')
-        })
-    }
-}), { virtual: true });
-
 // Global test timeout
 jest.setTimeout(10000);
 

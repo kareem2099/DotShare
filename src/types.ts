@@ -3,8 +3,22 @@
 // ---------------------------------------------------------
 
 export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'devto';
-export type AIProvider = 'gemini' | 'openai' | 'xai' | 'claude';
+export type AIProvider = 'gemini' | 'openai' | 'xai' | 'claude' | 'deepseek';
 export type PostStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying' | 'server-scheduled';
+
+export interface DeepSeekResponse {
+    choices: Array<{
+        message: {
+            content: string;
+        };
+    }>;
+}
+
+export interface DeepSeekModelsResponse {
+    data: Array<{
+        id: string;
+    }>;
+}
 
 // ---------------------------------------------------------
 // Post & Media Types
@@ -381,3 +395,8 @@ export interface TierInfo {
     images_quota: number;
     subscription_ends_at: string | null;
 }
+
+// ==========================================================
+// v3.5 — DotShare AI Types
+// ==========================================================
+export * from './types/dotshare-ai';

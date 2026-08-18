@@ -18,6 +18,7 @@ module.exports = {
     ],
     transform: {
         '^.+\\.tsx?$': ['ts-jest', {
+            isolatedModules: true,
             tsconfig: {
                 module: 'commonjs',        // ← fixes no-var-requires
                 target: 'ES2020',
@@ -25,6 +26,7 @@ module.exports = {
                 allowSyntheticDefaultImports: true,
                 strict: false,             // ← tests are lighter than production
                 sourceMap: true,
+                types: ['node', 'jest']
             }
         }]
     },

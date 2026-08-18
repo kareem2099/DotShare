@@ -14,7 +14,6 @@ import { getPlatformConfig, PlatformConfig } from '../platforms/platform-config'
  */
 export class DotShareWebView {
     public static readonly viewType = 'dotshare.mainPanel';
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private static _context: vscode.ExtensionContext | undefined;
     public static getContext() { return DotShareWebView._context; }
     private static _messageHandler?: MessageHandler;

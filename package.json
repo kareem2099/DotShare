@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.4.1",
+  "version": "3.5.1",
   "publisher": "freerave",
   "funding": [
     {
@@ -117,6 +117,12 @@
         "command": "dotshare.attachSnapToComposer",
         "title": "DotShare: Attach Snap to Composer (internal)",
         "category": "DotShare"
+      },
+      {
+        "command": "dotshare.inspectReleaseContext",
+        "title": "DotShare: 🧠 Inspect AI Release Context",
+        "category": "DotShare",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -194,25 +200,25 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^26.2.0",
     "@types/vscode": "^1.74.0",
-    "@typescript-eslint/eslint-plugin": "^8.60.0",
-    "@typescript-eslint/parser": "^8.60.0",
-    "esbuild": "^0.28.0",
-    "eslint": "^10.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.8.1",
     "glob": "^13.0.6",
     "jest": "^30.4.2",
-    "ts-jest": "^29.4.11",
+    "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.99.0",
-    "@google/generative-ai": "^0.24.1",
-    "axios": "^1.16.1",
-    "commander": "^14.0.0",
-    "form-data": "^4.0.0",
-    "open": "^10.0.0",
-    "openai": "^6.39.0"
+    "@anthropic-ai/sdk": "^0.117.1",
+    "@google/genai": "^2.17.1",
+    "axios": "^1.19.0",
+    "commander": "^15.0.0",
+    "form-data": "^4.0.6",
+    "open": "^11.0.1",
+    "openai": "^7.4.0"
   },
   "keywords": [
     "share",

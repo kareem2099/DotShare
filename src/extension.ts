@@ -10,6 +10,7 @@ import { DotShareAuth } from './services/DotShareAuth';
 import { GistService } from './services/GistService';
 import { MediaService } from './services/MediaService';
 import { CodeSnapPanel } from './ui/CodeSnapPanel';
+import { ProjectContextService } from './services/ProjectContextService';
 import * as path from 'path';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -135,10 +136,60 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // ── What's New ────────────────────────────────────────────
+    // Singleton OutputChannel for DotShare AI
+    let releaseContextChannel: vscode.OutputChannel | undefined;
+    const getReleaseContextChannel = (): vscode.OutputChannel => {
+        if (!releaseContextChannel) {
+            releaseContextChannel = vscode.window.createOutputChannel('DotShare AI');
+            context.subscriptions.push(releaseContextChannel);
+        }
+        return releaseContextChannel;
+    };
+
+    // ── What's New & DotShare AI ──────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.whatsNew', () => {
             WhatsNewProvider.show(context);
+        }),
+        // ── 🧠 DotShare AI: Inspect Release Context Command ───────────────
+        vscode.commands.registerCommand('dotshare.inspectReleaseContext', async () => {
+            try {
+                const ctx = await ProjectContextService.buildContext();
+                const outputChannel = getReleaseContextChannel();
+                outputChannel.clear();
+                outputChannel.appendLine('========================================');
+                outputChannel.appendLine('🧠 DotShare AI — Extracted Release Context');
+                outputChannel.appendLine('========================================\n');
+                outputChannel.appendLine(`📦 Project Name: ${ctx.projectName}`);
+                if (ctx.version) outputChannel.appendLine(`🏷️ Version: ${ctx.version}`);
+                if (ctx.projectDescription) outputChannel.appendLine(`📝 Description: ${ctx.projectDescription}`);
+                if (ctx.repoUrl) outputChannel.appendLine(`🔗 Repo URL: ${ctx.repoUrl}`);
+                if (ctx.techStack?.length) outputChannel.appendLine(`🛠️ Tech Stack: ${ctx.techStack.join(', ')}`);
+
+                if (ctx.changelogNotes?.length) {
+                    outputChannel.appendLine('\n📋 Latest Changelog Notes:');
+                    ctx.changelogNotes.forEach(n => outputChannel.appendLine(`  • ${n}`));
+                }
+
+                if (ctx.latestCommit) {
+                    outputChannel.appendLine(`\n🌳 Latest Commit Details:\n  ${ctx.latestCommit.replace(/\n/g, '\n  ')}`);
+                }
+
+                if (ctx.recentCommits?.length) {
+                    outputChannel.appendLine('\n📜 Recent Commits:');
+                    ctx.recentCommits.forEach(c => outputChannel.appendLine(`  ${c}`));
+                }
+
+                if (ctx.gitDiffSummary) {
+                    outputChannel.appendLine(`\n📊 Git Diff Summary:\n${ctx.gitDiffSummary}`);
+                }
+
+                outputChannel.show(true);
+                vscode.window.showInformationMessage(`✓ DotShare AI: Context extracted successfully for "${ctx.projectName}" (Version: ${ctx.version || 'N/A'})!`);
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                vscode.window.showErrorMessage(`DotShare AI error: ${msg}`);
+            }
         })
     );
 
@@ -337,7 +388,6 @@ export async function activate(context: vscode.ExtensionContext) {
                                 if (sel === 'Reconnect Now') vscode.commands.executeCommand('dotshare.openFullWebview', 'settings', { platform: 'x' });
                             });
                         }
-                        break;
                         break;
 
                     default:

@@ -55,6 +55,8 @@ export class MessageHandler {
             cmd === 'loadAnalytics' || cmd.startsWith('schedule') || cmd === 'editScheduledPost' ||
             cmd === 'readMarkdownFile' || cmd === 'resetBlogMarkdown' || cmd === 'loadScheduledPosts' ||
             cmd === 'cancelScheduledPost' || cmd === 'loadOAuthConnections' || cmd === 'openSupportLink' ||
+            cmd === 'extractReleaseContext' || cmd === 'generateReleasePost' || cmd === 'applyModelSelection' ||
+            cmd === 'fetchAiModels' || cmd === 'loadUserCtaLinks' || cmd === 'saveUserCtaLinks' ||
             (cmd.includes('Draft') && !cmd.includes('Gist'))) {
             // Posting and content operations including Drafts
             await this.postHandler.handleMessage(message);

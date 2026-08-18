@@ -15,9 +15,15 @@ import { DotShareAuth } from '../services/DotShareAuth';
 
 
 // Imports for posting functions
-import { generatePost as generateGeminiPost } from '../ai/gemini';
-import { generatePost as generateOpenAIPost } from '../ai/openai';
-import { generatePost as generateXAIPost } from '../ai/xai';
+import { generatePost as generateGeminiPost, generateCustomContent as generateGeminiCustom, getAvailableModels as getGeminiModels } from '../ai/gemini';
+import { generatePost as generateOpenAIPost, generateCustomContent as generateOpenAICustom, getAvailableModels as getOpenAIModels } from '../ai/openai';
+import { generatePost as generateXAIPost, generateCustomContent as generateXAICustom, getAvailableModels as getXAIModels } from '../ai/xai';
+import { generatePost as generateClaudePost, generateCustomContent as generateClaudeCustom, getAvailableModels as getClaudeModels } from '../ai/claude';
+import { generatePost as generateDeepSeekPost, generateCustomContent as generateDeepSeekCustom, getAvailableModels as getDeepSeekModels } from '../ai/deepseek';
+import { ProjectContextService } from '../services/ProjectContextService';
+import { ReleasePromptBuilder } from '../ai/prompts/ReleasePromptBuilder';
+import { ReleaseGenerationRequest, GeneratedPlatformContent, ReleaseSourceType, UserCtaLink } from '../types/dotshare-ai';
+import { DotShareWebView } from '../ui/DotShareWebView';
 import { shareToLinkedIn } from '../platforms/linkedin';
 import { shareToTelegram } from '../platforms/telegram';
 
@@ -28,7 +34,6 @@ import { shareToDevTo } from '../platforms/devto';
 
 import { parseFrontMatter } from '../utils/frontmatter-parser';
 import { validateDevTo } from '../utils/blog-validator';
-import { generatePost as generateClaudePost } from '../ai/claude';
 import { DraftsService } from '../services/DraftsService';
 import { fetchDevToArticles, updateDevToArticle } from '../platforms/devto';
 import { Draft, BlogPost } from '../types';
@@ -53,6 +58,33 @@ export class PostHandler {
 
         try {
             switch (cmd) {
+                case 'applyModelSelection': {
+                    const provider = typeof message.provider === 'string' ? message.provider.trim() : '';
+                    const apiKey = typeof message.apiKey === 'string' ? message.apiKey.trim() : '';
+                    const model = typeof message.model === 'string' ? message.model.trim() : '';
+
+                    if (!provider || !model) {
+                        this.sendError('Provider and model are required.');
+                        break;
+                    }
+
+                    // New key supplied -> update SecretStorage
+                    if (apiKey) {
+                        await this.context.secrets.store(`${provider}ApiKey`, apiKey);
+                    } else {
+                        // Empty UI field is okay only if a key already exists
+                        const storedKey = await this.context.secrets.get(`${provider}ApiKey`);
+                        if (!storedKey) {
+                            this.sendError(`API key is required for ${provider}.`);
+                            break;
+                        }
+                    }
+
+                    await this.context.globalState.update(`selected_${provider}_model`, model);
+                    await this.context.globalState.update('last_selected_ai_provider', provider);
+                    break;
+                }
+
                 case 'generatePost':
                     await this.handleGeneratePost(message);
                     break;
@@ -166,12 +198,248 @@ export class PostHandler {
                     await this.handleLoadOAuthConnections();
                     break;
 
+                // DotShare AI Release Commands
+                case 'extractReleaseContext':
+                    await this.handleExtractReleaseContext(message);
+                    break;
+                case 'generateReleasePost':
+                    await this.handleGenerateReleasePost(message);
+                    break;
+                case 'fetchAiModels':
+                    await this.handleFetchAiModels(message);
+                    break;
+                case 'loadUserCtaLinks':
+                    await this.handleLoadUserCtaLinks();
+                    break;
+                case 'saveUserCtaLinks':
+                    await this.handleSaveUserCtaLinks(message);
+                    break;
+
                 default:
                     Logger.info('[PostHandler] Unhandled command:', cmd);
             }
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             this.sendError(`Post error: ${errorMessage}`);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DotShare AI — Release & Update Handlers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private async handleLoadUserCtaLinks(): Promise<void> {
+        try {
+            const links = this.context.globalState.get<UserCtaLink[]>('dotshare.userCtaLinks') || [];
+            this.view.webview.postMessage({
+                command: 'userCtaLinksLoaded',
+                links
+            });
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[PostHandler] Load user CTA links error', msg);
+        }
+    }
+
+    private async handleSaveUserCtaLinks(message: Message): Promise<void> {
+        try {
+            const rawLinks = message.links as UserCtaLink[] | undefined;
+            if (!Array.isArray(rawLinks)) return;
+
+            // Validate, deduplicate, and sanitize links: only http/https, trimmed url, no destructive normalization
+            const seenUrls = new Set<string>();
+            const sanitizedLinks: UserCtaLink[] = [];
+
+            for (const link of rawLinks) {
+                if (!link || typeof link.url !== 'string' || typeof link.label !== 'string') continue;
+                const trimmedUrl = link.url.trim();
+                const trimmedLabel = link.label.trim();
+                const lower = trimmedUrl.toLowerCase();
+
+                if ((lower.startsWith('http://') || lower.startsWith('https://')) && trimmedLabel.length > 0) {
+                    if (!seenUrls.has(trimmedUrl)) {
+                        seenUrls.add(trimmedUrl);
+                        sanitizedLinks.push({
+                            id: link.id || String(Date.now() + Math.random()),
+                            label: trimmedLabel,
+                            url: trimmedUrl,
+                            emoji: link.emoji?.trim() || undefined
+                        });
+                    }
+                }
+            }
+
+            await this.context.globalState.update('dotshare.userCtaLinks', sanitizedLinks);
+
+            // Broadcast to all active panels
+            DotShareWebView.postMessage({
+                command: 'userCtaLinksUpdated',
+                links: sanitizedLinks
+            });
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[PostHandler] Save user CTA links error', msg);
+            this.sendError(`Failed to save CTA links: ${msg}`);
+        }
+    }
+
+    private async handleExtractReleaseContext(message: Message): Promise<void> {
+        try {
+            const sources = message.sources as ReleaseSourceType[] | undefined;
+            const context = await ProjectContextService.buildContext(undefined, sources);
+            this.view.webview.postMessage({
+                command: 'releaseContextExtracted',
+                context
+            });
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[PostHandler] Extract release context error', msg);
+            this.sendError(`Failed to extract project context: ${msg}`);
+        }
+    }
+
+    private async handleFetchAiModels(message: Message): Promise<void> {
+        const provider = message.provider as string;
+        let apiKey = message.apiKey as string | undefined;
+        if (!apiKey) {
+            apiKey = (await this.context.secrets.get(`${provider}ApiKey`)) || '';
+        }
+
+        let models: string[] = [];
+        try {
+            if (provider === 'gemini') {
+                models = await getGeminiModels(apiKey);
+            } else if (provider === 'openai') {
+                models = await getOpenAIModels(apiKey);
+            } else if (provider === 'claude') {
+                models = await getClaudeModels(apiKey);
+            } else if (provider === 'xai') {
+                models = await getXAIModels(apiKey);
+            } else if (provider === 'deepseek') {
+                models = await getDeepSeekModels(apiKey);
+            }
+
+            this.view.webview.postMessage({
+                command: 'aiModelsLoaded',
+                provider,
+                models
+            });
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[PostHandler] Fetch AI models error', msg);
+        }
+    }
+
+    private async handleGenerateReleasePost(message: Message): Promise<void> {
+        const request = message.request as ReleaseGenerationRequest | undefined;
+        const selectedModel = message.selectedModel as { provider: string; apiKey?: string; model?: string } | undefined;
+
+        let provider = selectedModel?.provider || this.context.globalState.get<string>('last_selected_ai_provider') || 'gemini';
+        let apiKey = selectedModel?.apiKey;
+        let model = selectedModel?.model || this.context.globalState.get<string>(`selected_${provider}_model`);
+
+        if (!apiKey) {
+            apiKey = (await this.context.secrets.get(`${provider}ApiKey`)) || '';
+        }
+
+        // Fallback search across other providers if current provider has no key
+        if (!apiKey) {
+            const providers = ['gemini', 'openai', 'claude', 'xai', 'deepseek'];
+            for (const p of providers) {
+                const storedKey = await this.context.secrets.get(`${p}ApiKey`);
+                if (storedKey) {
+                    provider = p;
+                    apiKey = storedKey;
+                    model = this.context.globalState.get<string>(`selected_${p}_model`);
+                    break;
+                }
+            }
+        }
+
+        if (!apiKey) {
+            vscode.window.showErrorMessage('API Key is required for DotShare AI generation. Please configure your key in "AI Keys".');
+            this.sendError('API Key is required for DotShare AI generation.');
+            return;
+        }
+
+        if (!model) {
+            vscode.window.showErrorMessage(`No AI model selected for ${provider}. Open AI Keys and choose a model.`);
+            this.sendError(`No AI model selected for ${provider}. Open AI Keys and choose a model.`);
+            return;
+        }
+
+        if (!request || !request.targetPlatforms || request.targetPlatforms.length === 0) {
+            vscode.window.showErrorMessage('At least one target platform is required.');
+            return;
+        }
+
+        const platform = request.targetPlatforms[0]; // Primary platform requested
+
+        // Dynamic tone-aware token allocation
+        const maxTokens = request.tone === 'full_markdown_article' ? 4000
+            : request.tone === 'technical_deep_dive' ? 2500
+            : 1000;
+
+        const options = { model, maxTokens };
+
+        try {
+            const prompt = ReleasePromptBuilder.buildPrompt(request, platform);
+            let generatedText = '';
+
+            if (provider === 'gemini') {
+                generatedText = await generateGeminiCustom(apiKey, prompt, options);
+            } else if (provider === 'openai') {
+                generatedText = await generateOpenAICustom(apiKey, prompt, options);
+            } else if (provider === 'claude') {
+                generatedText = await generateClaudeCustom(apiKey, prompt, options);
+            } else if (provider === 'xai') {
+                generatedText = await generateXAICustom(apiKey, prompt, options);
+            } else if (provider === 'deepseek') {
+                generatedText = await generateDeepSeekCustom(apiKey, prompt, options);
+            } else {
+                this.sendError('Unsupported AI provider.');
+                return;
+            }
+
+            if (request.targetPlatforms.length > 1) {
+                Logger.info(`[DotShare AI] Generated for primary platform (${platform}). Multi-platform batch publishing is scheduled for v3.6.0.`);
+            }
+
+            const result: GeneratedPlatformContent = {
+                platform,
+                rawContent: generatedText,
+                charCount: generatedText.length,
+                isThread: request.threadMode && platform === 'x'
+            };
+
+            // Format thread parts if applicable
+            if (result.isThread && generatedText.includes('---TWEET---')) {
+                result.threadParts = generatedText
+                    .split('---TWEET---')
+                    .map(t => t.trim())
+                    .filter(Boolean);
+            }
+
+            // Parse frontmatter if Dev.to article
+            if (platform === 'devto') {
+                const fm = parseFrontMatter(generatedText);
+                result.frontmatter = {
+                    title: fm.frontmatter?.title,
+                    tags: fm.frontmatter?.tags,
+                    description: fm.frontmatter?.description,
+                    published: fm.frontmatter?.published ?? true
+                };
+            }
+
+            this.view.webview.postMessage({
+                command: 'releasePostGenerated',
+                result
+            });
+            this.sendSuccess(`✨ DotShare AI generated post for ${platform.toUpperCase()}!`);
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            Logger.error('[PostHandler] DotShare AI generate error', msg);
+            this.sendError(`DotShare AI generation failed: ${msg}`);
         }
     }
 
@@ -197,6 +465,7 @@ export class PostHandler {
                 else if (provider === 'openai') post = await generateOpenAIPost(apiKey, model);
                 else if (provider === 'xai') post = await generateXAIPost(apiKey, model);
                 else if (provider === 'claude') post = await generateClaudePost(apiKey, model);
+                else if (provider === 'deepseek') post = await generateDeepSeekPost(apiKey, model);
                 else {
                     this.sendError('Unsupported AI provider.');
                     return;

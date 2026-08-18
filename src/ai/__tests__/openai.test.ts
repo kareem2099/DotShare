@@ -12,6 +12,7 @@ jest.mock('../../utils/contextBuilder', () => ({
 
 jest.mock('../../services/HashtagService', () => ({
     HashtagService: {
+        supportsHashtags: jest.fn().mockReturnValue(true),
         generateHashtags: jest.fn().mockResolvedValue([
             '#gpt', '#ai', '#testing'
         ]),
@@ -20,14 +21,8 @@ jest.mock('../../services/HashtagService', () => ({
 }));
 
 // Create shared mock instances
-const mockCreate = jest.fn().mockResolvedValue({
-    choices: [
-        {
-            message: {
-                content: 'This is a test response from GPT-4o'
-            }
-        }
-    ]
+const mockResponseCreate = jest.fn().mockResolvedValue({
+    output_text: 'This is a test response from GPT-4o'
 });
 
 const mockList = jest.fn().mockResolvedValue({
@@ -40,10 +35,8 @@ const mockList = jest.fn().mockResolvedValue({
 
 jest.mock('openai', () => {
     return jest.fn().mockImplementation(() => ({
-        chat: {
-            completions: {
-                create: mockCreate
-            }
+        responses: {
+            create: mockResponseCreate
         },
         models: {
             list: mockList
@@ -70,34 +63,26 @@ describe('OpenAI Provider', () => {
             const { buildProjectContext } = require('../../utils/contextBuilder');
             buildProjectContext.mockResolvedValueOnce(null);
 
-            const result = await generatePost('test-api-key');
+            const result = await generatePost('test-api-key', 'gpt-4o');
             
             expect(result).toBeNull();
         });
 
         it('should handle API errors gracefully', async () => {
-            mockCreate.mockRejectedValueOnce(new Error('API Error'));
+            mockResponseCreate.mockRejectedValueOnce(new Error('API Error'));
 
-            await expect(generatePost('invalid-key')).rejects.toThrow();
+            await expect(generatePost('invalid-key', 'gpt-4o')).rejects.toThrow();
         });
 
-        it('should use default model when not specified', async () => {
-            const result = await generatePost('test-api-key');
-            
-            expect(result).not.toBeNull();
-            expect(result?.text).toBeDefined();
+        it('should throw when model is not specified', async () => {
+            await expect(generatePost('test-api-key', '')).rejects.toThrow();
         });
     });
 
     describe('getAvailableModels', () => {
-        it('should return default models when no API key provided', async () => {
+        it('should return empty array when no API key provided', async () => {
             const models = await getAvailableModels('');
-            
-            expect(models).toEqual(expect.arrayContaining([
-                'gpt-4o',
-                'gpt-4o-mini',
-                'gpt-4-turbo'
-            ]));
+            expect(models).toEqual([]);
         });
 
         it('should fetch and sort models from API', async () => {
@@ -107,20 +92,20 @@ describe('OpenAI Provider', () => {
             expect(models[0]).toBe('gpt-4o'); // Most recent should be first
         });
 
-        it('should filter only GPT models', async () => {
+        it('should filter only text GPT and reasoning models', async () => {
             const models = await getAvailableModels('valid-api-key');
             
             expect(models.every(m => 
-                m.includes('gpt') || m.includes('o1') || m.includes('o3') || m.includes('o4')
+                m.startsWith('gpt-') || /^o\d/.test(m)
             )).toBeTruthy();
         });
 
-        it('should return default models on API error', async () => {
+        it('should return empty array on API error', async () => {
             mockList.mockRejectedValueOnce(new Error('API Error'));
 
             const models = await getAvailableModels('test-key');
             
-            expect(models).toContain('gpt-4o');
+            expect(models).toEqual([]);
         });
     });
 });

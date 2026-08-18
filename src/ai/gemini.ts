@@ -1,24 +1,31 @@
 import * as vscode from 'vscode';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { PostData, GeminiModelsResponse } from '../types';
+import { GoogleGenAI } from '@google/genai';
+import { PostData, GeminiModelsResponse, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
 
-export async function generatePost(geminiKey: string, modelName = 'gemini-3.0-flash'): Promise<PostData | null> {
+export async function generatePost(geminiKey: string, modelName: string): Promise<PostData | null> {
+    if (!modelName) throw new Error('Gemini model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
-    const model = new GoogleGenerativeAI(geminiKey).getGenerativeModel({ model: modelName });
+    const ai = new GoogleGenAI({ apiKey: geminiKey });
 
     try {
-        const result = await model.generateContent(context.contextPrompt);
-        const generatedText = result.response.text();
+        const response = await ai.models.generateContent({
+            model: modelName,
+            contents: context.contextPrompt,
+            config: {
+                maxOutputTokens: 300
+            }
+        });
+        const generatedText = (response.text || '').trim();
 
         context.hashtagContext.postContent = generatedText;
         const platform = vscode.workspace.getConfiguration('dotshare').get<string>('defaultPlatform', 'twitter');
 
-        let finalPost = generatedText.trim();
+        let finalPost = generatedText;
         if (HashtagService.supportsHashtags(platform)) {
             const hashtagSuggestions = await HashtagService.generateHashtags(context.hashtagContext, platform, 5);
             const formattedHashtags = HashtagService.formatHashtags(hashtagSuggestions);
@@ -43,33 +50,70 @@ export async function generatePost(geminiKey: string, modelName = 'gemini-3.0-fl
     }
 }
 
+/**
+ * Executes a custom prompt directly using Gemini
+ */
+export async function generateCustomContent(
+    geminiKey: string,
+    prompt: string,
+    options?: GenerateContentOptions
+): Promise<string> {
+    const model = options?.model;
+    if (!model) {
+        throw new Error('Gemini model is required.');
+    }
+
+    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt,
+            config: {
+                maxOutputTokens: options?.maxTokens || 2000
+            }
+        });
+        return (response.text || '').trim();
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('Gemini generateCustomContent error', errorMessage);
+        throw error;
+    }
+}
+
 export async function getAvailableModels(apiKey: string): Promise<string[]> {
     if (!apiKey) {
-        return ['gemini-3.0-flash', 'gemini-3.0-pro'];
+        return [];
     }
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', {
+            headers: {
+                'x-goog-api-key': apiKey
+            }
+        });
 
         if (!response.ok) {
-            throw new Error(`API Request failed with status: ${response.status}`);
+            throw new Error(`Gemini API Request failed with status: ${response.status}`);
         }
 
         const data = await response.json() as GeminiModelsResponse;
+        const blockedModelTerms = [
+            'image', 'tts', 'live', 'embedding', 'robotics', 'computer-use', 'omni'
+        ];
 
-        const models = data.models
-            .filter(
-                model =>
+        return (data.models || [])
+            .filter(model => {
+                const name = model.name.toLowerCase();
+                return (
                     model.supportedGenerationMethods?.includes('generateContent') &&
-                    model.name.includes('gemini')
-            )
+                    name.startsWith('models/gemini-') &&
+                    !blockedModelTerms.some(term => name.includes(term))
+                );
+            })
             .map(model => model.name.replace('models/', ''));
-
-        return models.length > 0 ? models : ['gemini-3.0-flash'];
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('Gemini API Error fetching models', errorMessage);
-
-        return ['gemini-3.0-flash', 'gemini-3.0-pro'];
+        return [];
     }
 }

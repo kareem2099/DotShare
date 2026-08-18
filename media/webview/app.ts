@@ -10,8 +10,8 @@
  *   - Message handler from the extension host
  */
 
-// Force TypeScript to treat this as a module (no cross-file collisions).
-export { };
+import { ProjectReleaseContext, PostTone, GeneratedPlatformContent, ReleaseGenerationRequest, UserCtaLink, ReleaseCtaLink } from '../../src/types/dotshare-ai';
+import { SocialPlatform } from '../../src/types';
 
 declare const acquireVsCodeApi: () => { postMessage(msg: unknown): void };
 
@@ -52,7 +52,8 @@ function get<T extends HTMLElement = HTMLElement>(id: string): T | null {
 }
 
 function escHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
 function toast(msg: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', ms = 4000): void {
@@ -139,11 +140,10 @@ const MAX_CHARS_MAP: Record<string, number> = {
     discord: 2000, devto: 100000,
 };
 
-// ── Compose Area ──────────────────────────────────────────────────────────────
 const textarea    = get<HTMLTextAreaElement>('post-text');
 const counter     = get('char-counter');
 const btnShare    = get<HTMLButtonElement>('btn-share');
-const btnGen      = get<HTMLButtonElement>('btn-generate-ai');
+const btnGen      = get<HTMLButtonElement>('btn-dotshare-ai') || get<HTMLButtonElement>('btn-generate-ai');
 const btnMedia    = get<HTMLButtonElement>('btn-attach-media');
 const btnCodeSnap = get<HTMLButtonElement>('btn-codesnap');
 const btnSchedule = get<HTMLButtonElement>('btn-schedule');
@@ -519,17 +519,483 @@ get('confirmScheduleBtn')?.addEventListener('click', () => {
     toast('Scheduling post...', 'info');
 });
 
-// ── AI Generate ───────────────────────────────────────────────────────────────
-btnGen?.addEventListener('click', () => {
-    send('generatePost', { post: textarea?.value.trim() || '', platform: activeCommandPlatform || 'general' });
-    toast('Generating…', 'info');
-    if (btnGen) { btnGen.disabled = true; btnGen.textContent = '⏳ Generating…'; }
+// ── DotShare AI Copilot Controller ───────────────────────────────────────────
+let cachedReleaseContext: ProjectReleaseContext | null = null;
+let lastGeneratedTone: PostTone = 'professional';
+
+function getSelectedAiModelCredentials(): { provider: string; apiKey?: string; model: string } | undefined {
+    const activeTab = document.querySelector<HTMLElement>('.tab-btn.active[data-provider]');
+    const activeProvider = activeTab?.getAttribute('data-provider') || 'gemini';
+    const panel = get(`${activeProvider}Panel`) || document.querySelector('.provider-panel.active') || document.querySelector('.provider-panel');
+    if (!panel) return undefined;
+    const provider = panel.id.replace('Panel', '');
+    const keyInput = panel.querySelector<HTMLInputElement>('input[type="password"]');
+    const modelSel = panel.querySelector<HTMLSelectElement>('select');
+    if (!modelSel?.value) {
+        return undefined;
+    }
+    return {
+        provider,
+        model: modelSel.value,
+        apiKey: keyInput?.value.trim() || undefined
+    };
+}
+
+let savedUserCtaLinks: UserCtaLink[] = [];
+const selectedSavedCtaLinkIds = new Set<string>();
+
+function updateCtaActiveCount(): void {
+    const countBadge = get('ai-cta-active-count');
+    if (!countBadge) return;
+
+    let activeCount = 0;
+    const repoChecked = get<HTMLInputElement>('ai-cta-repo-check')?.checked;
+    const repoUrl = cachedReleaseContext?.repoUrl;
+    if (repoChecked && repoUrl) {
+        activeCount++;
+    }
+
+    activeCount += selectedSavedCtaLinkIds.size;
+
+    countBadge.textContent = `${activeCount} active`;
+    countBadge.className = activeCount > 0 ? 'ai-badge ready' : 'ai-badge ai-badge-optional';
+}
+
+function renderSavedCtaLinks(): void {
+    const list = get('ai-cta-saved-list');
+    if (!list) return;
+
+    list.innerHTML = '';
+    if (savedUserCtaLinks.length === 0) {
+        list.innerHTML = '<div style="font-size:11px;color:var(--vscode-descriptionForeground);padding:4px 0;">No saved links yet. Click "➕ Add Link" to save your personal/community URLs.</div>';
+        return;
+    }
+
+    savedUserCtaLinks.forEach(link => {
+        const card = document.createElement('label');
+        card.className = 'ai-source-card';
+        card.style.display = 'flex';
+        card.style.alignItems = 'center';
+        card.style.justifyContent = 'space-between';
+        card.style.gap = '8px';
+
+        const safeEmoji = escHtml(link.emoji || '🔗');
+        const safeLabel = escHtml(link.label);
+        const safeUrl = escHtml(link.url);
+
+        card.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                <input type="checkbox" class="ai-cta-saved-checkbox" />
+                <div class="ai-source-info" style="min-width:0;">
+                    <span class="ai-source-label">${safeEmoji} ${safeLabel}</span>
+                    <span class="ai-source-desc" style="word-break:break-all;">${safeUrl}</span>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;">
+                <button type="button" class="cta-action-btn btn-edit-cta" title="Edit link">✏️</button>
+                <button type="button" class="cta-action-btn btn-delete-cta" title="Delete link">🗑️</button>
+            </div>
+        `;
+
+        const chk = card.querySelector<HTMLInputElement>('input[type="checkbox"]');
+        if (chk) {
+            chk.checked = selectedSavedCtaLinkIds.has(link.id);
+            card.classList.toggle('active', chk.checked);
+
+            chk.addEventListener('change', () => {
+                if (chk.checked) {
+                    selectedSavedCtaLinkIds.add(link.id);
+                } else {
+                    selectedSavedCtaLinkIds.delete(link.id);
+                }
+                card.classList.toggle('active', chk.checked);
+                updateCtaActiveCount();
+            });
+        }
+
+        // Edit button
+        card.querySelector<HTMLButtonElement>('.btn-edit-cta')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openCtaAddForm(link);
+        });
+
+        // Delete button
+        card.querySelector<HTMLButtonElement>('.btn-delete-cta')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteCtaLink(link.id);
+        });
+
+        list.appendChild(card);
+    });
+}
+
+function openCtaAddForm(existing?: UserCtaLink): void {
+    const form = get('ai-cta-add-form');
+    if (!form) return;
+
+    const idInput = get<HTMLInputElement>('ai-edit-cta-id');
+    const emojiInput = get<HTMLInputElement>('ai-new-cta-emoji');
+    const labelInput = get<HTMLInputElement>('ai-new-cta-label');
+    const urlInput = get<HTMLInputElement>('ai-new-cta-url');
+    const saveBtn = get<HTMLButtonElement>('btn-save-new-cta');
+
+    if (idInput) idInput.value = existing?.id || '';
+    if (emojiInput) emojiInput.value = existing?.emoji || '';
+    if (labelInput) labelInput.value = existing?.label || '';
+    if (urlInput) urlInput.value = existing?.url || '';
+    if (saveBtn) saveBtn.textContent = existing ? 'Update Link' : 'Save Link';
+
+    form.style.display = 'block';
+    labelInput?.focus();
+}
+
+function closeCtaAddForm(): void {
+    const form = get('ai-cta-add-form');
+    if (form) form.style.display = 'none';
+}
+
+function deleteCtaLink(id: string): void {
+    selectedSavedCtaLinkIds.delete(id);
+    savedUserCtaLinks = savedUserCtaLinks.filter(l => l.id !== id);
+    send('saveUserCtaLinks', { links: savedUserCtaLinks });
+    renderSavedCtaLinks();
+    updateCtaActiveCount();
+    toast('Link deleted', 'info');
+}
+
+let lastRepoCtaUrl: string | undefined;
+
+function updateAiContextBadges(ctx: ProjectReleaseContext): void {
+    const changelogBadge = get('ai-changelog-badge');
+    const gitBadge = get('ai-git-badge');
+    if (changelogBadge) {
+        changelogBadge.textContent = ctx.version ? `v${ctx.version}` : (ctx.changelogNotes?.length ? `${ctx.changelogNotes.length} notes` : 'Found');
+        changelogBadge.classList.add('ready');
+    }
+    if (gitBadge) {
+        const count = ctx.recentCommits?.length || 0;
+        gitBadge.textContent = count > 0 ? `${count} commits` : 'Git Ready';
+        gitBadge.classList.add('ready');
+    }
+
+    // Repository CTA auto-detection
+    const repoContainer = get('ai-cta-repo-container');
+    const repoUrlEl = get('ai-cta-repo-url');
+    const repoCheck = get<HTMLInputElement>('ai-cta-repo-check');
+    const repoCard = get('card-cta-repo');
+
+    const repoChanged = lastRepoCtaUrl !== ctx.repoUrl;
+
+    if (ctx.repoUrl) {
+        if (repoContainer) repoContainer.style.display = 'block';
+        if (repoUrlEl) repoUrlEl.textContent = ctx.repoUrl;
+
+        if (repoCheck && repoChanged) {
+            repoCheck.checked = true;
+        }
+
+        if (repoCard) {
+            repoCard.classList.toggle('active', !!repoCheck?.checked);
+        }
+
+        lastRepoCtaUrl = ctx.repoUrl;
+    } else {
+        if (repoContainer) repoContainer.style.display = 'none';
+        if (repoCheck) repoCheck.checked = false;
+        if (repoCard) repoCard.classList.remove('active');
+
+        lastRepoCtaUrl = undefined;
+    }
+
+    updateCtaActiveCount();
+}
+
+function openDotShareAiModal(): void {
+    const modal = get('dotshareAiModal');
+    if (!modal) return;
+
+    const plat = activeCommandPlatform || window.__PLATFORM_DATA__?.platform || 'x';
+    const isThreadsWs = window.__PLATFORM_DATA__?.workspaceType === 'threads';
+    const isTwitterOrBluesky = ['x', 'bluesky'].includes(plat);
+
+    // Thread option visibility & state
+    const threadOptWrap = get('ai-opt-thread-wrap');
+    const threadOptInput = get<HTMLInputElement>('ai-opt-thread');
+    if (threadOptWrap && threadOptInput) {
+        if (isThreadsWs || isTwitterOrBluesky) {
+            threadOptWrap.style.display = 'flex';
+            threadOptInput.checked = isThreadsWs;
+        } else {
+            threadOptWrap.style.display = 'none';
+            threadOptInput.checked = false;
+        }
+    }
+
+    // Default tone: use lastGeneratedTone if user changed tone, else platform default
+    const defaultTone = lastGeneratedTone || (plat === 'linkedin' ? 'professional' : 'casual_build_in_public');
+    document.querySelectorAll<HTMLElement>('.ai-tone-pill').forEach(pill => {
+        const toneVal = pill.getAttribute('data-tone');
+        const radio = pill.querySelector<HTMLInputElement>('input[type="radio"]');
+        const isMatch = toneVal === defaultTone;
+        pill.classList.toggle('active', isMatch);
+        if (radio) radio.checked = isMatch;
+    });
+
+    // Show cached data immediately for zero-latency UI
+    if (cachedReleaseContext) {
+        updateAiContextBadges(cachedReleaseContext);
+    } else {
+        const changelogBadge = get('ai-changelog-badge');
+        const gitBadge = get('ai-git-badge');
+        if (changelogBadge) {
+            changelogBadge.textContent = 'Detecting…';
+            changelogBadge.classList.remove('ready');
+        }
+        if (gitBadge) {
+            gitBadge.textContent = 'Detecting…';
+            gitBadge.classList.remove('ready');
+        }
+    }
+
+    // Always refresh current project context in background so repoUrl reflects current Git remote
+    send('extractReleaseContext');
+
+    modal.style.display = 'flex';
+}
+
+function resetDotShareAiModalBtn(): void {
+    const aiGenBtn = get<HTMLButtonElement>('btn-ai-modal-generate');
+    if (aiGenBtn) {
+        aiGenBtn.disabled = false;
+        aiGenBtn.textContent = '✨ Generate with DotShare AI';
+    }
+}
+
+function populateThreadFromParts(parts: string[]): void {
+    if (!threadContainer || !parts.length) return;
+    
+    // Clear existing posts
+    threadContainer.innerHTML = '';
+    threadPosts.length = 0;
+
+    const max = window.__PLATFORM_DATA__?.maxChars || 280;
+
+    parts.forEach((partText, index) => {
+        threadPosts.push({ text: partText, mediaFilePaths: [] });
+        const div = document.createElement('div');
+        div.innerHTML = `<div class="thread-post" data-thread-index="${index}"><div class="thread-post-header"><span class="thread-post-label">Post ${index + 1}</span><span class="thread-char-counter" data-thread-counter="${index}">${partText.length} / ${max}</span><button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="${index}">✕</button></div><textarea class="thread-textarea" data-thread-textarea="${index}" placeholder="What's on your mind?" rows="3">${partText}</textarea><div class="thread-post-actions"><button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="${index}">📎 Media</button><input type="file" class="thread-file-input" data-thread-file="${index}" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" multiple /><div class="thread-media-preview" data-thread-preview="${index}" style="display:none;"><span class="thread-media-name"></span><button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="${index}">✕</button></div></div></div>`.trim();
+        const first = div.firstChild;
+        if (first) {
+            threadContainer.appendChild(first);
+            wireThreadPostEvents(index);
+            updateThreadCharCounter(index);
+        }
+    });
+
+    reIndexThreads();
+    updateThreadShareBtn();
+}
+
+// Wire modal open triggers
+btnGen?.addEventListener('click', openDotShareAiModal);
+get('btn-dotshare-ai-threads')?.addEventListener('click', openDotShareAiModal);
+get('btn-quick-change-tone')?.addEventListener('click', openDotShareAiModal);
+
+// Close modal triggers
+get('closeDotShareAiModal')?.addEventListener('click', () => {
+    resetDotShareAiModalBtn();
+    const m = get('dotshareAiModal');
+    if (m) m.style.display = 'none';
+});
+get('cancelDotShareAiBtn')?.addEventListener('click', () => {
+    resetDotShareAiModalBtn();
+    const m = get('dotshareAiModal');
+    if (m) m.style.display = 'none';
 });
 
-// Generate AI Threads button
-get('btn-generate-ai-threads')?.addEventListener('click', () => {
-    send('generatePost', { post: '', platform: activeCommandPlatform || 'x' });
-    toast('Generating thread…', 'info');
+// Custom angle checkbox toggle
+get<HTMLInputElement>('ai-src-custom')?.addEventListener('change', (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    const card = get('card-src-custom');
+    if (card) card.classList.toggle('active', checked);
+    const container = get('ai-custom-prompt-container');
+    if (container) container.style.display = checked ? 'block' : 'none';
+});
+
+// Source cards toggle
+['changelog', 'git'].forEach(srcKey => {
+    get<HTMLInputElement>(`ai-src-${srcKey}`)?.addEventListener('change', (e) => {
+        const checked = (e.target as HTMLInputElement).checked;
+        const card = get(`card-src-${srcKey}`);
+        if (card) card.classList.toggle('active', checked);
+    });
+});
+
+// CTA collapsible section toggle
+get('ai-cta-toggle-header')?.addEventListener('click', () => {
+    const content = get('ai-cta-content');
+    const icon = get('ai-cta-toggle-icon');
+    if (content) {
+        const isHidden = content.style.display === 'none' || !content.style.display;
+        content.style.display = isHidden ? 'block' : 'none';
+        if (icon) icon.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
+});
+
+// Repository CTA checkbox toggle
+get<HTMLInputElement>('ai-cta-repo-check')?.addEventListener('change', (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    const card = get('card-cta-repo');
+    if (card) card.classList.toggle('active', checked);
+    updateCtaActiveCount();
+});
+
+// CTA Add Form buttons
+get('btn-add-cta-link')?.addEventListener('click', () => openCtaAddForm());
+get('btn-cancel-add-cta')?.addEventListener('click', closeCtaAddForm);
+get('btn-save-new-cta')?.addEventListener('click', () => {
+    const idInput = get<HTMLInputElement>('ai-edit-cta-id');
+    const emojiInput = get<HTMLInputElement>('ai-new-cta-emoji');
+    const labelInput = get<HTMLInputElement>('ai-new-cta-label');
+    const urlInput = get<HTMLInputElement>('ai-new-cta-url');
+
+    const label = labelInput?.value.trim() || '';
+    const url = urlInput?.value.trim() || '';
+    const emoji = emojiInput?.value.trim() || '🔗';
+    const editId = idInput?.value;
+
+    if (!label) {
+        toast('⚠️ Please enter a label for the link.', 'warning');
+        return;
+    }
+    const lower = url.toLowerCase();
+    if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+        toast('⚠️ Please enter a valid URL starting with http:// or https://', 'warning');
+        return;
+    }
+
+    const duplicate = savedUserCtaLinks.some(link => link.url === url && link.id !== editId);
+    if (duplicate) {
+        toast('⚠️ This URL is already saved.', 'warning');
+        return;
+    }
+
+    if (editId) {
+        const idx = savedUserCtaLinks.findIndex(l => l.id === editId);
+        if (idx !== -1) {
+            savedUserCtaLinks[idx] = { id: editId, label, url, emoji };
+        }
+    } else {
+        savedUserCtaLinks.push({
+            id: 'cta_' + Date.now(),
+            label,
+            url,
+            emoji
+        });
+    }
+
+    send('saveUserCtaLinks', { links: savedUserCtaLinks });
+    closeCtaAddForm();
+    renderSavedCtaLinks();
+    updateCtaActiveCount();
+    toast('✅ CTA link saved!', 'success');
+});
+
+// Tone pills selection
+document.querySelectorAll<HTMLElement>('.ai-tone-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+        document.querySelectorAll('.ai-tone-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const radio = pill.querySelector<HTMLInputElement>('input[type="radio"]');
+        if (radio) radio.checked = true;
+    });
+});
+
+// Generate post button in modal
+get('btn-ai-modal-generate')?.addEventListener('click', () => {
+    const creds = getSelectedAiModelCredentials();
+
+    const useChangelog = get<HTMLInputElement>('ai-src-changelog')?.checked ?? true;
+    const useGit = get<HTMLInputElement>('ai-src-git')?.checked ?? true;
+    const useCustom = get<HTMLInputElement>('ai-src-custom')?.checked ?? false;
+    const customPromptVal = get<HTMLTextAreaElement>('ai-custom-prompt')?.value.trim();
+
+    if (!useChangelog && !useGit && (!useCustom || !customPromptVal)) {
+        toast('⚠️ Please select at least one context source or provide a custom topic.', 'warning');
+        return;
+    }
+
+    const selectedToneRadio = document.querySelector<HTMLInputElement>('input[name="ai-tone"]:checked');
+    const selectedTone = (selectedToneRadio?.value as PostTone) || 'professional';
+    lastGeneratedTone = selectedTone;
+
+    const selectedLanguage = (get<HTMLSelectElement>('ai-language-select')?.value as 'en' | 'ar') || 'en';
+    const includeHashtags = get<HTMLInputElement>('ai-opt-hashtags')?.checked ?? true;
+    const threadMode = get<HTMLInputElement>('ai-opt-thread')?.checked ?? false;
+    const targetPlatform = (activeCommandPlatform || window.__PLATFORM_DATA__?.platform || 'x') as SocialPlatform;
+
+    // Collect selected CTA Links (Repository + Saved Links)
+    const selectedCtaLinks: ReleaseCtaLink[] = [];
+    const repoChecked = get<HTMLInputElement>('ai-cta-repo-check')?.checked;
+    if (repoChecked && cachedReleaseContext?.repoUrl) {
+        selectedCtaLinks.push({
+            id: 'current-repository',
+            label: 'Repository',
+            url: cachedReleaseContext.repoUrl,
+            emoji: '⭐',
+            source: 'repository'
+        });
+    }
+    savedUserCtaLinks.forEach(link => {
+        if (selectedSavedCtaLinkIds.has(link.id)) {
+            selectedCtaLinks.push({
+                id: link.id,
+                label: link.label,
+                url: link.url,
+                emoji: link.emoji,
+                source: 'saved'
+            });
+        }
+    });
+
+    // Filter context selectively from cache
+    const filteredContext: ProjectReleaseContext = {
+        projectName: cachedReleaseContext?.projectName || 'Project',
+        projectDescription: cachedReleaseContext?.projectDescription,
+        repoUrl: cachedReleaseContext?.repoUrl,
+        techStack: cachedReleaseContext?.techStack,
+        version: useChangelog ? cachedReleaseContext?.version : undefined,
+        changelogNotes: useChangelog ? cachedReleaseContext?.changelogNotes : [],
+        latestCommit: useGit ? cachedReleaseContext?.latestCommit : undefined,
+        recentCommits: useGit ? cachedReleaseContext?.recentCommits : [],
+        gitDiffSummary: useGit ? cachedReleaseContext?.gitDiffSummary : undefined
+    };
+
+    const request: ReleaseGenerationRequest = {
+        context: filteredContext,
+        targetPlatforms: [targetPlatform],
+        tone: selectedTone,
+        language: selectedLanguage,
+        includeHashtags,
+        threadMode,
+        customPrompt: useCustom ? customPromptVal : undefined,
+        ctaLinks: selectedCtaLinks.length > 0 ? selectedCtaLinks : undefined
+    };
+
+    const genBtn = get<HTMLButtonElement>('btn-ai-modal-generate');
+    if (genBtn) {
+        genBtn.disabled = true;
+        genBtn.textContent = '⏳ Generating with DotShare AI…';
+    }
+
+    send('generateReleasePost', {
+        request,
+        selectedModel: creds
+    });
+
+    toast('✨ DotShare AI is crafting your post…', 'info', 5000);
 });
 
 // ── Composer Lock ─────────────────────────────────────────────────────────────
@@ -873,7 +1339,31 @@ btnShareThread?.addEventListener('click', () => {
 get('btn-schedule-thread')?.addEventListener('click', () => openScheduleModal('thread'));
 
 // ── AI Model Modal ────────────────────────────────────────────────────────────
-get('btn-ai-model')?.addEventListener('click', () => { const m = get('modelModal'); if (m) m.style.display = 'flex'; });
+function loadModelsForActiveProvider(): void {
+    const activeTab = document.querySelector<HTMLElement>('.tab-btn.active[data-provider]');
+    const provider = activeTab?.getAttribute('data-provider');
+    if (!provider) return;
+    const panel = get(`${provider}Panel`);
+    if (!panel) return;
+    const keyInput = panel.querySelector<HTMLInputElement>('input[type="password"]');
+    const select = panel.querySelector<HTMLSelectElement>('select');
+    if (select) {
+        select.disabled = true;
+        select.innerHTML = '<option value="" selected disabled>Loading available models...</option>';
+    }
+    // Empty key is intentional: backend falls back to stored SecretStorage key
+    send('fetchAiModels', { provider, apiKey: keyInput?.value.trim() || '' });
+}
+
+function openModelModal(): void {
+    const modal = get('modelModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    loadModelsForActiveProvider();
+}
+
+get('btn-ai-model')?.addEventListener('click', openModelModal);
+get('btn-ai-keys-config')?.addEventListener('click', openModelModal);
 
 document.querySelectorAll<HTMLElement>('[id^="closeModal"], [id^="close-modal-btn"]').forEach(btn => {
     btn.addEventListener('click', () => { const m = btn.closest('.modal') as HTMLElement | null; if (m) m.style.display = 'none'; });
@@ -886,19 +1376,56 @@ get('applyModelBtn')?.addEventListener('click', () => {
     const keyInput = panel.querySelector<HTMLInputElement>('input[type="password"]');
     const modelSel = panel.querySelector<HTMLSelectElement>('select');
     if (keyInput && modelSel) {
-        send('applyModelSelection', { provider, model: modelSel.value, apiKey: keyInput.value });
+        if (!modelSel.value) {
+            toast('Please select an AI model.', 'warning');
+            return;
+        }
+        send('applyModelSelection', { provider, model: modelSel.value, apiKey: keyInput.value.trim() });
         toast('AI model applied!', 'success');
         const m = get('modelModal'); if (m) m.style.display = 'none';
     }
 });
+
+let apiKeyDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 document.querySelectorAll<HTMLElement>('.tab-btn[data-provider]').forEach(tab => {
     tab.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn[data-provider]').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.provider-panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
-        const panel = get((tab.getAttribute('data-provider') ?? '') + 'Panel');
-        if (panel) panel.classList.add('active');
+        const provider = tab.getAttribute('data-provider') ?? '';
+        const panel = get(provider + 'Panel');
+        if (panel) {
+            panel.classList.add('active');
+            const keyInput = panel.querySelector<HTMLInputElement>('input[type="password"]');
+            send('fetchAiModels', { provider, apiKey: keyInput?.value.trim() || '' });
+        }
+    });
+});
+
+document.querySelectorAll<HTMLInputElement>('.provider-panel input[type="password"]').forEach(keyInput => {
+    keyInput.addEventListener('input', () => {
+        const panel = keyInput.closest('.provider-panel');
+        if (!panel) return;
+        const provider = panel.id.replace('Panel', '');
+        const select = panel.querySelector<HTMLSelectElement>('select');
+        if (select) {
+            select.innerHTML = '';
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.selected = true;
+            opt.textContent = keyInput.value.trim() ? 'Loading live models from provider...' : `Enter your ${provider} API key to load models`;
+            select.appendChild(opt);
+            select.disabled = true;
+        }
+
+        if (apiKeyDebounceTimer) {
+            clearTimeout(apiKeyDebounceTimer);
+        }
+        apiKeyDebounceTimer = setTimeout(() => {
+            send('fetchAiModels', { provider, apiKey: keyInput.value.trim() });
+        }, 400);
     });
 });
 
@@ -945,13 +1472,137 @@ window.addEventListener('message', (event: MessageEvent) => {
                 break;
             }
 
+            case 'aiModelsLoaded': {
+                const provider = msg.provider as string;
+                const models = (msg.models as string[]) || [];
+                if (provider) {
+                    const select = get<HTMLSelectElement>(`${provider}Model`);
+                    const badge = get<HTMLElement>(`${provider}KeyBadge`);
+                    const panel = get(`${provider}Panel`);
+                    const keyInput = panel?.querySelector<HTMLInputElement>('input[type="password"]');
+
+                    if (select) {
+                        const currentVal = select.value;
+                        select.innerHTML = '';
+                        if (models.length > 0) {
+                            select.disabled = false;
+                            models.forEach(m => {
+                                const opt = document.createElement('option');
+                                opt.value = m;
+                                opt.textContent = m;
+                                if (m === currentVal) opt.selected = true;
+                                select.appendChild(opt);
+                            });
+                            if (!select.value && select.options.length > 0) {
+                                select.selectedIndex = 0;
+                            }
+                            if (badge) {
+                                badge.className = 'key-status-badge saved';
+                                badge.textContent = '🔒 Key Saved & Active';
+                            }
+                            if (keyInput && !keyInput.value) {
+                                keyInput.placeholder = '•••••••• (Saved in Secure Storage)';
+                            }
+                        } else {
+                            select.disabled = true;
+                            const opt = document.createElement('option');
+                            opt.value = '';
+                            opt.disabled = true;
+                            opt.selected = true;
+                            const providerLabels: Record<string, string> = {
+                                gemini: 'Google Gemini',
+                                openai: 'OpenAI ChatGPT',
+                                claude: 'Anthropic Claude',
+                                xai: 'xAI Grok',
+                                deepseek: 'DeepSeek'
+                            };
+                            opt.textContent = `Enter your ${providerLabels[provider] || provider} API key to load models`;
+                            select.appendChild(opt);
+                            if (badge) {
+                                badge.className = 'key-status-badge missing';
+                                badge.textContent = '⚠️ Not Configured';
+                            }
+                            if (keyInput && !keyInput.value) {
+                                keyInput.placeholder = provider === 'gemini' ? 'AIzaSy...' : 'sk-...';
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case 'userCtaLinksLoaded':
+            case 'userCtaLinksUpdated': {
+                savedUserCtaLinks = (msg.links as UserCtaLink[]) || [];
+                const validIds = new Set(savedUserCtaLinks.map(link => link.id));
+                for (const selectedId of selectedSavedCtaLinkIds) {
+                    if (!validIds.has(selectedId)) {
+                        selectedSavedCtaLinkIds.delete(selectedId);
+                    }
+                }
+                renderSavedCtaLinks();
+                updateCtaActiveCount();
+                break;
+            }
+
+            case 'releaseContextExtracted': {
+                if (msg.context) {
+                    cachedReleaseContext = msg.context as ProjectReleaseContext;
+                    updateAiContextBadges(cachedReleaseContext);
+                }
+                break;
+            }
+
+            case 'releasePostGenerated': {
+                resetDotShareAiModalBtn();
+
+                const modal = get('dotshareAiModal');
+                if (modal) modal.style.display = 'none';
+
+                const result = msg.result as GeneratedPlatformContent;
+                if (!result) break;
+
+                const isThreadsWorkspace = window.__PLATFORM_DATA__?.workspaceType === 'threads';
+
+                // Handle threads
+                if (result.isThread && result.threadParts && result.threadParts.length > 0) {
+                    populateThreadFromParts(result.threadParts);
+                } else if (isThreadsWorkspace) {
+                    // Single post on threads workspace (e.g. single tweet on X) -> populate as single post in thread composer
+                    populateThreadFromParts([result.rawContent]);
+                } else if (textarea) {
+                    textarea.value = result.rawContent;
+                    textarea.dispatchEvent(new Event('input'));
+                    updateCharCounter();
+                    updateShareBtn();
+                }
+
+                // Show tone bar
+                const toneBar = get('ai-tone-bar');
+                const toneLabel = get('ai-tone-label');
+                if (toneBar && toneLabel) {
+                    const toneNameMap: Record<string, string> = {
+                        professional: 'Professional',
+                        casual_build_in_public: 'Build in Public',
+                        technical_deep_dive: 'Technical',
+                        tldr_bulletin: 'TL;DR'
+                    };
+                    toneLabel.textContent = `✨ ${toneNameMap[lastGeneratedTone] || 'AI'}`;
+                    toneBar.style.display = 'inline-flex';
+                }
+
+                toast(`✨ DotShare AI generated post (${result.charCount} chars)!`, 'success');
+                break;
+            }
+
             case 'updatePost':
                 if (msg.post && textarea) { textarea.value = String(msg.post); updateCharCounter(); updateShareBtn(); }
                 if (msg.post) { const b = get<HTMLTextAreaElement>('blog-body'); if (b) b.value = String(msg.post); }
                 updateBlogPublishButtonsState();
+                setBtnLoading('btn-dotshare-ai', false);
                 setBtnLoading('btn-generate-ai', false);
                 setBtnLoading('btn-share', false);
-                if (btnGen) { btnGen.disabled = false; btnGen.textContent = '🧠 Generate with AI'; }
+                if (btnGen) { btnGen.disabled = false; btnGen.textContent = '✨ DotShare AI'; }
                 if (btnShare) { btnShare.disabled = false; btnShare.textContent = activeCommandPlatform ? `🚀 Share to ${activeCommandPlatform.charAt(0).toUpperCase() + activeCommandPlatform.slice(1)}` : '🚀 Share Now'; }
                 toast('Post updated!', 'success');
                 break;
@@ -1011,13 +1662,19 @@ window.addEventListener('message', (event: MessageEvent) => {
                 toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info');
                 if (msg.type === 'error') {
                     setComposerLocked(false);
-                    ['btn-share', 'btn-publish-blog', 'btn-publish-blog-devto', 'btn-read-md-file', 'btn-generate-ai'].forEach(id => setBtnLoading(id, false));
+                    ['btn-share', 'btn-publish-blog', 'btn-publish-blog-devto', 'btn-read-md-file', 'btn-dotshare-ai', 'btn-generate-ai'].forEach(id => setBtnLoading(id, false));
                     const tBtn = get<HTMLButtonElement>('btn-share-thread');
                     if (tBtn) { tBtn.classList.remove('loading'); tBtn.disabled = false; tBtn.textContent = '🚀 Share Thread'; }
                     resetBlogPublishUi();
+                    resetDotShareAiModalBtn();
+
+                    if (String(msg.status || '').includes('API Key is required')) {
+                        openModelModal();
+                    }
                 } else {
                     // success / info / warning — only reset utility buttons
                     setBtnLoading('btn-read-md-file', false);
+                    setBtnLoading('btn-dotshare-ai', false);
                     setBtnLoading('btn-generate-ai', false);
                 }
                 break;
@@ -1659,6 +2316,9 @@ try {
     // Fetch which platforms the user has connected via OAuth.
     // The response triggers SET_CONNECTIONS → applyConnectionState().
     send('loadOAuthConnections');
+
+    // Fetch saved user CTA links
+    send('loadUserCtaLinks');
 
     updateShareBtn();
     console.log('[DotShare platform-post] Initialized');

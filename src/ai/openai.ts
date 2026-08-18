@@ -1,28 +1,29 @@
 import * as vscode from 'vscode';
 import OpenAI from 'openai';
-import { PostData } from '../types';
+import { PostData, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
 
-export async function generatePost(apiKey: string, model = 'gpt-4o'): Promise<PostData | null> {
+export async function generatePost(apiKey: string, model: string): Promise<PostData | null> {
+    if (!model) throw new Error('OpenAI model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
     const openai = new OpenAI({ apiKey });
     try {
-        const completion = await openai.chat.completions.create({
+        const response = await openai.responses.create({
             model: model,
-            messages: [{ role: 'user', content: context.contextPrompt }],
-            max_tokens: 300
+            input: context.contextPrompt,
+            max_output_tokens: 300
         });
 
-        const generatedText = completion.choices[0]?.message?.content || '';
+        const generatedText = (response.output_text || '').trim();
 
         context.hashtagContext.postContent = generatedText;
         const platform = vscode.workspace.getConfiguration('dotshare').get<string>('defaultPlatform', 'twitter');
 
-        let postText = generatedText.trim();
+        let postText = generatedText;
         if (HashtagService.supportsHashtags(platform)) {
             const hashtags = await HashtagService.generateHashtags(context.hashtagContext, platform, 5);
             postText = `${postText}\n\n${HashtagService.formatHashtags(hashtags)}`.trim();
@@ -48,21 +49,59 @@ export async function generatePost(apiKey: string, model = 'gpt-4o'): Promise<Po
     }
 }
 
+/**
+ * Executes a custom prompt directly using OpenAI
+ */
+export async function generateCustomContent(
+    apiKey: string,
+    prompt: string,
+    options?: GenerateContentOptions
+): Promise<string> {
+    const model = options?.model;
+    if (!model) {
+        throw new Error('OpenAI model is required.');
+    }
+    const openai = new OpenAI({ apiKey });
+
+    try {
+        const response = await openai.responses.create({
+            model,
+            input: prompt,
+            max_output_tokens: options?.maxTokens || 2000
+        });
+        return (response.output_text || '').trim();
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('OpenAI generateCustomContent error', errorMessage);
+        throw error;
+    }
+}
+
 export async function getAvailableModels(apiKey: string): Promise<string[]> {
-    if (!apiKey) return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3', 'o1'];
+    if (!apiKey) {
+        return [];
+    }
 
     try {
         const openai = new OpenAI({ apiKey });
         const models = await openai.models.list();
-        // Sort by created date descending to get latest first
-        const sortedModels = models.data.sort((a, b) => (b.created || 0) - (a.created || 0));
-        const gptModels = sortedModels
-            .filter(m => m.id.includes('gpt') || m.id.includes('o1') || m.id.includes('o3') || m.id.includes('o4'))
-            .map(m => m.id);
-        return gptModels.length > 0 ? gptModels : ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3', 'o1'];
+        const blocked = [
+            'audio', 'realtime', 'transcribe', 'tts', 'image', 'embedding',
+            'moderation', 'sora', 'whisper', 'dall-e', 'codex', 'search',
+            'deep-research', 'computer-use'
+        ];
+        return models.data
+            .filter(model => {
+                const id = model.id.toLowerCase();
+                const isTextModel = id.startsWith('gpt-') || /^o\d/.test(id);
+                const isBlocked = blocked.some(term => id.includes(term));
+                return isTextModel && !isBlocked;
+            })
+            .sort((a, b) => (b.created || 0) - (a.created || 0))
+            .map(model => model.id);
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('OpenAI fetch models error', errorMessage);
-        return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3', 'o1'];
+        return [];
     }
 }

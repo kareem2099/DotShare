@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2026-08-18 — "Smart CTA Hub & Pure Dynamic AI Discovery"
+
+### Added
+- **🔗 Smart User CTA & Links Hub**:
+  - Save, edit, and manage persistent personal/community links (`UserCtaLink`) with custom labels, URLs, and emojis stored in `globalState`.
+  - Automatic detection of Workspace Repository URL with separate runtime toggle.
+  - Real-time multi-panel broadcast synchronization across all open composer tabs (X, LinkedIn, BlueSky) via `userCtaLinksUpdated`.
+  - Authoritative `Set<string>` selection state maintaining checkbox selections across multi-panel link additions and re-renders.
+  - Race-condition elimination on repository checkbox during background extraction.
+  - Strict URL Fidelity and zero-hallucination prompt rules guaranteeing exact verbatim URL output and platform-specific URL budgeting.
+- **✨ Pure Dynamic AI Model Discovery**:
+  - 100% dynamic live model discovery: Provider APIs are the sole source of truth with zero static hardcoded model fallbacks.
+  - **Google Gemini**: Migrated to official `@google/genai` SDK with `GoogleGenAI` and `pageSize=1000` discovery.
+  - **OpenAI**: Migrated generation engine to the modern `Responses API` (`responses.create({ model, input, max_output_tokens })`).
+  - **xAI Grok**: Integrated dedicated `/v1/language-models` endpoint with `output_modalities: ['text']` filtering.
+  - **DeepSeek**: Integrated live model discovery and optimized social generation with `thinking: { type: 'disabled' }`.
+  - **Anthropic Claude**: Integrated live model discovery via `client.models.list()`.
+- **🔐 SecretStorage Hardening & Auto-Fetch**:
+  - Automatic background live model fetch upon opening `Select AI Model` modal using secure keys stored in `SecretStorage`.
+  - Safely updates model selection without re-typing API key when a valid key already exists in `SecretStorage`.
+  - Added UI Security Vault banner, dynamic provider key status badges (`🔒 Key Saved & Active` / `⚠️ Not Configured`), and smart input placeholders.
+- **🛡️ Strict Compile-Time & Runtime Model Verification**:
+  - Enforced `GenerateContentOptions.model: string` (required) across the entire engine, preventing runtime regressions or missing model arguments.
+
+### Changed
+- **🎨 Platform Post Header Clean-up**: Consolidated AI actions into the unified DotShare AI modal and streamlined platform headers.
+- **📦 Dependencies Modernized**: Replaced deprecated `@google/generative-ai` with official `@google/genai`.
+
+---
+
+## [3.5.0] - 2026-08-18 — "DotShare AI Release Copilot"
+
+### Added
+- **🧠 DotShare AI Context Engine (`ProjectContextService`)**: Automatically extracts and parses project release context from `CHANGELOG.md`, `README.md`, `package.json`, and Git commit history/diffs (`git diff --stat HEAD~1 HEAD`) in parallel.
+- **🎭 Multi-Tone Content Generation (`ReleasePromptBuilder`)**: Added support for 5 tailored writing styles:
+  - 👔 **Professional & Formal**: Polished, corporate, impact-oriented for LinkedIn.
+  - 🚀 **Build in Public / Casual**: Friendly, authentic developer journey for 𝕏 and BlueSky.
+  - 🧠 **Technical Deep-Dive**: In-depth code changes, architecture, and performance.
+  - ⚡ **Quick TL;DR**: Rapid, scannable bullet points for instant reading.
+  - 📝 **Full Markdown Article**: Strict pure Markdown with YAML Frontmatter for Dev.to and technical blogs.
+- **🌍 Bilingual Support**: Full AI prompt engineering support for both fluent developer-focused English and technical Arabic (العربية الفصحى التقنية السلسة).
+- **🔍 Inspect Release Context Command**: Added `dotshare.inspectReleaseContext` (`DotShare: 🧠 Inspect AI Release Context`) to view extracted workspace context directly in the VS Code Output panel.
+- **⚡ Unified AI Adapters**: Standardized `generateCustomContent` across Google Gemini, Anthropic Claude, OpenAI, and xAI Grok with tone-aware dynamic token allocation and reasoning model (`o1`, `o3`, `o4`) compatibility.
+
+### Changed
+- **📦 Dynamic Token Allocation**: Configured custom token limits per tone (up to 4,000 tokens for full Markdown articles, 2,500 for deep-dives, and 1,000 for social updates).
+- **🌳 Git Context Extraction**: Upgraded Git analysis to parallelized `Promise.allSettled` and precise `git diff --stat HEAD~1 HEAD` comparison.
+
+---
+
 ## [3.4.1] - 2026-06-05 — "Cleanup"
 
 ### Removed

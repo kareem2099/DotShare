@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import Anthropic from '@anthropic-ai/sdk';
-import { PostData } from '../types';
+import { PostData, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
 
-export async function generatePost(apiKey: string, modelName = 'claude-sonnet-4-6'): Promise<PostData | null> {
+export async function generatePost(apiKey: string, modelName: string): Promise<PostData | null> {
+    if (!modelName) throw new Error('Claude model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
@@ -48,17 +49,46 @@ export async function generatePost(apiKey: string, modelName = 'claude-sonnet-4-
     }
 }
 
+/**
+ * Executes a custom prompt directly using Claude
+ */
+export async function generateCustomContent(
+    apiKey: string,
+    prompt: string,
+    options?: GenerateContentOptions
+): Promise<string> {
+    const model = options?.model;
+    if (!model) {
+        throw new Error('Claude model is required.');
+    }
+
+    const client = new Anthropic({ apiKey });
+    try {
+        const message = await client.messages.create({
+            model: model,
+            max_tokens: options?.maxTokens || 2000,
+            messages: [{ role: 'user', content: prompt }]
+        });
+        return (message.content[0]?.type === 'text' ? message.content[0].text : '').trim();
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('Claude generateCustomContent error', errorMessage);
+        throw error;
+    }
+}
+
 export async function getAvailableModels(apiKey: string): Promise<string[]> {
-    if (!apiKey) return ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'];
+    if (!apiKey) {
+        return [];
+    }
 
     try {
         const client = new Anthropic({ apiKey });
         const response = await client.models.list();
-        const models = response.data.map(m => m.id);
-        return models.length > 0 ? models : ['claude-sonnet-4-6'];
+        return response.data.map(m => m.id);
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('Claude fetch models error', errorMessage);
-        return ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'];
+        return [];
     }
 }

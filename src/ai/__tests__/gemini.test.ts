@@ -12,6 +12,7 @@ jest.mock('../../utils/contextBuilder', () => ({
 
 jest.mock('../../services/HashtagService', () => ({
     HashtagService: {
+        supportsHashtags: jest.fn().mockReturnValue(true),
         generateHashtags: jest.fn().mockResolvedValue([
             '#gemini', '#google', '#testing'
         ]),
@@ -21,17 +22,15 @@ jest.mock('../../services/HashtagService', () => ({
 
 // Create shared mock instances
 const mockGenerateContent = jest.fn().mockResolvedValue({
-    response: {
-        text: jest.fn().mockReturnValue('This is a test response from Gemini')
-    }
+    text: 'This is a test response from Gemini'
 });
 
-// Mock the Google Generative AI SDK
-jest.mock('@google/generative-ai', () => ({
-    GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
-        getGenerativeModel: jest.fn().mockReturnValue({
+// Mock @google/genai SDK
+jest.mock('@google/genai', () => ({
+    GoogleGenAI: jest.fn().mockImplementation(() => ({
+        models: {
             generateContent: mockGenerateContent
-        })
+        }
     }))
 }));
 
@@ -46,8 +45,8 @@ describe('Gemini AI Provider', () => {
 
     describe('generatePost', () => {
         it('should generate a post with Gemini API', async () => {
-            const result = await generatePost('test-api-key', 'gemini-3.0-flash');
-            
+            const result = await generatePost('test-api-key', 'gemini-2.5-flash');
+
             expect(result).not.toBeNull();
             expect(result?.text).toBeDefined();
             expect(result?.text).toContain('This is a test response from Gemini');
@@ -58,33 +57,26 @@ describe('Gemini AI Provider', () => {
             const { buildProjectContext } = require('../../utils/contextBuilder');
             buildProjectContext.mockResolvedValueOnce(null);
 
-            const result = await generatePost('test-api-key');
-            
+            const result = await generatePost('test-api-key', 'gemini-2.5-flash');
+
             expect(result).toBeNull();
         });
 
         it('should handle API errors gracefully', async () => {
             mockGenerateContent.mockRejectedValueOnce(new Error('API Error'));
 
-            await expect(generatePost('invalid-key')).rejects.toThrow();
+            await expect(generatePost('invalid-key', 'gemini-2.5-flash')).rejects.toThrow();
         });
 
-        it('should use default model when not specified', async () => {
-            const result = await generatePost('test-api-key');
-            
-            expect(result).not.toBeNull();
-            expect(result?.text).toBeDefined();
+        it('should throw when model is not specified', async () => {
+            await expect(generatePost('test-api-key', '')).rejects.toThrow();
         });
     });
 
     describe('getAvailableModels', () => {
-        it('should return default models when no API key provided', async () => {
+        it('should return empty array when no API key provided', async () => {
             const models = await getAvailableModels('');
-            
-            expect(models).toEqual(expect.arrayContaining([
-                'gemini-3.0-flash',
-                'gemini-3.0-pro'
-            ]));
+            expect(models).toEqual([]);
         });
 
         it('should fetch models from API when key is provided', async () => {
@@ -93,11 +85,11 @@ describe('Gemini AI Provider', () => {
                 json: async () => ({
                     models: [
                         {
-                            name: 'models/gemini-3.0-flash',
+                            name: 'models/gemini-2.5-flash',
                             supportedGenerationMethods: ['generateContent']
                         },
                         {
-                            name: 'models/gemini-3.0-pro',
+                            name: 'models/gemini-2.5-pro',
                             supportedGenerationMethods: ['generateContent']
                         }
                     ]
@@ -105,18 +97,22 @@ describe('Gemini AI Provider', () => {
             });
 
             const models = await getAvailableModels('valid-api-key');
-            
-            expect(models).toContain('gemini-3.0-flash');
-            expect(models).toContain('gemini-3.0-pro');
+
+            expect(models).toContain('gemini-2.5-flash');
+            expect(models).toContain('gemini-2.5-pro');
         });
 
-        it('should filter only generateContent models', async () => {
+        it('should filter only generateContent and non-blocked models', async () => {
             (global.fetch as jest.Mock).mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
                     models: [
                         {
-                            name: 'models/gemini-3.0-flash',
+                            name: 'models/gemini-2.5-flash',
+                            supportedGenerationMethods: ['generateContent']
+                        },
+                        {
+                            name: 'models/gemini-embedding-001',
                             supportedGenerationMethods: ['generateContent']
                         }
                     ]
@@ -124,16 +120,17 @@ describe('Gemini AI Provider', () => {
             });
 
             const models = await getAvailableModels('valid-api-key');
-            
-            expect(models).toContain('gemini-3.0-flash');
+
+            expect(models).toContain('gemini-2.5-flash');
+            expect(models).not.toContain('gemini-embedding-001');
         });
 
-        it('should return default models on API error', async () => {
+        it('should return empty array on API error', async () => {
             (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
 
             const models = await getAvailableModels('test-key');
-            
-            expect(models).toContain('gemini-3.0-flash');
+
+            expect(models).toEqual([]);
         });
 
         it('should handle non-ok API responses', async () => {
@@ -143,8 +140,8 @@ describe('Gemini AI Provider', () => {
             });
 
             const models = await getAvailableModels('test-key');
-            
-            expect(models).toContain('gemini-3.0-flash');
+
+            expect(models).toEqual([]);
         });
     });
 });

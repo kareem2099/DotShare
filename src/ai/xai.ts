@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
-import { PostData, XAIResponse, XAIModelsResponse } from '../types';
+import { PostData, XAIResponse, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
 
-export async function generatePost(apiKey: string, model = 'grok-2-latest'): Promise<PostData | null> {
+export async function generatePost(apiKey: string, model: string): Promise<PostData | null> {
+    if (!model) throw new Error('xAI model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
@@ -58,21 +59,77 @@ export async function generatePost(apiKey: string, model = 'grok-2-latest'): Pro
     }
 }
 
-export async function getAvailableModels(apiKey: string): Promise<string[]> {
-    if (!apiKey) return ['grok-3', 'grok-3-mini', 'grok-2-latest'];
+/**
+ * Executes a custom prompt directly using xAI Grok
+ */
+export async function generateCustomContent(
+    apiKey: string,
+    prompt: string,
+    options?: GenerateContentOptions
+): Promise<string> {
+    const model = options?.model;
+    if (!model) {
+        throw new Error('xAI model is required.');
+    }
 
     try {
-        const response = await fetch('https://api.x.ai/v1/models', {
-            headers: { 'Authorization': `Bearer ${apiKey}` }
+        const response = await fetch('https://api.x.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: options?.maxTokens || 2000
+            })
         });
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
-        const data = await response.json() as XAIModelsResponse;
-        const models = data.data.filter(m => m.id.includes('grok')).map(m => m.id);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-        return models.length > 0 ? models : ['grok-3', 'grok-3-mini', 'grok-2-latest'];
-    } catch (error) {
-        Logger.error('xAI fetch models error', error);
-        return ['grok-3', 'grok-3-mini', 'grok-2-latest'];
+        const data = await response.json() as XAIResponse;
+        return (data.choices?.[0]?.message?.content || '').trim();
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('xAI generateCustomContent error', errorMessage);
+        throw error;
+    }
+}
+
+export async function getAvailableModels(apiKey: string): Promise<string[]> {
+    if (!apiKey) {
+        return [];
+    }
+
+    try {
+        const response = await fetch('https://api.x.ai/v1/language-models', {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`xAI language models request failed: ${response.status}`);
+        }
+
+        const data = await response.json() as {
+            data: Array<{
+                id: string;
+                input_modalities?: string[];
+                output_modalities?: string[];
+            }>;
+        };
+
+        return (data.data || [])
+            .filter(model => model.output_modalities?.includes('text'))
+            .map(model => model.id);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('xAI fetch models error', errorMessage);
+        return [];
     }
 }
