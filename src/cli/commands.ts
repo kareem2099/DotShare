@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigManager } from './config';
 import { DEFAULT_SERVER_URL } from '../constants';
-import { Logger } from '../utils/Logger';
+import { Logger } from './logger';
 
 // Platform-specific payload interfaces
 interface TelegramPayload {

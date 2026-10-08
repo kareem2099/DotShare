@@ -4,13 +4,14 @@ import { PostData, GeminiModelsResponse, GenerateContentOptions } from '../types
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
+import { GenerationError, requireGeneratedText } from './GenerationError';
 
 export async function generatePost(geminiKey: string, modelName: string): Promise<PostData | null> {
     if (!modelName) throw new Error('Gemini model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 90_000 } });
 
     try {
         const response = await ai.models.generateContent({
@@ -63,7 +64,7 @@ export async function generateCustomContent(
         throw new Error('Gemini model is required.');
     }
 
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 90_000 } });
     try {
         const response = await ai.models.generateContent({
             model,
@@ -72,7 +73,10 @@ export async function generateCustomContent(
                 maxOutputTokens: options?.maxTokens || 2000
             }
         });
-        return (response.text || '').trim();
+        const finish = response.candidates?.[0]?.finishReason;
+        if (finish === 'MAX_TOKENS') throw new GenerationError('Gemini returned an incomplete article.', true);
+        if (finish && finish !== 'STOP') throw new GenerationError('Gemini did not complete the article.');
+        return requireGeneratedText(response.text);
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('Gemini generateCustomContent error', errorMessage);

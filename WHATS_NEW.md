@@ -2,6 +2,62 @@
 
 ---
 
+## 📰 v3.5.2 — "Blog Pilot (Dev.to) & Workspace Context Search"
+
+*Released: October 4, 2026*
+
+### 🚀 Technical Blog Publishing & Intelligent Context Retrieval
+
+DotShare 3.5.2 introduces full technical blog article generation tailored for Dev.to, strict pure Markdown output with automated YAML Frontmatter parsing, sanitized live preview rendering, and transforms workspace context extraction into an on-demand, query-driven code and Git search engine.
+
+#### Release engine improvements
+
+Choose the release version or tracked local changes explicitly. Articles now read a consistent commit snapshot, complete multiline changelog notes, release verification documents and verified source excerpts. Generated code must come from the supplied evidence. Detectable quality problems trigger at most one repair. Any remaining unverifiable code examples are omitted with a visible notice asking you to review the surrounding explanation; other unresolved errors and empty or incomplete provider responses are rejected. Quick social posts use the same context collector.
+
+These checks improve grounding; prose claims and documented verification limits still need editorial review.
+
+#### Key Highlights
+
+**📰 Dev.to Technical Article Generation & Live Preview**
+- **One-Click Technical Articles**: Generate structured, in-depth technical release articles from workspace context via the dedicated `Full Article (Dev.to)` tone.
+- **Strict Pure Markdown Output**: Standard GitHub Flavored Markdown with clean code fences, language tags, and structured sections without HTML wrapper artifacts.
+- **Smart Frontmatter Parsing**: Parses generated YAML metadata into `blog-title`, `blog-tags` (max 4 lowercase alphanumeric tags), and `blog-description`.
+- **Strict URL Fidelity**: Automatically excludes repository URLs from `canonical_url` to protect article SEO and prevent link hallucinations.
+- **Sanitized Live Markdown Preview**: Dual-mode segmented toggle (`✏️ Raw Markdown` / `👁️ Live Preview`) powered by `marked` and sanitized with `DOMPurify`.
+- **Real-Time Reading Stats**: Word counter, character counter, and estimated reading time.
+
+**🔍 Query-Driven Topic Search Engine**
+- **Smart Git Search**: Queries your Git history with `git log --grep` (with `--all-match` precision) and pickaxe `git log -S` based on your custom topic or prompt to pull matching commits directly into context.
+- **Verified Sources**: Supplies actual commit records; generated claims still require review.
+
+**💻 Semantic Diff & Code Snippet Extraction**
+- **Real Code Implementation Truth**: Reads function excerpts at the selected commit with real line ranges, including supporting lifecycle/helper methods where available.
+- **Noise Filtration**: Automatically excludes lockfiles, minified bundles, binary files, and unit test suites from prompt context.
+
+**📦 Dependency Diff & Ecosystem Tracking**
+- **Working-Tree Dependency Tracking**: Uses the same release boundary for dependency changes in Node, Rust, Python and Go manifests, with explicit opt-in for local changes.
+- **Ecosystem Diversity**: Full auto-detection for Rust (`Cargo.toml`), Python (`pyproject.toml`), Go (`go.mod`), and Node.js (`package.json`).
+
+**📄 Active Editor Working Context**
+- **Editor-to-Prompt Bridge**: Captures the active file path, language identifier, and selected code focus snippet directly from `vscode.window.activeTextEditor`.
+- **Docs & Architecture Search**: Scans workspace markdown files (`docs/**`, `*.md`) for topic-relevant technical sections.
+
+**🛡️ Security & Zero Shell Invocation**
+- **Safe Git Execution**: Switched entirely to `execFile` with array arguments to prevent shell injection and Windows pathspec quoting errors.
+- **Automated Secret Redaction**: Sanitizes API keys, GitHub tokens, Google API keys, AWS credentials, Bearer tokens, and private keys from code snippets before LLM transmission.
+- **Single-Release Scope**: Enforces strict prompt rules keeping articles focused exclusively on current release changes.
+- **UI Release Boundary Alerts**: Visual badges (`🏷️ tag → HEAD`, `⚠️ Uncommitted`, `⚠️ No tags`) and guidance banners keeping developers informed of their Git workspace state.
+
+---
+- **Real-Time Metrics**: Word count, character count, and estimated reading time update as you write or preview.
+
+**🛡️ UI Hardening & HTML Escaping**
+- **Injection Protection**: Comprehensive HTML escaping across thread composer textareas (`populateThreadFromParts`), media grid thumbnails, drafts, and scheduled post attributes.
+- **Label Preservation**: Custom publish button text is preserved across all dynamic state updates.
+- **Engine Modernization**: Upgraded VS Code engine target to `^1.90.0` with exact pinned `@types/vscode: 1.90.0`.
+
+---
+
 ## 🔗 v3.5.1 — "Smart CTA Hub & Pure Dynamic AI Discovery"
 
 *Released: August 18, 2026*

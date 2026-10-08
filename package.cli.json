@@ -27,7 +27,8 @@
     "commander": "^11.1.0",
     "form-data": "^4.0.0",
     "open": "^8.4.2",
-    "openai": "^6.0.1"
+    "openai": "^6.0.1",
+    "@napi-rs/keyring": "^2.0.0"
   },
   "keywords": [
     "cli",

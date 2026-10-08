@@ -3,6 +3,13 @@ node_modules/
 
 # Compiled output
 out/
+dist/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
 
 # Compiled webview & sidebar bundles
 media/webview/app.js
@@ -37,17 +44,33 @@ Thumbs.db
 
 # Extension publishing
 *.vsix
+*.tgz
+package.vscode.backup.json
 
 # Temporary files
 temp/
+tmp/
 .tmp/
+*.tmp
+*.bak
+*.orig
+*.rej
+*~
 
 # IDE settings
 .idea/
 .vscode/settings.json
 .vscode/launch.json.bak
 
+# Local credential configuration
+.aws/
+
 # Project-specific generated / local files
 scan_report.txt
 todo_list
 todo_list*.json
+dotshare-devto.md
+articles/
+media/app-backup.ts
+
+artifacts/

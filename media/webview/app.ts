@@ -12,6 +12,9 @@
 
 import { ProjectReleaseContext, PostTone, GeneratedPlatformContent, ReleaseGenerationRequest, UserCtaLink, ReleaseCtaLink } from '../../src/types/dotshare-ai';
 import { SocialPlatform } from '../../src/types';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import { getPreviewWebUrl } from '../../src/utils/preview-links';
 
 declare const acquireVsCodeApi: () => { postMessage(msg: unknown): void };
 
@@ -49,6 +52,13 @@ function send(command: string, payload: Record<string, unknown> = {}): void {
 
 function get<T extends HTMLElement = HTMLElement>(id: string): T | null {
     return document.getElementById(id) as T | null;
+}
+
+function showAiQualityWarnings(warnings: string[] = []): void {
+    const banner = get('ai-quality-warning');
+    if (!banner) return;
+    banner.textContent = warnings.join('\n');
+    banner.style.display = warnings.length ? 'block' : 'none';
 }
 
 function escHtml(s: string): string {
@@ -200,7 +210,7 @@ function renderMediaGrid(): void {
     activeMediaPaths.forEach((path, idx) => {
         const item = document.createElement('div');
         item.className = 'media-item';
-        item.innerHTML = `<img src="${path}" class="media-thumb" /><button class="media-remove-btn" data-idx="${idx}">✕</button>`;
+        item.innerHTML = `<img src="${escHtml(path)}" class="media-thumb" /><button class="media-remove-btn" data-idx="${idx}">✕</button>`;
         item.querySelector('.media-remove-btn')?.addEventListener('click', () => {
             activeMediaPaths.splice(idx, 1);
             renderMediaGrid();
@@ -521,6 +531,28 @@ get('confirmScheduleBtn')?.addEventListener('click', () => {
 
 // ── DotShare AI Copilot Controller ───────────────────────────────────────────
 let cachedReleaseContext: ProjectReleaseContext | null = null;
+let releaseContextRequestId = 0;
+let releaseContextLoading = false;
+let releaseContextAvailable = false;
+
+function refreshReleaseContext(): void {
+    releaseContextLoading = true;
+    releaseContextAvailable = false;
+    const button = get<HTMLButtonElement>('btn-ai-modal-generate');
+    if (button) { button.disabled = true; button.textContent = 'Reading release…'; }
+    send('extractReleaseContext', {
+        requestId: ++releaseContextRequestId,
+        scope: get<HTMLSelectElement>('ai-release-scope')?.value || 'release',
+        releaseTag: get<HTMLSelectElement>('ai-release-tag')?.value || undefined
+    });
+}
+
+get('ai-release-scope')?.addEventListener('change', () => {
+    const tag = get<HTMLSelectElement>('ai-release-tag');
+    if (tag) tag.disabled = get<HTMLSelectElement>('ai-release-scope')?.value === 'working_tree';
+    refreshReleaseContext();
+});
+get('ai-release-tag')?.addEventListener('change', refreshReleaseContext);
 let lastGeneratedTone: PostTone = 'professional';
 
 function getSelectedAiModelCredentials(): { provider: string; apiKey?: string; model: string } | undefined {
@@ -670,14 +702,41 @@ let lastRepoCtaUrl: string | undefined;
 function updateAiContextBadges(ctx: ProjectReleaseContext): void {
     const changelogBadge = get('ai-changelog-badge');
     const gitBadge = get('ai-git-badge');
+    const gitDesc = get('ai-git-desc');
+    const gitWarning = get('ai-git-warning');
+
     if (changelogBadge) {
-        changelogBadge.textContent = ctx.version ? `v${ctx.version}` : (ctx.changelogNotes?.length ? `${ctx.changelogNotes.length} notes` : 'Found');
+        changelogBadge.textContent = ctx.version ? `v${ctx.version} ✅` : (ctx.changelogNotes?.length ? `${ctx.changelogNotes.length} notes ✅` : 'Found ✅');
         changelogBadge.classList.add('ready');
     }
+
+    const workingTree = ctx.scope === 'working_tree';
+    const boundary = `${ctx.gitBaseTag || 'Initial tree / previous commit'} → ${ctx.targetLabel || 'HEAD'}`;
     if (gitBadge) {
-        const count = ctx.recentCommits?.length || 0;
-        gitBadge.textContent = count > 0 ? `${count} commits` : 'Git Ready';
-        gitBadge.classList.add('ready');
+        gitBadge.textContent = workingTree ? 'Uncommitted changes' : `${boundary} (${ctx.gitCommitCount || 0} commits)`;
+        gitBadge.classList.toggle('ready', !workingTree);
+        gitBadge.classList.toggle('warning', workingTree);
+        gitBadge.title = boundary;
+    }
+    if (gitDesc) gitDesc.textContent = workingTree ? 'Tracked local changes since HEAD' : 'Files and code from the selected committed version';
+    if (gitWarning) {
+        const messages = ctx.contextWarnings || [];
+        gitWarning.style.display = messages.length ? 'block' : 'none';
+        gitWarning.textContent = messages.join(' ');
+    }
+    const tagSelect = get<HTMLSelectElement>('ai-release-tag');
+    if (tagSelect) {
+        const selected = tagSelect.value;
+        tagSelect.replaceChildren();
+        const current = document.createElement('option');
+        current.value = ''; current.textContent = 'Latest tagged release / HEAD'; tagSelect.appendChild(current);
+        const head = document.createElement('option');
+        head.value = 'HEAD'; head.textContent = 'Current committed work (HEAD)'; tagSelect.appendChild(head);
+        for (const tag of ctx.availableTags || []) {
+            const option = document.createElement('option'); option.value = tag; option.textContent = tag; tagSelect.appendChild(option);
+        }
+        tagSelect.value = selected;
+        tagSelect.disabled = workingTree;
     }
 
     // Repository CTA auto-detection
@@ -718,13 +777,14 @@ function openDotShareAiModal(): void {
 
     const plat = activeCommandPlatform || window.__PLATFORM_DATA__?.platform || 'x';
     const isThreadsWs = window.__PLATFORM_DATA__?.workspaceType === 'threads';
+    const isBlogWs = window.__PLATFORM_DATA__?.workspaceType === 'blogs' || plat === 'devto';
     const isTwitterOrBluesky = ['x', 'bluesky'].includes(plat);
 
     // Thread option visibility & state
     const threadOptWrap = get('ai-opt-thread-wrap');
     const threadOptInput = get<HTMLInputElement>('ai-opt-thread');
     if (threadOptWrap && threadOptInput) {
-        if (isThreadsWs || isTwitterOrBluesky) {
+        if (!isBlogWs && (isThreadsWs || isTwitterOrBluesky)) {
             threadOptWrap.style.display = 'flex';
             threadOptInput.checked = isThreadsWs;
         } else {
@@ -734,7 +794,7 @@ function openDotShareAiModal(): void {
     }
 
     // Default tone: use lastGeneratedTone if user changed tone, else platform default
-    const defaultTone = lastGeneratedTone || (plat === 'linkedin' ? 'professional' : 'casual_build_in_public');
+    const defaultTone = lastGeneratedTone || (isBlogWs ? 'full_markdown_article' : plat === 'linkedin' ? 'professional' : 'casual_build_in_public');
     document.querySelectorAll<HTMLElement>('.ai-tone-pill').forEach(pill => {
         const toneVal = pill.getAttribute('data-tone');
         const radio = pill.querySelector<HTMLInputElement>('input[type="radio"]');
@@ -749,18 +809,22 @@ function openDotShareAiModal(): void {
     } else {
         const changelogBadge = get('ai-changelog-badge');
         const gitBadge = get('ai-git-badge');
+        const gitWarning = get('ai-git-warning');
         if (changelogBadge) {
             changelogBadge.textContent = 'Detecting…';
             changelogBadge.classList.remove('ready');
         }
         if (gitBadge) {
             gitBadge.textContent = 'Detecting…';
-            gitBadge.classList.remove('ready');
+            gitBadge.classList.remove('ready', 'warning');
+        }
+        if (gitWarning) {
+            gitWarning.style.display = 'none';
         }
     }
 
     // Always refresh current project context in background so repoUrl reflects current Git remote
-    send('extractReleaseContext');
+    refreshReleaseContext();
 
     modal.style.display = 'flex';
 }
@@ -768,8 +832,8 @@ function openDotShareAiModal(): void {
 function resetDotShareAiModalBtn(): void {
     const aiGenBtn = get<HTMLButtonElement>('btn-ai-modal-generate');
     if (aiGenBtn) {
-        aiGenBtn.disabled = false;
-        aiGenBtn.textContent = '✨ Generate with DotShare AI';
+        aiGenBtn.disabled = releaseContextLoading || !releaseContextAvailable;
+        aiGenBtn.textContent = releaseContextLoading ? 'Reading release…' : releaseContextAvailable ? '✨ Generate with DotShare AI' : 'Release unavailable';
     }
 }
 
@@ -785,7 +849,7 @@ function populateThreadFromParts(parts: string[]): void {
     parts.forEach((partText, index) => {
         threadPosts.push({ text: partText, mediaFilePaths: [] });
         const div = document.createElement('div');
-        div.innerHTML = `<div class="thread-post" data-thread-index="${index}"><div class="thread-post-header"><span class="thread-post-label">Post ${index + 1}</span><span class="thread-char-counter" data-thread-counter="${index}">${partText.length} / ${max}</span><button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="${index}">✕</button></div><textarea class="thread-textarea" data-thread-textarea="${index}" placeholder="What's on your mind?" rows="3">${partText}</textarea><div class="thread-post-actions"><button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="${index}">📎 Media</button><input type="file" class="thread-file-input" data-thread-file="${index}" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" multiple /><div class="thread-media-preview" data-thread-preview="${index}" style="display:none;"><span class="thread-media-name"></span><button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="${index}">✕</button></div></div></div>`.trim();
+        div.innerHTML = `<div class="thread-post" data-thread-index="${index}"><div class="thread-post-header"><span class="thread-post-label">Post ${index + 1}</span><span class="thread-char-counter" data-thread-counter="${index}">${partText.length} / ${max}</span><button class="btn btn-ghost btn-sm btn-remove-thread-post" data-remove-index="${index}">✕</button></div><textarea class="thread-textarea" data-thread-textarea="${index}" placeholder="What's on your mind?" rows="3">${escHtml(partText)}</textarea><div class="thread-post-actions"><button class="btn btn-ghost btn-sm thread-media-btn" data-thread-media="${index}">📎 Media</button><input type="file" class="thread-file-input" data-thread-file="${index}" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4" style="display:none;" multiple /><div class="thread-media-preview" data-thread-preview="${index}" style="display:none;"><span class="thread-media-name"></span><button class="btn btn-ghost btn-sm thread-remove-media" data-thread-remove="${index}">✕</button></div></div></div>`.trim();
         const first = div.firstChild;
         if (first) {
             threadContainer.appendChild(first);
@@ -802,6 +866,7 @@ function populateThreadFromParts(parts: string[]): void {
 btnGen?.addEventListener('click', openDotShareAiModal);
 get('btn-dotshare-ai-threads')?.addEventListener('click', openDotShareAiModal);
 get('btn-quick-change-tone')?.addEventListener('click', openDotShareAiModal);
+get('btn-dotshare-ai-blog')?.addEventListener('click', openDotShareAiModal);
 
 // Close modal triggers
 get('closeDotShareAiModal')?.addEventListener('click', () => {
@@ -825,7 +890,7 @@ get<HTMLInputElement>('ai-src-custom')?.addEventListener('change', (e) => {
 });
 
 // Source cards toggle
-['changelog', 'git'].forEach(srcKey => {
+['changelog', 'git', 'editor'].forEach(srcKey => {
     get<HTMLInputElement>(`ai-src-${srcKey}`)?.addEventListener('change', (e) => {
         const checked = (e.target as HTMLInputElement).checked;
         const card = get(`card-src-${srcKey}`);
@@ -915,14 +980,16 @@ document.querySelectorAll<HTMLElement>('.ai-tone-pill').forEach(pill => {
 
 // Generate post button in modal
 get('btn-ai-modal-generate')?.addEventListener('click', () => {
+    if (releaseContextLoading || !releaseContextAvailable) return;
     const creds = getSelectedAiModelCredentials();
 
     const useChangelog = get<HTMLInputElement>('ai-src-changelog')?.checked ?? true;
     const useGit = get<HTMLInputElement>('ai-src-git')?.checked ?? true;
     const useCustom = get<HTMLInputElement>('ai-src-custom')?.checked ?? false;
+    const useEditor = get<HTMLInputElement>('ai-src-editor')?.checked ?? false;
     const customPromptVal = get<HTMLTextAreaElement>('ai-custom-prompt')?.value.trim();
 
-    if (!useChangelog && !useGit && (!useCustom || !customPromptVal)) {
+    if (!useChangelog && !useGit && !useEditor && (!useCustom || !customPromptVal)) {
         toast('⚠️ Please select at least one context source or provide a custom topic.', 'warning');
         return;
     }
@@ -960,17 +1027,22 @@ get('btn-ai-modal-generate')?.addEventListener('click', () => {
         }
     });
 
-    // Filter context selectively from cache
+    // Filter context selectively from cache while preserving all enriched fields
     const filteredContext: ProjectReleaseContext = {
-        projectName: cachedReleaseContext?.projectName || 'Project',
-        projectDescription: cachedReleaseContext?.projectDescription,
-        repoUrl: cachedReleaseContext?.repoUrl,
-        techStack: cachedReleaseContext?.techStack,
+        ...(cachedReleaseContext || { projectName: 'Project', recentCommits: [] }),
         version: useChangelog ? cachedReleaseContext?.version : undefined,
         changelogNotes: useChangelog ? cachedReleaseContext?.changelogNotes : [],
         latestCommit: useGit ? cachedReleaseContext?.latestCommit : undefined,
         recentCommits: useGit ? cachedReleaseContext?.recentCommits : [],
-        gitDiffSummary: useGit ? cachedReleaseContext?.gitDiffSummary : undefined
+        gitDiffSummary: useGit ? cachedReleaseContext?.gitDiffSummary : undefined,
+        gitBaseTag: useGit ? cachedReleaseContext?.gitBaseTag : undefined,
+        gitDirty: useGit ? cachedReleaseContext?.gitDirty : undefined,
+        gitCommitCount: useGit ? cachedReleaseContext?.gitCommitCount : undefined,
+        relevantCodeSnippets: useGit ? cachedReleaseContext?.relevantCodeSnippets : undefined,
+        dependencyChanges: useGit ? cachedReleaseContext?.dependencyChanges : undefined,
+        relevantCommits: useGit ? cachedReleaseContext?.relevantCommits : undefined,
+        matchingDocNotes: cachedReleaseContext?.matchingDocNotes,
+        activeEditorContext: useEditor ? cachedReleaseContext?.activeEditorContext : undefined
     };
 
     const request: ReleaseGenerationRequest = {
@@ -979,8 +1051,14 @@ get('btn-ai-modal-generate')?.addEventListener('click', () => {
         tone: selectedTone,
         language: selectedLanguage,
         includeHashtags,
+        includeCodeSnippets: get<HTMLInputElement>('ai-opt-code')?.checked ?? true,
+        scope: get<HTMLSelectElement>('ai-release-scope')?.value === 'working_tree' ? 'working_tree' : 'release',
+        releaseTag: get<HTMLSelectElement>('ai-release-scope')?.value === 'working_tree' ? undefined : get<HTMLSelectElement>('ai-release-tag')?.value || undefined,
+        sources: ['readme', ...(useChangelog ? ['changelog', 'docs_search'] as const : []), ...(useGit ? ['git_commits', 'git_diff', 'dependencies'] as const : []), ...(useEditor ? ['active_editor'] as const : [])],
         threadMode,
         customPrompt: useCustom ? customPromptVal : undefined,
+        topicQuery: useCustom ? customPromptVal : undefined,
+        includeActiveEditor: useEditor,
         ctaLinks: selectedCtaLinks.length > 0 ? selectedCtaLinks : undefined
     };
 
@@ -1047,6 +1125,113 @@ function resetAllComposers(): void {
 
 // ── Blog Publisher ────────────────────────────────────────────────────────────
 
+function updateBlogStats(): void {
+    const text = get<HTMLTextAreaElement>('blog-body')?.value || '';
+    const trimmed = text.trim();
+    const words = trimmed ? trimmed.split(/\s+/).length : 0;
+    const chars = text.length;
+    const readTime = Math.max(1, Math.ceil(words / 200));
+
+    const wordEl = get('blog-word-count');
+    const charEl = get('blog-char-count');
+    const timeEl = get('blog-reading-time');
+
+    if (wordEl) wordEl.textContent = `${words.toLocaleString()} words`;
+    if (charEl) charEl.textContent = `${chars.toLocaleString()} characters`;
+    if (timeEl) timeEl.textContent = `${readTime} min read`;
+}
+
+function updateBlogRenderedPreview(): void {
+    const previewEl = get('blog-rendered-preview');
+    if (!previewEl) return;
+    const markdownText = get<HTMLTextAreaElement>('blog-body')?.value.trim() || '';
+    try {
+        const article = document.createElement('article');
+        article.className = 'blog-preview-article';
+        const header = document.createElement('header');
+        header.className = 'blog-preview-header';
+        const title = get<HTMLInputElement>('blog-title')?.value.trim() || '';
+        if (title) {
+            const heading = document.createElement('h1');
+            heading.className = 'blog-preview-title';
+            heading.dir = 'auto';
+            heading.textContent = title;
+            header.appendChild(heading);
+        }
+        const description = get<HTMLTextAreaElement>('blog-description')?.value.trim();
+        if (description) {
+            const summary = document.createElement('p');
+            summary.className = 'blog-preview-description';
+            summary.dir = 'auto';
+            summary.textContent = description;
+            header.appendChild(summary);
+        }
+        const tags = get<HTMLInputElement>('blog-tags')?.value.split(',').map(tag => tag.trim().replace(/^#+/, '')).filter(Boolean) || [];
+        if (tags.length) {
+            const list = document.createElement('div');
+            list.className = 'blog-preview-tags';
+            list.setAttribute('aria-label', 'Article tags');
+            for (const tag of [...new Set(tags)]) {
+                const badge = document.createElement('span');
+                badge.className = 'blog-preview-tag';
+                badge.textContent = `#${tag}`;
+                list.appendChild(badge);
+            }
+            header.appendChild(list);
+        }
+        if (header.childElementCount) article.appendChild(header);
+        const body = document.createElement('div');
+        body.className = 'blog-preview-body';
+        body.dir = 'auto';
+        if (markdownText) {
+            body.innerHTML = DOMPurify.sanitize(marked.parse(markdownText) as string);
+            // Imported Markdown may repeat the metadata title as its opening H1.
+            const first = body.firstElementChild;
+            if (title && first?.tagName === 'H1' && first.textContent?.trim() === title) first.remove();
+            for (const anchor of body.querySelectorAll<HTMLAnchorElement>('a')) {
+                const href = anchor.getAttribute('href') || '';
+                anchor.removeAttribute('target');
+                if (!href.startsWith('#') && !getPreviewWebUrl(href)) {
+                    anchor.removeAttribute('href');
+                    anchor.setAttribute('aria-disabled', 'true');
+                }
+            }
+        } else {
+            body.className += ' blog-preview-empty';
+            body.textContent = 'No article content to preview yet. Read a Markdown file or generate an article with DotShare AI.';
+        }
+        article.appendChild(body);
+        previewEl.replaceChildren(article);
+    } catch {
+        previewEl.innerHTML = `<div style="color:var(--vscode-errorForeground);padding:10px;">Failed to render Markdown preview</div>`;
+    }
+}
+
+function openBlogPreviewLink(event: MouseEvent): void {
+    if (event.type === 'auxclick' && event.button !== 1) return;
+    const anchor = event.target instanceof Element ? event.target.closest('a') : null;
+    if (!anchor) return;
+    event.preventDefault();
+    const href = anchor.getAttribute('href') || '';
+    if (href.startsWith('#')) {
+        try {
+            const id = decodeURIComponent(href.slice(1));
+            const target = [...(get('blog-rendered-preview')?.querySelectorAll<HTMLElement>('[id]') || [])].find(element => element.id === id);
+            target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        } catch { /* Ignore malformed anchors. */ }
+        return;
+    }
+    const url = getPreviewWebUrl(href);
+    if (url) send('openArticlePreviewLink', { url });
+}
+
+get('blog-rendered-preview')?.addEventListener('click', openBlogPreviewLink);
+get('blog-rendered-preview')?.addEventListener('auxclick', openBlogPreviewLink);
+
+['blog-title', 'blog-description', 'blog-tags'].forEach(id => {
+    get(id)?.addEventListener('input', updateBlogRenderedPreview);
+});
+
 function revealBlogPublisherUi(): void {
     const preview = get('blog-preview');
     if (preview) preview.style.display = 'block';
@@ -1054,6 +1239,8 @@ function revealBlogPublisherUi(): void {
     const actions = get('blog-actions');
     if (card) card.style.display = 'block';
     if (actions) actions.style.display = 'flex';
+    updateBlogStats();
+    updateBlogRenderedPreview();
     updateBlogPublishButtonsState();
 }
 
@@ -1071,8 +1258,17 @@ function updateBlogPublishButtonsState(): void {
     (['btn-publish-blog-devto', 'btn-publish-blog', 'btn-schedule-blog'] as const).forEach(id => {
         const b = get<HTMLButtonElement>(id);
         if (b) {
+            if (!b.getAttribute('data-original-label')) {
+                const initialText = b.textContent?.trim();
+                if (initialText) b.setAttribute('data-original-label', initialText);
+            }
             const platform = id.includes('devto') ? 'devto'
                            : (getSingleBlogPlatform() || '');
+
+            const originalLabel = b.getAttribute('data-original-label');
+            const defaultLabel = platform === 'devto' ? '🚀 Publish to Dev.to'
+                               : (platform ? `🚀 Publish to ${platform}` : '🚀 Publish Article');
+            const targetLabel = originalLabel || defaultLabel;
 
             if (platform && !globalConnectedPlatforms.includes(platform)) {
                 // For schedule buttons, we strictly require Cloud OAuth.
@@ -1082,16 +1278,14 @@ function updateBlogPublishButtonsState(): void {
                 } else {
                     // For regular publish buttons, we allow local tokens.
                     b.disabled = !has;
-                    const label = platform === 'devto' ? 'Dev.to' : platform;
-                    b.textContent = label ? `🚀 Publish to ${label}` : '🚀 Publish Article';
+                    b.textContent = targetLabel;
                 }
             } else {
                 b.disabled = !has;
                 if (id.includes('schedule')) {
                     b.title = '';
                 } else {
-                    const label = platform === 'devto' ? 'Dev.to' : platform;
-                    b.textContent = label ? `🚀 Publish to ${label}` : '🚀 Publish Article';
+                    b.textContent = targetLabel;
                 }
             }
         }
@@ -1145,7 +1339,36 @@ get('btn-reset-blog-md')?.addEventListener('click', () => {
     toast('Resetting to boilerplate…', 'info');
 });
 
-get<HTMLTextAreaElement>('blog-body')?.addEventListener('input', () => updateBlogPublishButtonsState());
+get<HTMLTextAreaElement>('blog-body')?.addEventListener('input', () => {
+    updateBlogStats();
+    updateBlogPublishButtonsState();
+    const prev = get('blog-rendered-preview');
+    if (prev && prev.style.display !== 'none') {
+        updateBlogRenderedPreview();
+    }
+});
+
+// Blog Mode Switcher (Raw Markdown vs Live Rendered Preview)
+get('tab-blog-raw')?.addEventListener('click', () => {
+    get('tab-blog-raw')?.classList.add('active');
+    get('tab-blog-preview')?.classList.remove('active');
+    const body = get('blog-body');
+    const prev = get('blog-rendered-preview');
+    if (body) body.style.display = 'block';
+    if (prev) prev.style.display = 'none';
+});
+
+get('tab-blog-preview')?.addEventListener('click', () => {
+    get('tab-blog-preview')?.classList.add('active');
+    get('tab-blog-raw')?.classList.remove('active');
+    const body = get('blog-body');
+    const prev = get('blog-rendered-preview');
+    if (body) body.style.display = 'none';
+    if (prev) {
+        prev.style.display = 'block';
+        updateBlogRenderedPreview();
+    }
+});
 
 wireBlogPublishButton(get<HTMLButtonElement>('btn-publish-blog-devto'), 'devto', () => get<HTMLSelectElement>('blog-publish-status-devto')?.value || 'draft');
 
@@ -1339,6 +1562,59 @@ btnShareThread?.addEventListener('click', () => {
 get('btn-schedule-thread')?.addEventListener('click', () => openScheduleModal('thread'));
 
 // ── AI Model Modal ────────────────────────────────────────────────────────────
+const aiKeySaved: Record<string, boolean> = {};
+const aiModelRequests: Record<string, number> = {};
+function requestAiModels(provider: string, apiKey = ''): void {
+    const requestId = (aiModelRequests[provider] || 0) + 1;
+    aiModelRequests[provider] = requestId;
+    send('fetchAiModels', { provider, apiKey, requestId });
+}
+
+function renderAiKeyStatus(provider: string, saved: boolean): void {
+    aiKeySaved[provider] = saved;
+    const panel = get(`${provider}Panel`);
+    const badge = get(`${provider}KeyBadge`);
+    const input = panel?.querySelector<HTMLInputElement>('input[type="password"]');
+    const group = input?.closest<HTMLElement>('.input-group');
+    if (badge) {
+        badge.className = `key-status-badge ${saved ? 'saved' : 'missing'}`;
+        badge.textContent = saved ? '🔒 Key Saved & Active' : '⚠️ Not Configured';
+    }
+    if (input && group) {
+        if (!input.value.trim()) {
+            group.style.display = saved ? 'none' : '';
+            input.placeholder = 'Enter a new API key';
+        }
+        let change = get(`${provider}ReplaceKey`);
+        if (!change) {
+            change = document.createElement('button');
+            change.id = `${provider}ReplaceKey`;
+            change.className = 'credential-change-btn';
+            change.setAttribute('type', 'button');
+            change.textContent = 'Change saved key';
+            group.before(change);
+            change.addEventListener('click', () => {
+                group.style.display = '';
+                input.value = '';
+                input.placeholder = 'Enter a replacement API key';
+                input.focus();
+                change!.style.display = 'none';
+            });
+        }
+        change.style.display = saved && !input.value.trim() ? '' : 'none';
+    }
+}
+
+function discardAiKeyReplacements(): void {
+    if (apiKeyDebounceTimer) clearTimeout(apiKeyDebounceTimer);
+    Object.entries(aiKeySaved).forEach(([provider, saved]) => {
+        const input = get(`${provider}Panel`)?.querySelector<HTMLInputElement>('input[type="password"]');
+        if (input) input.value = '';
+        aiModelRequests[provider] = (aiModelRequests[provider] || 0) + 1;
+        renderAiKeyStatus(provider, saved);
+    });
+}
+
 function loadModelsForActiveProvider(): void {
     const activeTab = document.querySelector<HTMLElement>('.tab-btn.active[data-provider]');
     const provider = activeTab?.getAttribute('data-provider');
@@ -1352,7 +1628,7 @@ function loadModelsForActiveProvider(): void {
         select.innerHTML = '<option value="" selected disabled>Loading available models...</option>';
     }
     // Empty key is intentional: backend falls back to stored SecretStorage key
-    send('fetchAiModels', { provider, apiKey: keyInput?.value.trim() || '' });
+    requestAiModels(provider, keyInput?.value.trim() || '');
 }
 
 function openModelModal(): void {
@@ -1366,7 +1642,7 @@ get('btn-ai-model')?.addEventListener('click', openModelModal);
 get('btn-ai-keys-config')?.addEventListener('click', openModelModal);
 
 document.querySelectorAll<HTMLElement>('[id^="closeModal"], [id^="close-modal-btn"]').forEach(btn => {
-    btn.addEventListener('click', () => { const m = btn.closest('.modal') as HTMLElement | null; if (m) m.style.display = 'none'; });
+    btn.addEventListener('click', () => { const m = btn.closest('.modal') as HTMLElement | null; if (m) { m.style.display = 'none'; if (m.id === 'modelModal') discardAiKeyReplacements(); } });
 });
 
 get('applyModelBtn')?.addEventListener('click', () => {
@@ -1381,8 +1657,7 @@ get('applyModelBtn')?.addEventListener('click', () => {
             return;
         }
         send('applyModelSelection', { provider, model: modelSel.value, apiKey: keyInput.value.trim() });
-        toast('AI model applied!', 'success');
-        const m = get('modelModal'); if (m) m.style.display = 'none';
+        // Close, clear the typed replacement and show saved status after the host confirms storage.
     }
 });
 
@@ -1398,7 +1673,7 @@ document.querySelectorAll<HTMLElement>('.tab-btn[data-provider]').forEach(tab =>
         if (panel) {
             panel.classList.add('active');
             const keyInput = panel.querySelector<HTMLInputElement>('input[type="password"]');
-            send('fetchAiModels', { provider, apiKey: keyInput?.value.trim() || '' });
+            requestAiModels(provider, keyInput?.value.trim() || '');
         }
     });
 });
@@ -1424,14 +1699,14 @@ document.querySelectorAll<HTMLInputElement>('.provider-panel input[type="passwor
             clearTimeout(apiKeyDebounceTimer);
         }
         apiKeyDebounceTimer = setTimeout(() => {
-            send('fetchAiModels', { provider, apiKey: keyInput.value.trim() });
+            requestAiModels(provider, keyInput.value.trim());
         }, 400);
     });
 });
 
 // Close modals on backdrop click
 document.querySelectorAll<HTMLElement>('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+    modal.addEventListener('click', (e) => { if (e.target === modal) { modal.style.display = 'none'; if (modal.id === 'modelModal') discardAiKeyReplacements(); } });
 });
 
 
@@ -1472,14 +1747,45 @@ window.addEventListener('message', (event: MessageEvent) => {
                 break;
             }
 
+            case 'credentialsCleared': {
+                document.querySelectorAll<HTMLInputElement>('.provider-panel input[type="password"]').forEach(input => { input.value = ''; });
+                Object.keys(aiKeySaved).forEach(provider => {
+                    aiModelRequests[provider] = (aiModelRequests[provider] || 0) + 1;
+                    renderAiKeyStatus(provider, false);
+                    const select = get<HTMLSelectElement>(`${provider}Model`);
+                    if (select) {
+                        select.disabled = true;
+                        select.innerHTML = '<option value="" disabled selected>Enter API key to load models...</option>';
+                    }
+                });
+                break;
+            }
+            case 'updateConfiguration': {
+                const keys = (msg.aiKeysSaved || {}) as Record<string, boolean>;
+                Object.entries(keys).forEach(([provider, saved]) => {
+                    renderAiKeyStatus(provider, saved);
+                });
+                break;
+            }
+            case 'aiModelSelectionApplied': {
+                const provider = String(msg.provider);
+                const input = get(`${provider}Panel`)?.querySelector<HTMLInputElement>('input[type="password"]');
+                if (input) input.value = '';
+                aiModelRequests[provider] = (aiModelRequests[provider] || 0) + 1;
+                renderAiKeyStatus(provider, true);
+                toast('AI model applied!', 'success');
+                const modal = get('modelModal');
+                if (modal) modal.style.display = 'none';
+                break;
+            }
+
             case 'aiModelsLoaded': {
                 const provider = msg.provider as string;
                 const models = (msg.models as string[]) || [];
+                if (msg.requestId !== undefined && msg.requestId !== aiModelRequests[provider]) break;
+                renderAiKeyStatus(provider, !!msg.hasSavedKey);
                 if (provider) {
                     const select = get<HTMLSelectElement>(`${provider}Model`);
-                    const badge = get<HTMLElement>(`${provider}KeyBadge`);
-                    const panel = get(`${provider}Panel`);
-                    const keyInput = panel?.querySelector<HTMLInputElement>('input[type="password"]');
 
                     if (select) {
                         const currentVal = select.value;
@@ -1496,13 +1802,6 @@ window.addEventListener('message', (event: MessageEvent) => {
                             if (!select.value && select.options.length > 0) {
                                 select.selectedIndex = 0;
                             }
-                            if (badge) {
-                                badge.className = 'key-status-badge saved';
-                                badge.textContent = '🔒 Key Saved & Active';
-                            }
-                            if (keyInput && !keyInput.value) {
-                                keyInput.placeholder = '•••••••• (Saved in Secure Storage)';
-                            }
                         } else {
                             select.disabled = true;
                             const opt = document.createElement('option');
@@ -1518,13 +1817,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                             };
                             opt.textContent = `Enter your ${providerLabels[provider] || provider} API key to load models`;
                             select.appendChild(opt);
-                            if (badge) {
-                                badge.className = 'key-status-badge missing';
-                                badge.textContent = '⚠️ Not Configured';
-                            }
-                            if (keyInput && !keyInput.value) {
-                                keyInput.placeholder = provider === 'gemini' ? 'AIzaSy...' : 'sk-...';
-                            }
+
                         }
                     }
                 }
@@ -1546,10 +1839,24 @@ window.addEventListener('message', (event: MessageEvent) => {
             }
 
             case 'releaseContextExtracted': {
+                if (msg.requestId !== releaseContextRequestId) break;
+                releaseContextLoading = false;
+                releaseContextAvailable = !!msg.context;
+                resetDotShareAiModalBtn();
                 if (msg.context) {
                     cachedReleaseContext = msg.context as ProjectReleaseContext;
                     updateAiContextBadges(cachedReleaseContext);
                 }
+                break;
+            }
+
+            case 'releaseContextExtractionFailed': {
+                if (msg.requestId !== releaseContextRequestId) break;
+                releaseContextLoading = false;
+                cachedReleaseContext = null;
+                releaseContextAvailable = false;
+                const button = get<HTMLButtonElement>('btn-ai-modal-generate');
+                if (button) { button.disabled = true; button.textContent = 'Release unavailable'; }
                 break;
             }
 
@@ -1561,11 +1868,43 @@ window.addEventListener('message', (event: MessageEvent) => {
 
                 const result = msg.result as GeneratedPlatformContent;
                 if (!result) break;
+                showAiQualityWarnings(result.qualityWarnings);
+                if (result.qualityWarnings?.length) toast(result.qualityWarnings.join(' '), 'warning', 12000);
 
                 const isThreadsWorkspace = window.__PLATFORM_DATA__?.workspaceType === 'threads';
+                const isBlogWorkspace = window.__PLATFORM_DATA__?.workspaceType === 'blogs' || result.platform === 'devto' || !!result.frontmatter;
 
-                // Handle threads
-                if (result.isThread && result.threadParts && result.threadParts.length > 0) {
+                if (isBlogWorkspace) {
+                    const blogBody = get<HTMLTextAreaElement>('blog-body');
+                    if (blogBody) {
+                        let cleanBody = result.rawContent || '';
+                        if (result.frontmatter?.title) {
+                            cleanBody = cleanBody.replace(/^#\s+[^\r\n]+(?:\r?\n)+/, '').trim();
+                        }
+                        blogBody.value = cleanBody;
+                        blogBody.dispatchEvent(new Event('input'));
+                    }
+                    if (result.frontmatter) {
+                        const eTitle = get<HTMLInputElement>('blog-title');
+                        if (eTitle && result.frontmatter.title) eTitle.value = result.frontmatter.title;
+                        const eTags = get<HTMLInputElement>('blog-tags');
+                        if (eTags && result.frontmatter.tags) {
+                            eTags.value = Array.isArray(result.frontmatter.tags) ? result.frontmatter.tags.join(', ') : String(result.frontmatter.tags);
+                        }
+                        const eDesc = get<HTMLTextAreaElement>('blog-description');
+                        if (eDesc && result.frontmatter.description) eDesc.value = result.frontmatter.description;
+                        const eUrl = get<HTMLInputElement>('blog-canonical-url');
+                        if (eUrl) eUrl.value = '';
+                        if (result.frontmatter.published !== undefined) {
+                            const v = result.frontmatter.published ? 'published' : 'draft';
+                            [get<HTMLSelectElement>('blog-publish-status-devto'), get<HTMLSelectElement>('blog-publish-status')].forEach(s => { if (s) s.value = v; });
+                        }
+                    }
+                    revealBlogPublisherUi();
+                    updateBlogRenderedPreview();
+                    updateBlogStats();
+                    updateBlogPublishButtonsState();
+                } else if (result.isThread && result.threadParts && result.threadParts.length > 0) {
                     populateThreadFromParts(result.threadParts);
                 } else if (isThreadsWorkspace) {
                     // Single post on threads workspace (e.g. single tweet on X) -> populate as single post in thread composer
@@ -1585,19 +1924,32 @@ window.addEventListener('message', (event: MessageEvent) => {
                         professional: 'Professional',
                         casual_build_in_public: 'Build in Public',
                         technical_deep_dive: 'Technical',
-                        tldr_bulletin: 'TL;DR'
+                        tldr_bulletin: 'TL;DR',
+                        full_markdown_article: 'Full Article (Dev.to)'
                     };
                     toneLabel.textContent = `✨ ${toneNameMap[lastGeneratedTone] || 'AI'}`;
                     toneBar.style.display = 'inline-flex';
                 }
 
-                toast(`✨ DotShare AI generated post (${result.charCount} chars)!`, 'success');
+                if (isBlogWorkspace) {
+                    toast(`✨ DotShare AI generated your Dev.to article with metadata (${result.charCount} chars)!`, 'success');
+                } else {
+                    toast(`✨ DotShare AI generated post (${result.charCount} chars)!`, 'success');
+                }
                 break;
             }
 
             case 'updatePost':
+                showAiQualityWarnings();
                 if (msg.post && textarea) { textarea.value = String(msg.post); updateCharCounter(); updateShareBtn(); }
-                if (msg.post) { const b = get<HTMLTextAreaElement>('blog-body'); if (b) b.value = String(msg.post); }
+                if (msg.post) {
+                    const b = get<HTMLTextAreaElement>('blog-body');
+                    if (b) {
+                        b.value = String(msg.post);
+                        updateBlogStats();
+                        updateBlogRenderedPreview();
+                    }
+                }
                 updateBlogPublishButtonsState();
                 setBtnLoading('btn-dotshare-ai', false);
                 setBtnLoading('btn-generate-ai', false);
@@ -1654,9 +2006,14 @@ window.addEventListener('message', (event: MessageEvent) => {
                     const v = fm.published ? 'published' : 'draft';
                     [get<HTMLSelectElement>('blog-publish-status-devto'), get<HTMLSelectElement>('blog-publish-status')].forEach(s => { if (s) s.value = v; });
                 }
+                updateBlogRenderedPreview();
                 toast('Frontmatter loaded!', 'success');
                 break;
             }
+
+            case 'articlePreviewLinkResult':
+                if (msg.opened !== true) toast('VS Code did not open this link.', 'warning');
+                break;
 
             case 'status':
                 toast(String(msg.status || ''), (msg.type as 'success' | 'error' | 'warning' | 'info') || 'info');
@@ -1985,12 +2342,12 @@ function renderDrafts(drafts: DraftItem[], containerId: string, emptyId?: string
         const badge = `<span class="draft-badge ${typeClass}">${d.type}</span>${d.isRemote ? '<span class="draft-badge remote">remote</span>' : ''}${isActive ? '<span class="draft-badge" style="background:var(--accent-primary,#6c63ff);color:#fff">active</span>' : ''}`;
 
         return `
-            <div class="draft-card${isActive ? ' draft-card--active' : ''}" data-draft-id="${d.id}" data-type="${d.type}" data-remote="${!!d.isRemote}" data-remote-id="${d.remoteId ?? ''}">
+            <div class="draft-card${isActive ? ' draft-card--active' : ''}" data-draft-id="${escapeHtml(d.id)}" data-type="${escapeHtml(d.type)}" data-remote="${!!d.isRemote}" data-remote-id="${escapeHtml(d.remoteId ?? '')}">
                 <div class="draft-card-title">${title}</div>
-                <div class="draft-card-meta">${badge} ${platforms} · ${date}</div>
+                <div class="draft-card-meta">${badge} ${escapeHtml(platforms)} · ${date}</div>
                 <div class="draft-card-actions">
-                    <button class="btn btn-secondary btn-sm" data-action="edit-draft" data-id="${d.id}">✏️ Load</button>
-                    ${!d.isRemote ? `<button class="btn btn-ghost btn-sm" data-action="delete-draft" data-id="${d.id}">🗑 Delete</button>` : ''}
+                    <button class="btn btn-secondary btn-sm" data-action="edit-draft" data-id="${escapeHtml(d.id)}">✏️ Load</button>
+                    ${!d.isRemote ? `<button class="btn btn-ghost btn-sm" data-action="delete-draft" data-id="${escapeHtml(d.id)}">🗑 Delete</button>` : ''}
                 </div>
             </div>
         `;
@@ -2079,16 +2436,20 @@ function renderScheduledPosts(posts: ScheduledPost[]): void {
         });
 
         const text = escapeHtml(p.text_preview);
-        const platforms = p.platforms.join(', ');
+        const platforms = escapeHtml(p.platforms.join(', '));
         const isMax = p.tier.toLowerCase() === 'max';
+        const safeScheduledAt = escapeHtml(p.scheduled_at);
+        const safeStatus = escapeHtml(p.status);
+        const safeTier = escapeHtml(p.tier);
+        const safeId = escapeHtml(p.id);
         
         return `
             <div class="draft-card scheduled-card" style="margin-bottom: 12px; position: relative;" 
-                 data-time="${p.scheduled_at}" data-approx="${approxDate.toISOString()}">
+                 data-time="${safeScheduledAt}" data-approx="${approxDate.toISOString()}">
                 <div class="draft-card-title">${text}</div>
                 <div class="draft-card-meta">
-                    <span class="draft-badge" style="background:var(--vscode-charts-orange)">${p.status}</span>
-                    <span class="draft-badge" style="background:var(--vscode-badge-background); color:var(--vscode-badge-foreground)">${p.tier}</span>
+                    <span class="draft-badge" style="background:var(--vscode-charts-orange)">${safeStatus}</span>
+                    <span class="draft-badge" style="background:var(--vscode-badge-background); color:var(--vscode-badge-foreground)">${safeTier}</span>
                     ${platforms}
                 </div>
                 <div style="font-size: 11px; margin-top: 8px; color: var(--vscode-descriptionForeground); display: flex; flex-direction: column; gap: 2px;">
@@ -2101,7 +2462,7 @@ function renderScheduledPosts(posts: ScheduledPost[]): void {
                     </div>
                 </div>
                 <div class="draft-card-actions" style="margin-top: 12px;">
-                    <button class="btn btn-ghost btn-sm" data-action="cancel-scheduled" data-id="${p.id}">🗑 Cancel</button>
+                    <button class="btn btn-ghost btn-sm" data-action="cancel-scheduled" data-id="${safeId}">🗑 Cancel</button>
                 </div>
             </div>
         `;

@@ -3,6 +3,7 @@ import { PostData, XAIResponse, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
+import { GenerationError, requireGeneratedText } from './GenerationError';
 
 export async function generatePost(apiKey: string, model: string): Promise<PostData | null> {
     if (!model) throw new Error('xAI model is required.');
@@ -12,6 +13,7 @@ export async function generatePost(apiKey: string, model: string): Promise<PostD
     try {
         const response = await fetch('https://api.x.ai/v1/chat/completions', {
             method: 'POST',
+            signal: AbortSignal.timeout(90_000),
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
@@ -75,6 +77,7 @@ export async function generateCustomContent(
     try {
         const response = await fetch('https://api.x.ai/v1/chat/completions', {
             method: 'POST',
+            signal: AbortSignal.timeout(90_000),
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
@@ -91,7 +94,10 @@ export async function generateCustomContent(
         }
 
         const data = await response.json() as XAIResponse;
-        return (data.choices?.[0]?.message?.content || '').trim();
+        const choice = data.choices?.[0];
+        if (choice?.finish_reason === 'length') throw new GenerationError('xai returned an incomplete article.', true);
+        if (choice?.finish_reason && choice.finish_reason !== 'stop') throw new GenerationError('xai did not complete the article.');
+        return requireGeneratedText(choice?.message?.content);
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('xAI generateCustomContent error', errorMessage);

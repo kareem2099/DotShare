@@ -33,7 +33,6 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
 
     try {
         Logger.info('[DotShare] Starting Telegram share...');
-        Logger.info(`[DotShare] Bot token: ${botToken?.substring(0, 10)}...`);
         Logger.info(`[DotShare] Chat ID: ${chatId}`);
         Logger.info(`[DotShare] Post text: ${post.text.substring(0, 50)}...`);
 

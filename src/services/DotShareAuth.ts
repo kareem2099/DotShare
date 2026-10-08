@@ -115,14 +115,12 @@ export class DotShareAuth {
         // URL decode the token in case it was URL-encoded during transmission
         const decodedToken = decodeURIComponent(token);
         
-        Logger.info(`[DotShareAuth] Raw token received: ${token?.substring(0, 20)}...`);
         Logger.info(`[DotShareAuth] Token length before decode: ${token?.length}`);
         Logger.info(`[DotShareAuth] Token length after decode: ${decodedToken.length}`);
         Logger.info(`[DotShareAuth] Decoded token starts with ds_prod_: ${decodedToken.startsWith('ds_prod_')}`);
         
         // Validate token format: should start with 'ds_prod_' and be 56 chars total
         if (!decodedToken.startsWith('ds_prod_') || decodedToken.length !== 56) {
-            Logger.warn(`[DotShareAuth] Invalid token format: starts with "${decodedToken.substring(0, 8)}", length=${decodedToken.length}`);
             throw new Error(`Invalid token format: expected ds_prod_* with length 56, got length ${decodedToken.length}`);
         }
 

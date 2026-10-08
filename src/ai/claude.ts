@@ -4,13 +4,14 @@ import { PostData, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
+import { GenerationError, requireGeneratedText } from './GenerationError';
 
 export async function generatePost(apiKey: string, modelName: string): Promise<PostData | null> {
     if (!modelName) throw new Error('Claude model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey, timeout: 90_000, maxRetries: 1 });
     try {
         const message = await client.messages.create({
             model: modelName,
@@ -62,14 +63,16 @@ export async function generateCustomContent(
         throw new Error('Claude model is required.');
     }
 
-    const client = new Anthropic({ apiKey });
+    const client = new Anthropic({ apiKey, timeout: 90_000, maxRetries: 1 });
     try {
         const message = await client.messages.create({
             model: model,
             max_tokens: options?.maxTokens || 2000,
             messages: [{ role: 'user', content: prompt }]
         });
-        return (message.content[0]?.type === 'text' ? message.content[0].text : '').trim();
+        if (message.stop_reason === 'max_tokens') throw new GenerationError('Claude returned an incomplete article.', true);
+        if (message.stop_reason === 'refusal') throw new GenerationError('Claude did not generate the requested article.');
+        return requireGeneratedText(message.content.filter(block => block.type === 'text').map(block => block.text).join('\n'));
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('Claude generateCustomContent error', errorMessage);
@@ -83,7 +86,7 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
     }
 
     try {
-        const client = new Anthropic({ apiKey });
+        const client = new Anthropic({ apiKey, timeout: 90_000, maxRetries: 1 });
         const response = await client.models.list();
         return response.data.map(m => m.id);
     } catch (error: unknown) {

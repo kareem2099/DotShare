@@ -5,6 +5,8 @@ import * as vscode from 'vscode';
 
 import { PostData, HistoricalPost, ShareRecord, AnalyticsSummary, SavedApiConfiguration } from '../types';
 import { Logger } from '../utils/Logger';
+import { ALL_SECRET_KEYS, AI_PROVIDERS, PLATFORM_SECRET_KEYS, isPlatform } from '../security/credentials';
+import { DotShareAuth } from '../services/DotShareAuth';
 
 export class StorageManager {
     private _context: vscode.ExtensionContext;
@@ -154,7 +156,7 @@ export class StorageManager {
         const telegramBot = telegramConfig?.telegramBot || await this._context.secrets.get('telegramBot') || '';
         const telegramChat = telegramConfig?.telegramChat || await this._context.secrets.get('telegramChat') || '';
 
-        const discordWebhookUrl = discordConfig?.discordWebhook || await this._context.secrets.get('discordWebhookUrl') || '';
+        const discordWebhookUrl = discordConfig?.discordWebhook || await this._context.secrets.get('discordWebhook') || '';
 
         const blueskyIdentifier = blueskyConfig?.blueskyIdentifier || await this._context.secrets.get('blueskyIdentifier') || '';
         const blueskyPassword = blueskyConfig?.blueskyPassword || await this._context.secrets.get('blueskyPassword') || '';
@@ -267,19 +269,16 @@ export class StorageManager {
             const savedApisKey = `savedApis_${platform}`;
             let dataString = await this._context.secrets.get(savedApisKey);
 
-            // Migration: If no data in secrets, check globalState and migrate
-            if (!dataString) {
-                const migratedData = this._context.globalState.get(savedApisKey, [] as SavedApiConfiguration[]);
-                if (migratedData && migratedData.length > 0) {
-                    // Migrate to secrets
-                    await this._context.secrets.store(savedApisKey, JSON.stringify(migratedData));
-                    // Clear old data
-                    this._context.globalState.update(savedApisKey, undefined);
-                    dataString = JSON.stringify(migratedData);
-                } else {
-                    return [];
+            // Remove legacy plaintext copies even when a newer secure copy exists.
+            const legacy = this._context.globalState.get<SavedApiConfiguration[]>(savedApisKey, []);
+            if (legacy.length) {
+                if (!dataString) {
+                    dataString = JSON.stringify(legacy);
+                    await this._context.secrets.store(savedApisKey, dataString);
                 }
+                await this._context.globalState.update(savedApisKey, undefined);
             }
+            if (!dataString) return [];
 
             return JSON.parse(dataString);
         } catch (error) {
@@ -316,6 +315,18 @@ export class StorageManager {
 
     public async saveApiConfiguration(apiConfig: SavedApiConfiguration): Promise<void> {
         try {
+            if (!isPlatform(apiConfig.platform)) throw new Error('Unknown platform');
+            const values = apiConfig.credentials as unknown as Record<string, string>;
+            const credentials: Record<string, string> = {};
+            for (const key of PLATFORM_SECRET_KEYS[apiConfig.platform]) {
+                if (typeof values[key] !== 'string' || !values[key].trim()) throw new Error('Credentials are incomplete');
+                credentials[key] = values[key].trim();
+            }
+            apiConfig = {
+                id: apiConfig.id, name: apiConfig.name, platform: apiConfig.platform,
+                created: apiConfig.created, lastUsed: apiConfig.lastUsed, isDefault: apiConfig.isDefault,
+                credentials: credentials as unknown as SavedApiConfiguration['credentials'],
+            };
             const savedApisKey = `savedApis_${apiConfig.platform}`;
             const savedApis = await this.loadSavedApis(apiConfig.platform);
 
@@ -378,30 +389,27 @@ export class StorageManager {
             Logger.info('[StorageManager] 🗑️ Clearing all credentials and saved APIs from secure storage...');
             
             // 1. Clear individual platform secrets and model API keys
-            const secretKeys = [
-                'linkedinToken',
-                'telegramBot', 'telegramChat',
-                'discordWebhookUrl',
-                'geminiApiKey', 'openaiApiKey', 'xaiApiKey',
-                'devtoApiKey',
-                // TokenManager expiry timestamps
-                'x_expires_at',
-            ];
-
-            for (const key of secretKeys) {
+            for (const key of ALL_SECRET_KEYS) {
                 await this._context.secrets.delete(key);
             }
 
             // 2. Clear all saved API configurations lists (both from secrets and globalState)
-            const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky', 'devto'];
+            const platforms = Object.keys(PLATFORM_SECRET_KEYS);
             for (const platform of platforms) {
                 const key = `savedApis_${platform}`;
                 await this._context.secrets.delete(key);
-                this._context.globalState.update(key, undefined);
+                await this._context.globalState.update(key, undefined);
             }
             
             // Optional: Unset the selected model so they are completely "logged out"
-            this._context.globalState.update('selectedModel', undefined);
+            await this._context.globalState.update('selectedModel', undefined);
+            for (const provider of AI_PROVIDERS) {
+                await this._context.globalState.update(`selected_${provider}_model`, undefined);
+            }
+            for (const key of ['last_selected_ai_provider', 'x_should_refresh_soon', 'linkedin_should_refresh_soon', 'dotshare.cloudCredentialsConsentGiven']) {
+                await this._context.globalState.update(key, undefined);
+            }
+            await DotShareAuth.logout(this._context);
             
             Logger.info('[StorageManager] ✅ All credentials cleared successfully.');
         } catch (error) {
@@ -445,28 +453,22 @@ export class StorageManager {
 
     // Migration methods
     public async migrateLegacyData(): Promise<void> {
-        const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky'];
-
-        for (const platform of platforms) {
-            const key = `savedApis_${platform}`;
-
-            // Check if there's legacy data in globalState
-            const legacyData = this._context.globalState.get(key);
-
-            if (legacyData && Array.isArray(legacyData) && legacyData.length > 0) {
-                // Check if the new secrets storage is empty (to avoid overwriting new data)
-                const existingSecret = await this._context.secrets.get(key);
-
-                if (!existingSecret) {
-                    Logger.info(`[StorageManager] 📦 Migrating ${platform} data to secure storage...`);
-
-                    // Migrate data to encrypted secrets
-                    await this._context.secrets.store(key, JSON.stringify(legacyData));
-
-                    // Clear old data
-                    this._context.globalState.update(key, undefined);
-                }
+        // Migrate every platform through the same path, including Dev.to.
+        for (const platform of Object.keys(PLATFORM_SECRET_KEYS)) await this.loadSavedApis(platform);
+        const legacyDiscord = await this._context.secrets.get('discordWebhookUrl');
+        if (legacyDiscord) {
+            if (!await this._context.secrets.get('discordWebhook')) {
+                await this._context.secrets.store('discordWebhook', legacyDiscord);
             }
+            await this._context.secrets.delete('discordWebhookUrl');
+        }
+        const model = this._context.globalState.get<{ provider: string; model: string; apiKey?: string }>('selectedModel');
+        if (model?.apiKey) {
+            if (AI_PROVIDERS.includes(model.provider as typeof AI_PROVIDERS[number])) {
+                const key = `${model.provider}ApiKey`;
+                if (!await this._context.secrets.get(key)) await this._context.secrets.store(key, model.apiKey);
+            }
+            await this._context.globalState.update('selectedModel', { provider: model.provider, model: model.model });
         }
     }
 

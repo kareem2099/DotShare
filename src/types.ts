@@ -8,6 +8,7 @@ export type PostStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'ret
 
 export interface DeepSeekResponse {
     choices: Array<{
+        finish_reason?: string;
         message: {
             content: string;
         };
@@ -125,7 +126,7 @@ export interface GeminiModelsResponse {
 }
 
 export interface XAIResponse {
-    choices: Array<{ message: { content: string } }>;
+    choices: Array<{ finish_reason?: string; message: { content: string } }>;
 }
 
 export interface XAIModelsResponse {
@@ -253,13 +254,16 @@ export interface DiscordApiConfig { discordWebhook: string; }
 
 export interface BlueskyApiConfig { blueskyIdentifier: string; blueskyPassword: string; }
 
+export interface DevToApiConfig { devtoApiKey: string; }
+
 export type ApiCredentials =
     | LinkedInApiConfig
     | TelegramApiConfig
     | XApiConfig
 
     | DiscordApiConfig
-    | BlueskyApiConfig;
+    | BlueskyApiConfig
+    | DevToApiConfig;
 
 export interface SavedApiConfiguration {
     id: string;

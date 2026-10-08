@@ -35,10 +35,13 @@ Please include:
 
 DotShare handles sensitive API keys and OAuth tokens. Here's how we protect them:
 
-- All credentials are stored using **VS Code SecretStorage** (backed by the OS keychain — Keychain on macOS, libsecret on Linux, Windows Credential Manager on Windows)
-- Credentials are **never** written to plain files, `globalState`, or logs
-- OAuth flows run through a dedicated server (`dotshare-auth-server.vercel.app`) — your tokens are never exposed client-side
-- The WebView sandbox has no direct access to secrets — all credential reads go through the extension host
+- Extension credentials use **VS Code SecretStorage**; the webviews receive saved status only. A saved key is shown as **🔒 Key Saved & Active** without returning or displaying its value.
+- Empty replacement fields retain the existing secret. Saved API configurations are activated on the extension host.
+- Credential values and complete OAuth callback URLs are excluded from logs. Known secrets and common token formats are redacted from diagnostic messages.
+- Old plaintext Saved API state is removed only after a secure copy exists. CLI credentials use the native OS credential store; CLI configuration files contain preferences only. Secure-storage failures do not fall back to plaintext.
+- Cloud credential upload requires user consent. Local SecretStorage guarantees do not cover server-side storage; review the deployed backend separately.
+- Clearing local credentials removes platform, AI, GitHub and DotShare account secrets and remembered cloud consent. Previously uploaded cloud credentials must be revoked separately.
+- Historical logs from older versions may contain credentials; these code changes do not remove historical logs or rotate previously exposed tokens.
 
 ## Out of Scope
 

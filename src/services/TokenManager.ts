@@ -196,6 +196,7 @@ export class TokenManager {
         switch (platform) {
             case 'x':
                 await this._context.secrets.delete('xAccessToken');
+                await this._context.secrets.delete('xAccessSecret');
                 await this._context.secrets.delete('xRefreshToken');
                 break;
 

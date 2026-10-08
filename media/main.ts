@@ -19,7 +19,7 @@ const vscodeSidebar = ((): VsCodeApiSidebar => {
     if (w?.vscodeSidebar) return w.vscodeSidebar;
     if (g?.vscodeSidebar) return g.vscodeSidebar;
     // Fallback: should not happen in prod
-    return { postMessage: (msg: unknown) => console.warn('[DotShare] vscodeSidebar not ready', msg) };
+    return { postMessage: (msg: unknown) => console.warn('[DotShare] vscodeSidebar not ready') };
 })();
 
 // ── DOM Element Cache ────────────────────────────────────────
@@ -47,6 +47,44 @@ function getValue(id: string): string {
 function setInputValue(id: string, value: string): void {
     const el = getEl<HTMLInputElement>(id);
     if (el && value !== undefined) el.value = value;
+}
+
+function renderCredentialStatus(id: string, saved: boolean): void {
+    const input = getEl<HTMLInputElement>(id);
+    if (!input) return;
+    const pendingReplacement = !!input.value.trim();
+    input.hidden = saved && !pendingReplacement;
+    input.style.display = saved && !pendingReplacement ? 'none' : '';
+    input.placeholder = 'Enter a new value';
+    let badge = document.getElementById(`${id}SavedStatus`);
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = `${id}SavedStatus`;
+        badge.className = 'credential-saved-status';
+        input.before(badge);
+    }
+    badge.textContent = saved ? '🔒 Key Saved & Active' : '';
+    badge.hidden = !saved;
+    let change = document.getElementById(`${id}ReplaceKey`);
+    if (!change) {
+        change = document.createElement('button');
+        change.id = `${id}ReplaceKey`;
+        change.className = 'credential-change-btn';
+        change.setAttribute('type', 'button');
+        change.textContent = 'Change saved key';
+        change.addEventListener('click', () => {
+            input.hidden = false;
+            input.style.display = '';
+            input.value = '';
+            input.placeholder = 'Enter a replacement; leave blank to keep saved key';
+            input.focus();
+            change!.hidden = true;
+            change!.style.display = 'none';
+        });
+        input.after(change);
+    }
+    change.hidden = !saved;
+    change.style.display = saved && !pendingReplacement ? '' : 'none';
 }
 
 // ── send ─────────────────────────────────────────────────────
@@ -160,7 +198,7 @@ function disconnectOAuth(platform: string): void {
 const OAUTH_PLATFORMS = ['linkedin', 'x', 'gist'] as const;
 type OAuthPlatform = typeof OAUTH_PLATFORMS[number];
 
-function updateOAuthButtons(tokenMap: Record<string, string | undefined>): void {
+function updateOAuthButtons(tokenMap: Record<string, boolean | undefined>): void {
     OAUTH_PLATFORMS.forEach(platform => {
         const hasToken = !!(tokenMap[platform]);
         const connectBtn = getEl(`oauthConnect_${platform}`);
@@ -206,8 +244,8 @@ function renderSavedApis(savedApis: Array<{ id: string; name: string; isDefault?
                     ${api.isDefault ? '<span style="color:var(--success);font-size:10px;">Default</span>' : ''}
                 </div>
                 <div class="saved-api-actions">
-                    <button class="btn btn-sm btn-secondary" data-action="loadApi" data-id="${api.id}">Load</button>
-                    <button class="btn btn-sm btn-ghost" data-action="deleteApi" data-id="${api.id}">Delete</button>
+                    <button class="btn btn-sm btn-secondary" data-action="loadApi" data-id="${escapeHtml(api.id)}">Load</button>
+                    <button class="btn btn-sm btn-ghost" data-action="deleteApi" data-id="${escapeHtml(api.id)}">Delete</button>
                 </div>
             </div>
         `).join('');
@@ -224,7 +262,6 @@ function renderSavedApis(savedApis: Array<{ id: string; name: string; isDefault?
                     if (modal) modal.style.display = 'none';
                 } else if (action === 'deleteApi') {
                     send({ command: 'deleteApiConfig', apiId: id });
-                    showStatus('Configuration deleted!', 'success');
                 }
             });
         });
@@ -257,6 +294,8 @@ function showCloudOut(): void {
 }
 
 function showCloudIn(data: { name?: string; email?: string; tier?: string; posts_used?: number; post_quota?: number; images_used?: number; image_quota?: number; provider?: string }): void {
+    const keyInput = getEl<HTMLInputElement>('cloud-api-key-input');
+    if (keyInput) keyInput.value = '';
     const load = getEl('cloud-loading'); const out = getEl('cloud-out'); const inn = getEl('cloud-in');
     if (load) load.style.display = 'none';
     if (out) out.style.display = 'none';
@@ -333,11 +372,22 @@ function initEventListeners(): void {
         if (input) {
             input.addEventListener('blur', () => {
                 const saver = platformSavers[platform];
-                if (saver) {
+                if (saver && input.value.trim()) {
                     saver();
-                    showStatus('Credentials auto-saved!', 'success');
+                    Object.keys(blurAutoSaves).filter(id => blurAutoSaves[id] === platform).forEach(id => {
+                        const field = getEl<HTMLInputElement>(id);
+                        if (field) field.value = '';
+                    });
                 }
             });
+        }
+    });
+
+    getEl<HTMLInputElement>('githubToken')?.addEventListener('blur', () => {
+        const input = getEl<HTMLInputElement>('githubToken');
+        if (input?.value.trim()) {
+            send({ command: 'setGitHubToken', token: input.value.trim() });
+            input.value = '';
         }
     });
 
@@ -514,24 +564,15 @@ window.addEventListener('message', (event: MessageEvent) => {
     switch (msg.command) {
 
         case 'updateConfiguration': {
-            // Platform credentials
-            setInputValue('linkedinToken', msg.linkedinToken ?? '');
-            setInputValue('telegramBot', msg.telegramBot ?? '');
-            setInputValue('telegramChat', msg.telegramChat ?? '');
-            setInputValue('xAccessToken', msg.xAccessToken ?? '');
-            setInputValue('xAccessSecret', msg.xAccessSecret ?? '');
-            setInputValue('discordWebhook', msg.discordWebhookUrl ?? '');
-            setInputValue('blueskyIdentifier', msg.blueskyIdentifier ?? '');
-            setInputValue('blueskyPassword', msg.blueskyPassword ?? '');
-            setInputValue('devtoApiKey', msg.devtoApiKey ?? '');
-
-            // OAuth buttons
-            updateOAuthButtons({
-                linkedin: msg.linkedinToken,
-                x: msg.xAccessToken,
-
-                gist: msg.githubConnected ? 'connected' : undefined,
-            });
+            const status = (msg.credentialsSaved || {}) as Record<string, boolean>;
+            const fields: Record<string, string> = {
+                linkedinToken: 'linkedinToken', telegramBot: 'telegramBot', telegramChat: 'telegramChat',
+                xAccessToken: 'xAccessToken', xAccessSecret: 'xAccessSecret', discordWebhook: 'discordWebhook',
+                blueskyIdentifier: 'blueskyIdentifier', blueskyPassword: 'blueskyPassword', devtoApiKey: 'devtoApiKey',
+                githubToken: 'githubToken',
+            };
+            Object.entries(fields).forEach(([id, key]) => renderCredentialStatus(id, !!status[key]));
+            updateOAuthButtons({ linkedin: status.linkedinToken, x: status.xAccessToken, gist: !!msg.githubConnected });
 
             // Language select sync
             if (msg.language) {
@@ -618,14 +659,14 @@ window.addEventListener('message', (event: MessageEvent) => {
 
         case 'oauthTokenReceived':
             // Called after OAuth callback completes — update UI immediately
-            if (msg.platform && msg.token) {
-                updateOAuthButtons({ [msg.platform]: msg.token });
+            if (msg.platform && msg.connected) {
+                updateOAuthButtons({ [msg.platform]: true });
                 showStatus(`${msg.platform} connected successfully!`, 'success');
             }
             break;
 
         case 'gitHubAuthSuccess':
-            updateOAuthButtons({ gist: 'connected' });
+            updateOAuthButtons({ gist: true });
             break;
 
         // Extension host pushing us to re-fetch profile (e.g. after URI login callback)
@@ -649,6 +690,11 @@ window.addEventListener('message', (event: MessageEvent) => {
                 const err = getEl('cloud-auth-error');
                 if (err) { err.textContent = String(msg.error || 'Connection failed.'); err.style.display = 'block'; }
             }
+            break;
+        }
+
+        case 'credentialsCleared': {
+            document.querySelectorAll<HTMLInputElement>('.platform-card input').forEach(input => { input.value = ''; });
             break;
         }
 

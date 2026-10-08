@@ -1,3 +1,4 @@
+import { protectSecretStorage } from './security/redaction';
 import * as vscode from 'vscode';
 import { DotShareProvider } from './ui/DotShareProvider';
 import { DotShareWebView } from './ui/DotShareWebView';
@@ -14,6 +15,7 @@ import { ProjectContextService } from './services/ProjectContextService';
 import * as path from 'path';
 
 export async function activate(context: vscode.ExtensionContext) {
+    context = protectSecretStorage(context);
     // ── Emergency Unban Recovery ──────────────────────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('dotshare.recheckBanStatus', async () => {
@@ -49,7 +51,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // ── Data / Storage ────────────────────────────────────
     const storageManager = new StorageManager(context);
-    storageManager.migrateLegacyData().catch((e) => Logger.error('[Extension] Migration failed', e));
+    await storageManager.migrateLegacyData();
 
     // ── 1. Sidebar Provider ───────────────────────────────────
     const provider = new DotShareProvider(context.extensionUri, context);
@@ -165,6 +167,17 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (ctx.projectDescription) outputChannel.appendLine(`📝 Description: ${ctx.projectDescription}`);
                 if (ctx.repoUrl) outputChannel.appendLine(`🔗 Repo URL: ${ctx.repoUrl}`);
                 if (ctx.techStack?.length) outputChannel.appendLine(`🛠️ Tech Stack: ${ctx.techStack.join(', ')}`);
+                outputChannel.appendLine(`Scope: ${ctx.scope || 'release'}`);
+                if (ctx.targetLabel) outputChannel.appendLine(`Snapshot: ${ctx.targetLabel} (${ctx.targetRef})`);
+                if (ctx.gitBaseTag) outputChannel.appendLine(`Base tag: ${ctx.gitBaseTag}`);
+                if (ctx.contextWarnings?.length) {
+                    outputChannel.appendLine('\nEvidence limits:');
+                    ctx.contextWarnings.forEach(warning => outputChannel.appendLine(`  • ${warning}`));
+                }
+                if (ctx.releaseDocuments?.length) {
+                    outputChannel.appendLine('\nRelease documents:');
+                    ctx.releaseDocuments.forEach(doc => outputChannel.appendLine(`  ${doc.file} [${doc.kind}${doc.truncated ? ', partial' : ''}]\n${doc.content}`));
+                }
 
                 if (ctx.changelogNotes?.length) {
                     outputChannel.appendLine('\n📋 Latest Changelog Notes:');
@@ -182,6 +195,26 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 if (ctx.gitDiffSummary) {
                     outputChannel.appendLine(`\n📊 Git Diff Summary:\n${ctx.gitDiffSummary}`);
+                }
+
+                if (ctx.dependencyChanges?.length) {
+                    outputChannel.appendLine('\n📦 Dependency Changes:');
+                    ctx.dependencyChanges.forEach(d => outputChannel.appendLine(`  • ${d}`));
+                }
+
+                if (ctx.activeEditorContext) {
+                    outputChannel.appendLine(`\n📄 Active Editor: ${ctx.activeEditorContext.fileName} [${ctx.activeEditorContext.languageId || 'code'}]`);
+                    if (ctx.activeEditorContext.selectedText) {
+                        outputChannel.appendLine(`  Selected Focus Snippet:\n  ${ctx.activeEditorContext.selectedText.replace(/\n/g, '\n  ')}`);
+                    }
+                }
+
+                if (ctx.relevantCodeSnippets?.length) {
+                    outputChannel.appendLine('\n💡 Key Code Snippets:');
+                    ctx.relevantCodeSnippets.forEach(s => {
+                        outputChannel.appendLine(`  • ${s.file} (${s.reason || 'Code change'}):`);
+                        outputChannel.appendLine(`    ${s.code.replace(/\n/g, '\n    ')}`);
+                    });
                 }
 
                 outputChannel.show(true);
@@ -276,19 +309,15 @@ export async function activate(context: vscode.ExtensionContext) {
     // ── URI Handler (OAuth callback & Magic Link Login) ─────────────
     const uriHandler = vscode.window.registerUriHandler({
         async handleUri(uri: vscode.Uri) {
-            Logger.info(`[Extension] Received URI: ${uri.toString()}`);
             Logger.info(`[Extension] Path: ${uri.path}`);
-            Logger.info(`[Extension] Query: ${uri.query}`);
             
             if (uri.path === '/login') {
                 const params = new URLSearchParams(uri.query);
                 const token = params.get('token');
                 
-                Logger.info(`[Extension] Extracted token: ${token}`);
                 Logger.info(`[Extension] Token type: ${typeof token}`);
                 if (token) {
                     Logger.info(`[Extension] Token length: ${token.length}`);
-                    Logger.info(`[Extension] First 20 chars: ${token.substring(0, 20)}`);
                     Logger.info(`[Extension] Starts with ds_prod_: ${token.startsWith('ds_prod_')}`);
                 }
                 
@@ -398,7 +427,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 // 🔐 Sync OAuth token to dotsuite-core so the website can show it as connected
                 try {
                     const apiKey = await DotShareAuth.getToken(context);
-                    if (apiKey) {
+                    if (apiKey && context.globalState.get<boolean>('dotshare.cloudCredentialsConsentGiven', false)) {
                         const syncPayload = {
                             platform,
                             access_token: accessToken,
@@ -417,8 +446,7 @@ export async function activate(context: vscode.ExtensionContext) {
                         });
 
                         if (!syncResponse.ok) {
-                            const error = await syncResponse.text();
-                            Logger.warn(`[Extension] Failed to sync ${platform} token to dotsuite-core:`, error);
+                            Logger.warn(`[Extension] Failed to sync ${platform} token to dotsuite-core (HTTP ${syncResponse.status})`);
                             // Don't fail the entire flow; token is stored locally
                         } else {
                             Logger.info(`[Extension] ✅ ${platform} token synced to dotsuite-core`);

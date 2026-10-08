@@ -1,5 +1,6 @@
 // src/utils/Logger.ts
 import * as vscode from 'vscode';
+import { redactSensitiveText } from '../security/redaction';
 
 export enum LogLevel {
     DEBUG = 0,
@@ -75,13 +76,13 @@ export class Logger {
             }
         }
 
-        this.outputChannel.appendLine(logMessage);
+        this.outputChannel.appendLine(redactSensitiveText(logMessage));
     }
 
     /** v3.0 — Print a section separator in the output channel */
     public static section(title: string): void {
         Logger.instance.outputChannel.appendLine(`\n${'─'.repeat(60)}`);
-        Logger.instance.outputChannel.appendLine(`  ${title}`);
+        Logger.instance.outputChannel.appendLine(redactSensitiveText(`  ${title}`));
         Logger.instance.outputChannel.appendLine(`${'─'.repeat(60)}`);
     }
 

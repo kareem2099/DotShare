@@ -38,9 +38,15 @@ package.cli.json
 IMAGE_UPLOAD_FLOW.md
 REDDIT_CODE_REVIEW.md
 ROADMAP.md
+AI_RELEASE_COPILOT_ROADMAP.md
+DotShare.code-workspace
+dotshare-devto.md
+articles/
+eslint.config.mjs
 
 # Webview Source Files (only bundled .js files ship with the extension)
-out/**/__tests__/       
+out/**
+!out/extension.js
 media/src/               
 media/main.ts
 media/webview/app.ts

@@ -4,13 +4,14 @@ import { PostData, GenerateContentOptions } from '../types';
 import { HashtagService } from '../services/HashtagService';
 import { buildProjectContext } from '../utils/contextBuilder';
 import { Logger } from '../utils/Logger';
+import { GenerationError, requireGeneratedText } from './GenerationError';
 
 export async function generatePost(apiKey: string, model: string): Promise<PostData | null> {
     if (!model) throw new Error('OpenAI model is required.');
     const context = await buildProjectContext();
     if (!context) return null;
 
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({ apiKey, timeout: 90_000, maxRetries: 1 });
     try {
         const response = await openai.responses.create({
             model: model,
@@ -61,7 +62,7 @@ export async function generateCustomContent(
     if (!model) {
         throw new Error('OpenAI model is required.');
     }
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({ apiKey, timeout: 90_000, maxRetries: 1 });
 
     try {
         const response = await openai.responses.create({
@@ -69,7 +70,11 @@ export async function generateCustomContent(
             input: prompt,
             max_output_tokens: options?.maxTokens || 2000
         });
-        return (response.output_text || '').trim();
+        if (response.status === 'incomplete') {
+            throw new GenerationError('OpenAI returned an incomplete article.', response.incomplete_details?.reason === 'max_output_tokens');
+        }
+        if (response.status && response.status !== 'completed') throw new GenerationError('OpenAI did not complete the article.');
+        return requireGeneratedText(response.output_text);
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         Logger.error('OpenAI generateCustomContent error', errorMessage);
@@ -83,7 +88,7 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
     }
 
     try {
-        const openai = new OpenAI({ apiKey });
+        const openai = new OpenAI({ apiKey, timeout: 90_000, maxRetries: 1 });
         const models = await openai.models.list();
         const blocked = [
             'audio', 'realtime', 'transcribe', 'tts', 'image', 'embedding',

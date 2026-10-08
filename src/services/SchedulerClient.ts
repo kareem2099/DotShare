@@ -77,6 +77,8 @@ export class SchedulerClient {
      * having to manually paste them into the dashboard.
      */
     public static async syncLocalCredentials(context: vscode.ExtensionContext, platforms: SocialPlatform[]): Promise<void> {
+        if (!context.globalState.get<boolean>('dotshare.cloudCredentialsConsentGiven', false)) return;
+        if (new URL(this.getApiBaseUrl()).protocol !== 'https:') throw new Error('Credential sync requires HTTPS');
         const token = await DotShareAuth.getToken(context);
         if (!token) return;
 

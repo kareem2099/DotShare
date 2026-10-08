@@ -15,6 +15,7 @@ import { DraftsService } from '../services/DraftsService';
 import { DotShareAuth } from '../services/DotShareAuth';
 import { SchedulerClient } from '../services/SchedulerClient';
 import axios from 'axios';
+import { openArticlePreviewLink } from '../services/PreviewLinkService';
 
 interface Message {
     command: string;
@@ -66,7 +67,7 @@ export class MessageHandler {
             // GitHub Gist operations
             await this.gistHandler.handleMessage(message);
         }
-        else if (cmd.startsWith('save') || cmd === 'loadConfiguration' || cmd.includes('Api')) {
+        else if (cmd.startsWith('save') || cmd === 'loadConfiguration' || cmd === 'clearAllCredentials' || cmd.includes('Api')) {
             // Configuration operations (excluding loadPostHistory and loadAnalytics)
             await this.configHandler.handleMessage(message);
         }
@@ -81,6 +82,11 @@ export class MessageHandler {
 
         try {
             switch (cmd) {
+                case 'openArticlePreviewLink': {
+                    const opened = await openArticlePreviewLink(message.url);
+                    await this.view.webview.postMessage({ command: 'articlePreviewLinkResult', opened });
+                    break;
+                }
                 case 'openOAuth': {
                     const platform = message.platform as string;
 
@@ -173,6 +179,7 @@ export class MessageHandler {
                     }
                     try {
                         await TokenManager.setToken('github', token);
+                        await this.configHandler.handleMessage({ command: 'loadConfiguration' });
                         this.sendSuccess('✅ GitHub token stored securely!');
                         Logger.info('[MessageHandler] GitHub token saved from manual entry');
                     } catch (error: unknown) {

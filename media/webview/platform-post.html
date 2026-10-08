@@ -81,6 +81,8 @@
             </div>
           </header>
 
+          <div id="ai-quality-warning" role="status" aria-live="polite" style="display:none;white-space:pre-line;margin:0 0 14px;padding:10px 14px;border-left:3px solid var(--vscode-editorWarning-foreground,#f59e0b);background:rgba(245,158,11,0.08);border-radius:4px;font-size:12px;"></div>
+
           <main class="platform-content">
 
             <!-- ═══ THREADS WORKSPACE (X / Bluesky) ═══ -->
@@ -192,16 +194,41 @@
                     File</button>
                   <span class="shortcut-hint" style="margin-left:0px;"><span class="kbd">Ctrl</span><span>+</span><span
                       class="kbd">L</span></span>
+                  <button class="btn btn-secondary btn-sm" id="btn-dotshare-ai-blog" style="margin-left:4px;">✨ DotShare AI Article</button>
                   <button class="btn btn-ghost btn-sm" id="btn-reset-blog-md"
                     style="margin-left:auto; white-space:nowrap;"
                     title="Resets the open markdown file back to the default boilerplate.">🧹 Reset Boilerplate</button>
                 </div>
 
                 <div id="blog-preview" style="display:none; margin-top:16px;">
+                  <!-- Guidance Card -->
+                  <div class="blog-guidance-card" style="margin-bottom:14px;padding:10px 14px;background:rgba(0,122,204,0.08);border-left:3px solid var(--vscode-focusBorder,#007acc);border-radius:4px;font-size:12px;">
+                    <div style="display:flex;align-items:flex-start;gap:8px;">
+                      <span style="font-size:16px;line-height:1;">💡</span>
+                      <div>
+                        <strong style="color:var(--vscode-foreground);">Dev.to Article Mode:</strong> Title, tags (max 4, lowercase), and metadata are automatically extracted from YAML Frontmatter or AI generation. Toggle <strong>Live Preview</strong> below to inspect syntax-highlighted code blocks before publishing.
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="input-group">
-                    <label>Article (Markdown body)</label>
-                    <textarea id="blog-body" rows="12"
-                      placeholder="Loaded here when you read the current file…"></textarea>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                      <label style="margin:0;font-weight:600;">Article (Markdown body)</label>
+                      <div class="blog-view-mode-tabs" style="display:flex;gap:4px;">
+                        <button type="button" class="btn btn-ghost btn-sm active" id="tab-blog-raw" style="font-size:11px;padding:3px 10px;">✏️ Raw Markdown</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="tab-blog-preview" style="font-size:11px;padding:3px 10px;">👁️ Live Preview</button>
+                      </div>
+                    </div>
+                    <textarea id="blog-body" rows="14"
+                      placeholder="Loaded here when you read a file or generated via DotShare AI…"></textarea>
+                    <div id="blog-rendered-preview" class="markdown-preview-pane" aria-label="Article live preview" style="display:none;"></div>
+                    <div class="blog-meta-stats" style="display:flex;gap:12px;font-size:11px;color:var(--vscode-descriptionForeground);margin-top:6px;">
+                      <span id="blog-word-count">0 words</span>
+                      <span>•</span>
+                      <span id="blog-char-count">0 characters</span>
+                      <span>•</span>
+                      <span id="blog-reading-time">1 min read</span>
+                    </div>
                   </div>
                   <div class="input-group">
                     <label>Title</label>
@@ -405,7 +432,7 @@
         <div class="ai-vault-banner">
           <div class="ai-vault-banner-icon">🔒</div>
           <div class="ai-vault-banner-text">
-            <strong>Key Security:</strong> Saved keys are securely encrypted in OS Keychain. When models are loaded below, your key is active and ready — leave the API Key field blank to keep using it, or enter a new one to update.
+            <strong>Key Security:</strong> Saved keys stay in VS Code SecretStorage. Only their saved status is shown here. Choose Change saved key to enter a replacement.
           </div>
         </div>
 
@@ -546,12 +573,28 @@
       <div class="modal-body" style="padding-top:12px;">
         <!-- 1. Context Sources Section -->
         <div class="modal-section-title">📂 Context Sources</div>
+        <div class="ai-options-row" style="margin-bottom:12px;">
+          <div class="ai-opt-field">
+            <label for="ai-release-scope">Article scope</label>
+            <select id="ai-release-scope" class="premium-select">
+              <option value="release" selected>Committed release</option>
+              <option value="working_tree">Uncommitted changes</option>
+            </select>
+          </div>
+          <div class="ai-opt-field">
+            <label for="ai-release-tag">Release version</label>
+            <select id="ai-release-tag" class="premium-select">
+              <option value="">Latest tagged release / HEAD</option>
+              <option value="HEAD">Current committed work (HEAD)</option>
+            </select>
+          </div>
+        </div>
         <div class="ai-sources-grid">
           <label class="ai-source-card active" id="card-src-changelog">
             <input type="checkbox" id="ai-src-changelog" checked />
             <div class="ai-source-info">
               <span class="ai-source-label">📄 Latest Changelog</span>
-              <span class="ai-source-desc">Release notes & version bullets</span>
+              <span class="ai-source-desc">Changelog & version-specific release documents</span>
             </div>
             <span id="ai-changelog-badge" class="ai-badge">Checking...</span>
           </label>
@@ -560,7 +603,7 @@
             <input type="checkbox" id="ai-src-git" checked />
             <div class="ai-source-info">
               <span class="ai-source-label">🌳 Git Commits & Diff</span>
-              <span class="ai-source-desc">Recent history & commit diffs</span>
+              <span id="ai-git-desc" class="ai-source-desc">Release commits & verified implementation excerpts</span>
             </div>
             <span id="ai-git-badge" class="ai-badge">Checking...</span>
           </label>
@@ -573,12 +616,29 @@
             </div>
             <span class="ai-badge ai-badge-optional">Optional</span>
           </label>
+
+          <label class="ai-source-card" id="card-src-editor">
+            <input type="checkbox" id="ai-src-editor" />
+            <div class="ai-source-info">
+              <span class="ai-source-label">📄 Active Editor Context</span>
+              <span class="ai-source-desc">Current open file & selected code snippet</span>
+            </div>
+            <span class="ai-badge ai-badge-optional">Optional</span>
+          </label>
+        </div>
+
+        <!-- Git Status Warning & Developer Hint -->
+        <div id="ai-git-warning" style="display:none;font-size:11px;color:var(--vscode-editorWarning-foreground, #f59e0b);padding:6px 10px;margin-top:8px;border-radius:4px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);">
+          Choose the release version you want to describe.
+        </div>
+        <div id="ai-git-hint" style="font-size:11px;color:var(--vscode-descriptionForeground, #888);margin-top:6px;padding:2px 4px;opacity:0.85;">
+          💡 Committed release articles use files from that version. Local edits are included only when you choose Uncommitted changes.
         </div>
 
         <!-- Custom Prompt Textarea (Revealed when card-src-custom is checked) -->
         <div id="ai-custom-prompt-container" style="display:none; margin-top:8px;">
           <textarea id="ai-custom-prompt" class="premium-textarea"
-            placeholder="E.g., Emphasize the 50% faster build times, new themes, and give a shoutout to contributors..."
+            placeholder="E.g., Explain the Vault protection changes, their implementation and documented trade-offs..."
             rows="2"></textarea>
         </div>
 
@@ -618,6 +678,15 @@
             <div class="tone-text">
               <strong>Quick TL;DR</strong>
               <small>Fast, scannable bullet points</small>
+            </div>
+          </label>
+
+          <label class="ai-tone-pill" data-tone="full_markdown_article">
+            <input type="radio" name="ai-tone" value="full_markdown_article" />
+            <span class="tone-icon">📝</span>
+            <div class="tone-text">
+              <strong>Full Article (Dev.to)</strong>
+              <small>Complete Markdown article with code & YAML</small>
             </div>
           </label>
         </div>
@@ -705,6 +774,10 @@
               style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
               <input type="checkbox" id="ai-opt-hashtags" checked />
               <span>Include Hashtags</span>
+            </label>
+            <label class="checkbox-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+              <input type="checkbox" id="ai-opt-code" checked />
+              <span>Include verified code excerpts</span>
             </label>
             <label class="checkbox-label" id="ai-opt-thread-wrap"
               style="display:none;align-items:center;gap:6px;cursor:pointer;font-size:12px;">

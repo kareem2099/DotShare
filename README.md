@@ -4,10 +4,10 @@
 
 ### *Share Your Code Journey, Amplify Your Voice*
 
-[![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)](https://github.com/kareem2099/DotShare)
+[![Version](https://img.shields.io/badge/version-3.5.2-blue.svg)](https://github.com/kareem2099/DotShare)
 ![Codename](https://img.shields.io/badge/codename-DotShare--AI-10b981?style=flat-square&labelColor=0f0f0f)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![VS Code](https://img.shields.io/badge/VS%20Code-1.74%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
+[![VS Code](https://img.shields.io/badge/VS%20Code-1.90%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
 <a href="https://www.buymeacoffee.com/freerave"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
 
@@ -16,6 +16,42 @@
 [Installation](#-installation) • [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Support](#-support)
 
 </div>
+
+---
+
+## 🆕 What's New — v3.5.2 "Blog Pilot (Dev.to) & Workspace Context Search"
+
+- **Release evidence and article quality**:
+  - Select the latest tagged release, a specific tag, committed HEAD work, or tracked uncommitted changes. All release sources use one immutable commit.
+  - Complete multiline changelog entries and version-specific `docs/releases` documents supply reported verification and remaining checks.
+  - Articles use supplied source excerpts, with a code toggle and at most one automatic repair for detectable problems. Remaining unverifiable code is omitted with a visible review notice; other unresolved errors still block generation.
+  - Incomplete or empty responses are detected across all five AI providers. Quick social posts share the same evidence collection.
+  - Quality checks cover code provenance, selected URLs, supported scope statistics, frontmatter and code-fence completeness; they do not prove every prose claim.
+- **📰 Dev.to Technical Article Generator & Live Markdown Preview**:
+  - One-click article generation directly from workspace release context using the dedicated `Full Article (Dev.to)` tone.
+  - Strict **Pure Markdown Rule**: AI writes standard GitHub Flavored Markdown with clean code fences, language tags, and structured technical sections.
+  - Smart YAML Frontmatter auto-parsing into `blog-title`, `blog-tags` (max 4 lowercase alphanumeric tags), and `blog-description`.
+  - Dual-mode segmented toggle (`✏️ Raw Markdown` / `👁️ Live Preview`) powered by `marked` and sanitized with `DOMPurify`.
+  - Real-time article reading metrics: word counter, character counter, and estimated reading time.
+- **🔍 Query-Driven Git Topic Search**:
+  - Automatically queries Git commit history using `git log --grep` (with `--all-match` precision) and pickaxe `git log -S` matching the user's custom topic or prompt.
+  - Dynamically extracts high-relevance commits instead of relying solely on generic recent logs.
+- **💻 Semantic Diff & Code Snippet Extraction**:
+  - Reads verified function excerpts around changed executable code, with real file paths and line ranges, prioritized by topic relevance and implementation coverage.
+  - Supplies the AI with ground-truth code implementation details while excluding binaries, lockfiles, minified bundles, and tests.
+- **📦 Working-Tree Dependency Diff Engine**:
+  - Compares Node, Rust, Python and Go dependency manifests within the selected release boundary; local edits are included only in Uncommitted changes mode.
+  - Informs the AI of newly installed, upgraded, or removed libraries with exact version numbers.
+- **🌐 Multi-Ecosystem Manifests**:
+  - Extended project metadata, version, repository, and tech stack auto-detection to **Rust (`Cargo.toml`)**, **Python (`pyproject.toml`)**, **Go (`go.mod`)**, and **Node.js (`package.json`)**.
+- **📄 Active Editor Working Context**:
+  - Seamlessly captures the currently open file path, language identifier, and selected code focus snippet directly from `vscode.window.activeTextEditor`.
+- **📚 Workspace Docs & Architecture Search**:
+  - Scans workspace markdown documentation (`docs/**`, `*.md`) for topic-relevant paragraphs to inject real architecture context into articles.
+- **🛡️ Security, Zero Shell Invocation & Secret Redaction**:
+  - Switched subprocess execution to `execFile` with structured array arguments, eliminating shell injection risks and Windows pathspec quoting errors.
+  - Automated secret redaction (`sanitizeSnippetSecrets`) protecting sensitive API keys (`sk-`, `ghp_`, `AIza`, `AKIA`, bearer tokens, private keys) from code snippets.
+  - Dynamic UI badges (`🏷️ tag → HEAD`, `⚠️ Uncommitted`, `⚠️ No tags`) and guidance banners keeping developers informed of their Git workspace state.
 
 ---
 
@@ -38,7 +74,7 @@
 - **🔐 SecretStorage Hardening & Auto-Fetch**:
   - Automatic background live model fetch upon opening `Select AI Model` modal using secure keys stored in `SecretStorage`.
   - Safely updates model selection without re-typing API key when a valid key already exists in `SecretStorage`.
-  - Added UI Security Vault banner, dynamic provider key status badges (`🔒 Key Saved & Active` / `⚠️ Not Configured`), and smart input placeholders.
+  - Added UI Security Vault banner, dynamic provider key status badges (`🔒 Key Saved & Active` / `⚠️ Not Configured`), and status-only saved-key displays with empty replacement fields.
 - **🛡️ Strict Compile-Time & Runtime Model Verification**:
   - Enforced `GenerateContentOptions.model: string` (required) across the entire engine, preventing runtime regressions or missing model arguments.
 - **🎨 Platform Post Header Clean-up**: Consolidated AI actions into the unified DotShare AI modal and streamlined platform headers.
@@ -94,7 +130,7 @@
 
 ## 🔐 Security Patch — v3.3.1
 
-- **Explicit Security Consent**: Before any platform API key is synced to the cloud, DotShare now shows a **mandatory one-time consent dialog** clearly explaining encryption (AES-256-GCM), data usage, and how to revoke access. Your keys never leave your machine without your approval.
+- **Explicit Cloud Consent**: Platform credentials are synced to the DotSuite scheduler only after a one-time consent dialog. Local publishing and AI requests send credentials to their respective services as needed.
 - **Security & Privacy Documentation**: New README section fully documents the consent mechanism, encryption layers (in-transit and at-rest), and your rights as a user.
 
 ---
@@ -185,34 +221,23 @@ When you schedule a post with images, DotShare now:
 
 ### 🔐 Security, Privacy & Your API Keys
 
-DotShare takes your credentials seriously. Here is exactly what happens when you enable Cloud Scheduling:
+Saved extension credentials use VS Code `SecretStorage`. The webviews receive boolean saved status, not credential values. A saved key is displayed as **🔒 Key Saved & Active** with no masked value; choose **Change saved key** to open an empty replacement field. This status means a local key is configured, rather than a guarantee that its remote permissions are still valid.
 
-#### One-Time Explicit Consent
-Before any of your platform API keys are ever sent to the DotSuite server, the extension displays a **mandatory consent dialog** explaining:
+- Empty replacement fields keep the saved value. Publishing and AI generation read keys on the extension host.
+- Saved API lists expose configuration metadata only. Loading a saved configuration activates its credentials on the host.
+- **Clear All Credentials** removes local platform, AI, GitHub and DotShare account secrets, saved configurations and cloud consent. It does not delete credentials previously uploaded to a server.
+- Legacy Saved APIs in ordinary extension state are moved to SecretStorage; stale plaintext copies are removed after a secure copy exists.
+- Credential values and OAuth callback queries are excluded from logs, with redaction for known secrets and common token formats.
 
-- What data will be synced
-- How it is protected
-- How to revoke access
+#### Cloud Scheduling
 
-**You must click "I Agree" before any key ever leaves your machine.** This consent is stored locally and only asked once.
+The extension asks for explicit consent before syncing Telegram, Dev.to, Bluesky, LinkedIn and X credentials to the DotSuite server. This applies to manual credentials and OAuth callback sync. The credential upload requires HTTPS and a signed-in DotShare account. Consent is remembered locally until credentials are cleared.
 
-#### How Your Keys Are Protected
+Cloud scheduling requires the server to receive and use your platform credentials. Server-side encryption, access controls and retention must be verified in the separately maintained [dotsuite-core](https://github.com/kareem2099/dotsuite-core) deployment; local SecretStorage does not establish those guarantees. Revoke cloud copies separately through the DotSuite Dashboard.
 
-| Layer | Protection |
-|---|---|
-| **In Transit** | HTTPS/TLS — all traffic is encrypted end-to-end |
-| **At Rest** | AES-256-GCM encryption with a server-side key |
-| **Access Control** | Keys are scoped to your user ID; no other user can read them |
-| **Third Parties** | Your keys are **never** shared with, sold to, or accessible by any third party |
-| **Purpose Limitation** | Keys are used **exclusively** for post scheduling on your behalf |
+#### CLI Storage
 
-#### Your Rights
-
-- ✅ **Revoke at any time** — Visit the DotSuite Dashboard → Settings → Connected Accounts and remove any platform key instantly.
-- ✅ **Delete your data** — Contact us to permanently purge all stored credentials from our servers.
-- ✅ **Transparency** — The server-side encryption and storage code is open source at [dotsuite-core](https://github.com/kareem2099/dotsuite-core).
-
-> **Note**: DotShare is open source. You can review exactly how credentials are handled in [`src/handlers/PostHandler.ts`](./src/handlers/PostHandler.ts) and [`src/services/SchedulerClient.ts`](./src/services/SchedulerClient.ts).
+CLI Telegram and LinkedIn credentials use the native OS credential store through `@napi-rs/keyring`; `~/.dotshare/config.json` stores preferences only. Legacy plaintext credentials are moved before the file is rewritten. If the OS store fails, migration retains the original file for retry and new credentials are never saved to plaintext. On headless systems, configure an available system credential store first.
 
 ---
 

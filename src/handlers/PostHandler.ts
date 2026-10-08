@@ -12,6 +12,8 @@ import { Logger } from '../utils/Logger';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 import { SchedulerClient } from '../services/SchedulerClient';
 import { DotShareAuth } from '../services/DotShareAuth';
+import { AI_PROVIDERS } from '../security/credentials';
+import { rememberSecret, redactSensitiveText } from '../security/redaction';
 
 
 // Imports for posting functions
@@ -21,7 +23,7 @@ import { generatePost as generateXAIPost, generateCustomContent as generateXAICu
 import { generatePost as generateClaudePost, generateCustomContent as generateClaudeCustom, getAvailableModels as getClaudeModels } from '../ai/claude';
 import { generatePost as generateDeepSeekPost, generateCustomContent as generateDeepSeekCustom, getAvailableModels as getDeepSeekModels } from '../ai/deepseek';
 import { ProjectContextService } from '../services/ProjectContextService';
-import { ReleasePromptBuilder } from '../ai/prompts/ReleasePromptBuilder';
+import { ReleaseGenerationService } from '../ai/ReleaseGenerationService';
 import { ReleaseGenerationRequest, GeneratedPlatformContent, ReleaseSourceType, UserCtaLink } from '../types/dotshare-ai';
 import { DotShareWebView } from '../ui/DotShareWebView';
 import { shareToLinkedIn } from '../platforms/linkedin';
@@ -44,6 +46,7 @@ interface Message {
 }
 
 export class PostHandler {
+    private releaseGenerationInProgress = false;
     constructor(
         private view: vscode.WebviewView,
         private context: vscode.ExtensionContext,
@@ -63,7 +66,7 @@ export class PostHandler {
                     const apiKey = typeof message.apiKey === 'string' ? message.apiKey.trim() : '';
                     const model = typeof message.model === 'string' ? message.model.trim() : '';
 
-                    if (!provider || !model) {
+                    if (!AI_PROVIDERS.includes(provider as typeof AI_PROVIDERS[number]) || !model) {
                         this.sendError('Provider and model are required.');
                         break;
                     }
@@ -82,6 +85,7 @@ export class PostHandler {
 
                     await this.context.globalState.update(`selected_${provider}_model`, model);
                     await this.context.globalState.update('last_selected_ai_provider', provider);
+                    this.view.webview.postMessage({ command: 'aiModelSelectionApplied', provider, model, hasSavedKey: true });
                     break;
                 }
 
@@ -286,25 +290,39 @@ export class PostHandler {
     private async handleExtractReleaseContext(message: Message): Promise<void> {
         try {
             const sources = message.sources as ReleaseSourceType[] | undefined;
-            const context = await ProjectContextService.buildContext(undefined, sources);
+            const topicQuery = message.topicQuery as string | undefined;
+            const includeActiveEditor = message.includeActiveEditor as boolean | undefined;
+
+            const context = await ProjectContextService.buildContext(undefined, {
+                sources,
+                topicQuery,
+                includeActiveEditor,
+                scope: message.scope === 'working_tree' ? 'working_tree' : 'release',
+                releaseTag: typeof message.releaseTag === 'string' ? message.releaseTag : undefined
+            });
             this.view.webview.postMessage({
                 command: 'releaseContextExtracted',
+                requestId: message.requestId,
                 context
             });
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : String(error);
             Logger.error('[PostHandler] Extract release context error', msg);
+            this.view.webview.postMessage({ command: 'releaseContextExtractionFailed', requestId: message.requestId });
             this.sendError(`Failed to extract project context: ${msg}`);
         }
     }
 
     private async handleFetchAiModels(message: Message): Promise<void> {
         const provider = message.provider as string;
+        if (!AI_PROVIDERS.includes(provider as typeof AI_PROVIDERS[number])) throw new Error('Unknown AI provider');
+        const savedKey = await this.context.secrets.get(`${provider}ApiKey`);
         let apiKey = message.apiKey as string | undefined;
         if (!apiKey) {
             apiKey = (await this.context.secrets.get(`${provider}ApiKey`)) || '';
         }
 
+        rememberSecret(apiKey || '');
         let models: string[] = [];
         try {
             if (provider === 'gemini') {
@@ -322,15 +340,22 @@ export class PostHandler {
             this.view.webview.postMessage({
                 command: 'aiModelsLoaded',
                 provider,
-                models
+                models,
+                hasSavedKey: !!savedKey,
+                requestId: message.requestId,
             });
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : String(error);
             Logger.error('[PostHandler] Fetch AI models error', msg);
+            this.view.webview.postMessage({ command: 'aiModelsLoaded', provider, models: [], hasSavedKey: !!savedKey, requestId: message.requestId });
         }
     }
 
     private async handleGenerateReleasePost(message: Message): Promise<void> {
+        if (this.releaseGenerationInProgress) {
+            this.sendError('Article generation is already in progress.');
+            return;
+        }
         const request = message.request as ReleaseGenerationRequest | undefined;
         const selectedModel = message.selectedModel as { provider: string; apiKey?: string; model?: string } | undefined;
 
@@ -341,9 +366,10 @@ export class PostHandler {
         if (!apiKey) {
             apiKey = (await this.context.secrets.get(`${provider}ApiKey`)) || '';
         }
+        rememberSecret(apiKey);
 
         // Fallback search across other providers if current provider has no key
-        if (!apiKey) {
+        if (!apiKey && !selectedModel?.provider) {
             const providers = ['gemini', 'openai', 'claude', 'xai', 'deepseek'];
             for (const p of providers) {
                 const storedKey = await this.context.secrets.get(`${p}ApiKey`);
@@ -368,38 +394,35 @@ export class PostHandler {
             return;
         }
 
-        if (!request || !request.targetPlatforms || request.targetPlatforms.length === 0) {
+        if (!request || !request.context || !request.targetPlatforms || request.targetPlatforms.length === 0) {
             vscode.window.showErrorMessage('At least one target platform is required.');
             return;
         }
 
         const platform = request.targetPlatforms[0]; // Primary platform requested
-
-        // Dynamic tone-aware token allocation
-        const maxTokens = request.tone === 'full_markdown_article' ? 4000
-            : request.tone === 'technical_deep_dive' ? 2500
-            : 1000;
-
-        const options = { model, maxTokens };
+        this.releaseGenerationInProgress = true;
 
         try {
-            const prompt = ReleasePromptBuilder.buildPrompt(request, platform);
-            let generatedText = '';
-
-            if (provider === 'gemini') {
-                generatedText = await generateGeminiCustom(apiKey, prompt, options);
-            } else if (provider === 'openai') {
-                generatedText = await generateOpenAICustom(apiKey, prompt, options);
-            } else if (provider === 'claude') {
-                generatedText = await generateClaudeCustom(apiKey, prompt, options);
-            } else if (provider === 'xai') {
-                generatedText = await generateXAICustom(apiKey, prompt, options);
-            } else if (provider === 'deepseek') {
-                generatedText = await generateDeepSeekCustom(apiKey, prompt, options);
-            } else {
-                this.sendError('Unsupported AI provider.');
-                return;
-            }
+            // Cached webview evidence is preview only. Rebuild from the selected release snapshot.
+            const userTopic = request.topicQuery || request.customPrompt;
+            request.context = await ProjectContextService.buildContext(undefined, {
+                sources: request.sources,
+                scope: request.scope || request.context.scope || 'release',
+                releaseTag: request.releaseTag || request.context.releaseTag,
+                topicQuery: userTopic,
+                includeActiveEditor: request.includeActiveEditor,
+                maxSnippets: request.tone === 'full_markdown_article' ? 8 : 6
+            });
+            const generated = await ReleaseGenerationService.generate(request, platform, async (prompt, maxTokens) => {
+                const options = { model: model!, maxTokens };
+                if (provider === 'gemini') return generateGeminiCustom(apiKey!, prompt, options);
+                if (provider === 'openai') return generateOpenAICustom(apiKey!, prompt, options);
+                if (provider === 'claude') return generateClaudeCustom(apiKey!, prompt, options);
+                if (provider === 'xai') return generateXAICustom(apiKey!, prompt, options);
+                if (provider === 'deepseek') return generateDeepSeekCustom(apiKey!, prompt, options);
+                throw new Error('Unsupported AI provider.');
+            });
+            const generatedText = generated.text;
 
             if (request.targetPlatforms.length > 1) {
                 Logger.info(`[DotShare AI] Generated for primary platform (${platform}). Multi-platform batch publishing is scheduled for v3.6.0.`);
@@ -409,6 +432,7 @@ export class PostHandler {
                 platform,
                 rawContent: generatedText,
                 charCount: generatedText.length,
+                qualityWarnings: generated.warnings,
                 isThread: request.threadMode && platform === 'x'
             };
 
@@ -420,15 +444,61 @@ export class PostHandler {
                     .filter(Boolean);
             }
 
-            // Parse frontmatter if Dev.to article
-            if (platform === 'devto') {
+            // Parse frontmatter if Dev.to article or full markdown tone
+            if (platform === 'devto' || request.tone === 'full_markdown_article') {
                 const fm = parseFrontMatter(generatedText);
+
+                // Sanitize tags for Dev.to: max 4 tags, lowercase alphanumeric only
+                let cleanTags: string[] = [];
+                if (fm.frontmatter?.tags && Array.isArray(fm.frontmatter.tags)) {
+                    cleanTags = fm.frontmatter.tags
+                        .map(t => String(t).toLowerCase().replace(/[^a-z0-9]/g, '').trim())
+                        .filter(Boolean)
+                        .slice(0, 4);
+                }
+                if (cleanTags.length === 0) {
+                    cleanTags = ['webdev', 'programming', 'opensource'];
+                }
+
+                let articleTitle = fm.frontmatter?.title?.trim();
+                if (!articleTitle) {
+                    const headingMatch = generatedText.match(/^#\s+(.+)$/m);
+                    if (headingMatch) {
+                        articleTitle = headingMatch[1].trim();
+                    } else {
+                        articleTitle = `${request.context.projectName} ${request.context.version ? `v${request.context.version}` : 'Update'}`;
+                    }
+                }
+
                 result.frontmatter = {
-                    title: fm.frontmatter?.title,
-                    tags: fm.frontmatter?.tags,
-                    description: fm.frontmatter?.description,
-                    published: fm.frontmatter?.published ?? true
+                    title: articleTitle,
+                    tags: cleanTags,
+                    description: fm.frontmatter?.description || request.context.projectDescription || '',
+                    published: fm.frontmatter?.published ?? false
                 };
+
+                // Populate rawContent with clean markdown body (without YAML frontmatter delimiter)
+                if (fm.hasFrontmatter && fm.body.trim()) {
+                    let cleanBody = fm.body.trim();
+                    // Strip duplicate leading # H1 title if present, so title lives exclusively in the title field below
+                    cleanBody = cleanBody.replace(/^#\s+[^\r\n]+(?:\r?\n)+/, '').trim();
+                    result.rawContent = cleanBody;
+                }
+
+                // Dev.to Post-Generation Hygiene Validator:
+                if (platform === 'devto') {
+                    // 1. Strip redundant trailing hashtags line (e.g. "**Tags:** #tag1 #tag2" or "#tag1 #tag2")
+                    result.rawContent = result.rawContent
+                        .replace(/(?:\r?\n)+[ \t]*(?:---[ \t]*)?(?:(?:\*\*|__)?tags:?(?:\*\*|__)?\s*)?(?:#[a-zA-Z0-9_-]+[ \t]*)+$/i, '')
+                        .trim();
+
+                    // 2. Clean up any accidental prompt leakage phrases
+                    result.rawContent = result.rawContent
+                        .replace(/Per the ground-truth diff summary,?\s*/gi, '')
+                        .replace(/According to the ground-truth context,?\s*/gi, '');
+                }
+
+                result.charCount = result.rawContent.length;
             }
 
             this.view.webview.postMessage({
@@ -440,6 +510,8 @@ export class PostHandler {
             const msg = error instanceof Error ? error.message : String(error);
             Logger.error('[PostHandler] DotShare AI generate error', msg);
             this.sendError(`DotShare AI generation failed: ${msg}`);
+        } finally {
+            this.releaseGenerationInProgress = false;
         }
     }
 
@@ -448,13 +520,18 @@ export class PostHandler {
     // ─────────────────────────────────────────────────────────────────────────
 
     private async handleGeneratePost(message: Message): Promise<void> {
-        const selectedModel = message.selectedModel as { provider: string; apiKey: string; model: string } | undefined;
-        if (!selectedModel || !selectedModel.apiKey) {
-            vscode.window.showErrorMessage('API Key is required to generate posts.');
+        const selectedModel = message.selectedModel as { provider: string; apiKey?: string; model: string } | undefined;
+        if (!selectedModel || !AI_PROVIDERS.includes(selectedModel.provider as typeof AI_PROVIDERS[number])) {
+            this.sendError('Select an AI provider and model.');
             return;
         }
-
-        const { provider, apiKey, model } = selectedModel;
+        const { provider, model } = selectedModel;
+        const apiKey = selectedModel.apiKey || await this.context.secrets.get(`${provider}ApiKey`);
+        if (!apiKey) {
+            this.sendError('API Key is required to generate posts.');
+            return;
+        }
+        rememberSecret(apiKey);
         let post: PostData | null = null;
 
         let retryCount = 0;
@@ -615,9 +692,9 @@ export class PostHandler {
                     detail:
                         'To enable Cloud Scheduling, DotShare needs to securely sync your platform API keys ' +
                         'to the DotSuite server.\n\n' +
-                        '🔐 Your keys are encrypted with AES-256-GCM before being stored.\n' +
+                        'The server receives your keys to run scheduled posts. Local SecretStorage does not protect server-side copies.\n' +
                         '🗑️ You can revoke access at any time from the DotSuite Dashboard.\n' +
-                        '🚫 Your keys are NEVER shared with third parties or used beyond scheduling.\n\n' +
+                        'Sync applies to Telegram, Dev.to, Bluesky, LinkedIn and X.\n\n' +
                         'By clicking "I Agree", you consent to this secure key sync.',
                 },
                 'I Agree',
@@ -1468,6 +1545,6 @@ Start writing your article here...
     }
 
     private sendError(message: string): void {
-        this.view.webview.postMessage({ command: 'status', status: message, type: 'error' });
+        this.view.webview.postMessage({ command: 'status', status: redactSensitiveText(message), type: 'error' });
     }
 }
