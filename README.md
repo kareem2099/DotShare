@@ -410,7 +410,7 @@ A detailed history of all changes, features, and bug fixes can be found in our C
 
 ## 💝 Support the Project
 
-DotShare is free and open source. Your support keeps it alive and helps fund the Cloud Scheduling Server.
+The DotShare extension is free and open source, including direct publishing with your own accounts and AI keys. Paid DotSuite plans add cloud services such as higher scheduling limits, plus extras like CodeSnap branding. Your support keeps the project alive and helps fund the Cloud Scheduling Server.
 
 <div align="center">
 

@@ -83,7 +83,7 @@ export interface ScheduledPost {
     platforms: SocialPlatform[];
     status: string;
     has_media: boolean;
-    tier: 'free' | 'basic' | 'pro' | 'max';
+    tier: 'free' | 'pro' | 'max';
 }
 
 // ---------------------------------------------------------
@@ -391,7 +391,7 @@ export interface WebViewState {
 // ==========================================================
 
 export interface TierInfo {
-    tier: 'free' | 'basic' | 'pro' | 'max';
+    tier: 'free' | 'pro' | 'max';
     is_paid: boolean;
     posts_used: number;
     posts_quota: number;

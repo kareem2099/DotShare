@@ -2380,14 +2380,13 @@ interface ScheduledPost {
     text_preview: string;
     platforms: string[];
     status: string;
-    tier: 'free' | 'basic' | 'pro' | 'max';
+    tier: 'free' | 'pro' | 'max';
 }
 
 function getTierInterval(tier: string): number {
     switch (tier.toLowerCase()) {
         case 'free': return 60;
-        case 'basic': return 30;
-        case 'pro': return 15;
+        case 'pro': return 5;
         case 'max': return 0;
         default: return 60;
     }
@@ -2401,7 +2400,7 @@ function calculateApproxTime(scheduledAt: string, tier: string): Date {
     const ms = date.getTime();
     const intervalMs = interval * 60 * 1000;
     
-    // The scheduler runs at 0, 15, 30, 45 or 0, 30 or 0
+    // The scheduler runs hourly (Free) or every 5 minutes (Pro).
     // So if scheduled for 10:05, it will run at the next interval point.
     return new Date(Math.ceil(ms / intervalMs) * intervalMs);
 }

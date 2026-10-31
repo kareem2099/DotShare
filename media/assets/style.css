@@ -817,7 +817,6 @@ header {
     background: rgba(107,114,128,0.25); color: var(--vscode-descriptionForeground);
 }
 .cloud-tier[data-tier="pro"]   { background: rgba(168,85,247,0.25); color: #a855f7; }
-.cloud-tier[data-tier="basic"] { background: rgba(59,130,246,0.25);  color: #60a5fa; }
 .cloud-tier[data-tier="max"]   { background: rgba(234,179,8,0.25);   color: #eab308; }
 
 .cloud-usage {
