@@ -184,7 +184,6 @@
     "vscode:prepublish": "node esbuild.js --production",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "scheduler": "node bin/dotshare-scheduler.js",
     "cli": "node bin/dotshare-cli.js",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src media",
@@ -193,7 +192,7 @@
     "test:all": "jest",
     "test:coverage": "jest --coverage",
     "publish:vscode": "vsce publish",
-    "prepublish:npm": "cp package.json package.vscode.backup.json && cp package.cli.json package.json",
+    "prepublish:npm": "npm run vscode:prepublish && cp package.json package.vscode.backup.json && cp package.cli.json package.json",
     "publish:npm": "npm publish",
     "postpublish:npm": "mv package.vscode.backup.json package.json"
   },

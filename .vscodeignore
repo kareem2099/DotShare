@@ -26,6 +26,7 @@ __tests__/
 **/*.spec.*
 
 # Specific Project files
+bin/
 todo_list*
 scan_report.txt
 test-telegram.js

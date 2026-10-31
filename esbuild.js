@@ -74,14 +74,33 @@ async function main() {
         },
     });
 
+    // 4. Standalone CLI (npm package `dotshare-cli`) — Node/CJS
+    // npm packages stay external: they are installed from package.cli.json dependencies
+    // (@napi-rs/keyring is a native module and cannot be bundled).
+    const cliCtx = await esbuild.context({
+        entryPoints: ['src/cli/commands.ts'],
+        bundle: true,
+        format: 'cjs',
+        platform: 'node',
+        target: 'node22',
+        packages: 'external',
+        minify: production,
+        sourcemap: !production,
+        sourcesContent: false,
+        outfile: 'out/cli/commands.js',
+        logLevel: 'silent',
+        plugins: [esbuildProblemMatcherPlugin],
+    });
+
     if (watch) {
-        await Promise.all([extCtx.watch(), sidebarCtx.watch(), webviewCtx.watch()]);
-        console.log('[watch] Watching Extension, Sidebar, and Webview for changes...');
+        await Promise.all([extCtx.watch(), sidebarCtx.watch(), webviewCtx.watch(), cliCtx.watch()]);
+        console.log('[watch] Watching Extension, Sidebar, Webview, and CLI for changes...');
     } else {
-        await Promise.all([extCtx.rebuild(), sidebarCtx.rebuild(), webviewCtx.rebuild()]);
+        await Promise.all([extCtx.rebuild(), sidebarCtx.rebuild(), webviewCtx.rebuild(), cliCtx.rebuild()]);
         await extCtx.dispose();
         await sidebarCtx.dispose();
         await webviewCtx.dispose();
+        await cliCtx.dispose();
         console.log('[build] Build completed successfully.');
     }
 }

@@ -1,16 +1,14 @@
 {
   "name": "dotshare-cli",
   "displayName": "DotShare CLI",
-  "description": "CLI tool for posting to social media platforms - Telegram, LinkedIn, Reddit",
+  "description": "CLI tool for posting to social media platforms - Telegram, LinkedIn",
   "version": "2.2.0",
   "bin": {
     "dotshare": "./bin/dotshare-cli.js"
   },
   "files": [
     "bin/",
-    "out/",
-    "src/cli/",
-    "package.json",
+    "out/cli/commands.js",
     "README.md",
     "LICENSE"
   ],
@@ -18,21 +16,19 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "scheduler": "node bin/dotshare-scheduler.js",
     "cli": "node bin/dotshare-cli.js"
   },
   "dependencies": {
     "@napi-rs/keyring": "^2.1.2",
     "axios": "^1.21.0",
-    "commander": "^15.0.0"
+    "commander": "^15.0.0",
+    "open": "^11.0.4"
   },
   "keywords": [
     "cli",
     "social-media",
-    "scheduler",
     "telegram",
-    "linkedin",
-    "reddit"
+    "linkedin"
   ],
   "author": "FreeRave",
   "license": "Apache-2.0",
