@@ -94,6 +94,7 @@ export class AnalyticsPanel {
             stats.linkedinShares, stats.telegramShares, stats.xShares,
             stats.discordShares,
             stats.blueskyShares,
+            stats.mastodonShares,
             1
         );
 
@@ -299,6 +300,8 @@ export class AnalyticsPanel {
             ${this._renderBar('Discord', stats.discordShares, maxPlatformShares)}
 
             ${this._renderBar('BlueSky', stats.blueskyShares, maxPlatformShares)}
+
+            ${this._renderBar('Mastodon', stats.mastodonShares, maxPlatformShares)}
         </div>
     </div>
 

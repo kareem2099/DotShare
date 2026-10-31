@@ -240,7 +240,8 @@ export function openSavedApisModal(platform: string): void {
         telegram: 'Telegram',
         x: 'X/Twitter',
         discord: 'Discord',
-        bluesky: 'BlueSky'
+        bluesky: 'BlueSky',
+        mastodon: 'Mastodon'
     };
 
     // Update modal header
@@ -490,6 +491,14 @@ function getPlatformConfig(platform: string) {
             fields: [
                 { key: 'blueskyIdentifier', label: 'Username/Handle', type: 'text', placeholder: 'your-handle.bsky.social' },
                 { key: 'blueskyPassword', label: 'App Password', type: 'password', placeholder: 'Enter your Side your BlueSky app password' }
+            ]
+        },
+
+        mastodon: {
+            name: 'Mastodon',
+            fields: [
+                { key: 'mastodonInstance', label: 'Instance URL', type: 'url', placeholder: 'https://mastodon.social' },
+                { key: 'mastodonToken', label: 'Access Token', type: 'password', placeholder: 'Enter your Mastodon access token' }
             ]
         }
     };

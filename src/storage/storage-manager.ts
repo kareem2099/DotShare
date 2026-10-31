@@ -69,7 +69,7 @@ export class StorageManager {
         this._context.globalState.update('lastPost', postData);
     }
 
-    public recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'devto', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
+    public recordShare(postId: string, platform: 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'mastodon' | 'devto', success: boolean, errorMessage?: string, postIdOnPlatform?: string): void {
         const history = this._context.globalState.get('postHistory', [] as HistoricalPost[]);
         const postIndex = history.findIndex(post => post.id === postId);
 
@@ -116,6 +116,9 @@ export class StorageManager {
 
         blueskyIdentifier: string;
         blueskyPassword: string;
+
+        mastodonInstance: string;
+        mastodonToken: string;
     }> {
         const savedModel = this._context.globalState.get('selectedModel') as {
             provider: 'gemini' | 'openai' | 'xai';
@@ -151,6 +154,8 @@ export class StorageManager {
 
         const blueskyConfig = await loadPlatformConfig('bluesky') as { blueskyIdentifier: string; blueskyPassword: string } | null;
 
+        const mastodonConfig = await loadPlatformConfig('mastodon') as { mastodonInstance: string; mastodonToken: string } | null;
+
         // Extract values from configurations, with fallbacks to individual secrets
         const linkedinToken = linkedinConfig?.linkedinToken || await this._context.secrets.get('linkedinToken') || '';
         const telegramBot = telegramConfig?.telegramBot || await this._context.secrets.get('telegramBot') || '';
@@ -160,6 +165,9 @@ export class StorageManager {
 
         const blueskyIdentifier = blueskyConfig?.blueskyIdentifier || await this._context.secrets.get('blueskyIdentifier') || '';
         const blueskyPassword = blueskyConfig?.blueskyPassword || await this._context.secrets.get('blueskyPassword') || '';
+
+        const mastodonInstance = mastodonConfig?.mastodonInstance || await this._context.secrets.get('mastodonInstance') || '';
+        const mastodonToken = mastodonConfig?.mastodonToken || await this._context.secrets.get('mastodonToken') || '';
 
         // Get X/Twitter credentials (from saved config or individual secrets)
         let xAccessToken: string;
@@ -185,6 +193,9 @@ export class StorageManager {
 
             blueskyIdentifier,
             blueskyPassword,
+
+            mastodonInstance,
+            mastodonToken,
 
         };
     }
@@ -218,6 +229,7 @@ export class StorageManager {
         let discordShares = 0;
 
         let blueskyShares = 0;
+        let mastodonShares = 0;
         let devtoShares = 0;
 
 
@@ -231,6 +243,7 @@ export class StorageManager {
                     case 'discord': discordShares++; break;
 
                     case 'bluesky': blueskyShares++; break;
+                    case 'mastodon': mastodonShares++; break;
                     case 'devto': devtoShares++; break;
 
                 }
@@ -257,6 +270,7 @@ export class StorageManager {
             discordShares,
 
             blueskyShares,
+            mastodonShares,
             devtoShares,
 
             successRate
@@ -434,7 +448,9 @@ export class StorageManager {
                 'discordWebhook': 'discord',
 
                 'blueskyIdentifier': 'bluesky',
-                'blueskyPassword': 'bluesky'
+                'blueskyPassword': 'bluesky',
+                'mastodonInstance': 'mastodon',
+                'mastodonToken': 'mastodon'
             };
 
             const platform = platformMappings[secretKey];

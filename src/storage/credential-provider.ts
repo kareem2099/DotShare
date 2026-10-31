@@ -8,6 +8,8 @@ export interface PlatformCredentials {
     discordWebhookUrl?: string;
     blueskyIdentifier?: string;
     blueskyPassword?: string;
+    mastodonInstance?: string;
+    mastodonToken?: string;
 }
 
 export class CredentialProvider {
@@ -53,5 +55,10 @@ export class CredentialProvider {
     public async getBlueSkyCredentials(): Promise<{ identifier?: string; password?: string }> {
         const c = await this.resolve();
         return { identifier: c.blueskyIdentifier, password: c.blueskyPassword };
+    }
+
+    public async getMastodonCredentials(): Promise<{ instance?: string; token?: string }> {
+        const c = await this.resolve();
+        return { instance: c.mastodonInstance, token: c.mastodonToken };
     }
 }

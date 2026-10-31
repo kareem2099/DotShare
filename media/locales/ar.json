@@ -107,5 +107,6 @@
   "accessTokenSecret": "الرقم السري للوصول",
   "webhookUrl": "رابط Webhook",
   "appPassword": "كلمة مرور التطبيق",
-  "usernameHandle": "اسم المستخدم / المعرف"
+  "usernameHandle": "اسم المستخدم / المعرف",
+  "instanceUrl": "رابط السيرفر"
 }

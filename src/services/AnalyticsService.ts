@@ -34,6 +34,7 @@ export class AnalyticsService {
             discordShares:  platformCounts['discord']  ?? 0,
 
             blueskyShares:  platformCounts['bluesky']  ?? 0,
+            mastodonShares: platformCounts['mastodon'] ?? 0,
             devtoShares:    platformCounts['devto']    ?? 0,
 
             successRate

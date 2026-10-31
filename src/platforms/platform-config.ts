@@ -94,6 +94,19 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
         authType:         'password',
     },
 
+    mastodon: {
+        name:             'Mastodon',
+        icon:             '🐘',
+        maxChars:         500, // Mastodon's default; the adapter reads the real limit from the instance
+        supportsThreads:  true,
+        supportsMedia:    true,
+        maxMediaCount:    4,
+        supportsScheduling: false, // Not supported by the DotSuite cloud scheduler yet
+        workspaceType:    'threads',
+        charCountMethod:  'twitter', // Mastodon also counts URLs as 23 chars
+        authType:         'token',
+    },
+
     linkedin: {
         name:             'LinkedIn',
         icon:             '💼',

@@ -175,6 +175,7 @@ Share seamlessly across your entire professional network:
 | 𝕏 **X (Twitter)** | Social | Tweets, threads, X Premium (25K chars), **up to 4 images** | ✅ Full Support |
 | 💬 **Discord** | Social | Webhooks, embeds | ✅ Full Support |
 | 🦋 **BlueSky** | Social | Threads, facets, **up to 4 images**, JIT compression | ✅ Full Support |
+| 🐘 **Mastodon** | Social | Threads, any instance, **up to 4 images** | ✅ Full Support |
 | 👨‍💻 **Dev.to** | Blog | Articles, series, drafts | ✅ Full Support |
 | 💻 **GitHub Gist** | Code | Snippets, public/secret, auto-populate | ✅ Full Support |
 

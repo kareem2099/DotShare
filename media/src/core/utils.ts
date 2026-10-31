@@ -30,6 +30,9 @@ export let xAccessSecret: HTMLInputElement | null = null;
 export let blueskyIdentifier: HTMLInputElement | null = null;
 export let blueskyPassword: HTMLInputElement | null = null;
 
+export let mastodonInstance: HTMLInputElement | null = null;
+export let mastodonToken: HTMLInputElement | null = null;
+
 // Media attachment elements
 export let mediaAttachment: HTMLDivElement | null = null;
 export let uploadArea: HTMLDivElement | null = null;
@@ -159,7 +162,8 @@ export function getPlatformIcon(platform: string): string {
         x: '🐦',
         telegram: '📱',
         discord: '💬',
-        bluesky: '🦋'
+        bluesky: '🦋',
+        mastodon: '🐘'
     };
     return icons[platform] || '🔗';
 }
@@ -223,6 +227,11 @@ export function checkPlatformAvailability(): void {
         newAvailablePlatforms.push('bluesky');
     }
 
+    // Mastodon: requires mastodonInstance and mastodonToken
+    if (mastodonInstance && mastodonInstance.value.trim() && mastodonToken && mastodonToken.value.trim()) {
+        newAvailablePlatforms.push('mastodon');
+    }
+
     availablePlatforms = newAvailablePlatforms;
 }
 
@@ -264,7 +273,8 @@ export function updateDynamicPlatformSelector(): void {
         x: { name: 'X/Twitter', desc: 'Real-time updates', group: 'professional' },
         telegram: { name: 'Telegram', desc: 'Send to channels/groups', group: 'communities' },
         discord: { name: 'Discord', desc: 'Community engagement', group: 'communities' },
-        bluesky: { name: 'BlueSky', desc: 'Decentralized social', group: 'decentralized' }
+        bluesky: { name: 'BlueSky', desc: 'Decentralized social', group: 'decentralized' },
+        mastodon: { name: 'Mastodon', desc: 'Federated network', group: 'decentralized' }
     };
 
     // Group available platforms
@@ -348,7 +358,7 @@ export function updatePlatformSelection(): void {
                     name = 'Discord';
                     break;
                 case 'platformMastodon':
-                    icon = '🦏';
+                    icon = '🐘';
                     name = 'Mastodon';
                     break;
             }
@@ -558,6 +568,12 @@ export function initializeGlobalDomElements(): void {
 
     const blueskyPasswordElement = document.getElementById('blueskyPassword') as HTMLInputElement;
     if (blueskyPasswordElement) blueskyPassword = blueskyPasswordElement;
+
+    const mastodonInstanceElement = document.getElementById('mastodonInstance') as HTMLInputElement;
+    if (mastodonInstanceElement) mastodonInstance = mastodonInstanceElement;
+
+    const mastodonTokenElement = document.getElementById('mastodonToken') as HTMLInputElement;
+    if (mastodonTokenElement) mastodonToken = mastodonTokenElement;
 
     const xAccessTokenElement = document.getElementById('xAccessToken') as HTMLInputElement;
     if (xAccessTokenElement) xAccessToken = xAccessTokenElement;

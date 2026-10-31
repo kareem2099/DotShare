@@ -17,7 +17,7 @@ export async function buildProjectContext(): Promise<ContextBuilderResult | null
     }
     const context = await ProjectContextService.buildContext(undefined, { maxSnippets: 3 });
     const configured = vscode.workspace.getConfiguration('dotshare').get<string>('defaultPlatform', 'twitter');
-    const platforms: SocialPlatform[] = ['x', 'linkedin', 'telegram', 'discord', 'bluesky', 'devto'];
+    const platforms: SocialPlatform[] = ['x', 'linkedin', 'telegram', 'discord', 'bluesky', 'mastodon', 'devto'];
     const platform = configured !== 'devto' && platforms.includes(configured as SocialPlatform) ? configured as SocialPlatform : 'x';
     const prompt = ReleasePromptBuilder.buildPrompt({
         context, targetPlatforms: [platform], tone: 'casual_build_in_public', language: 'en',

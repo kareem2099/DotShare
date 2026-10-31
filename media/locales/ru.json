@@ -107,5 +107,6 @@
   "accessTokenSecret": "Секрет доступа",
   "webhookUrl": "URL-адрес Webhook",
   "appPassword": "Пароль Приложения",
-  "usernameHandle": "Имя пользователя / Хэндл"
+  "usernameHandle": "Имя пользователя / Хэндл",
+  "instanceUrl": "URL-адрес сервера"
 }

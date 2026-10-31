@@ -48,7 +48,9 @@ export class HashtagService {
 
         'discord': ['#Gaming', '#Tech', '#Programming', '#Community', '#Code'],
 
-        'bluesky': ['#Tech', '#Programming', '#OpenSource', '#Web3', '#Decentralized']
+        'bluesky': ['#Tech', '#Programming', '#OpenSource', '#Web3', '#Decentralized'],
+
+        'mastodon': ['#Tech', '#Programming', '#OpenSource', '#FOSS', '#Fediverse']
     };
 
     /** Platforms where hashtags have no functional effect and should NOT be appended */

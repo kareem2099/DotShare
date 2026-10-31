@@ -213,6 +213,7 @@ export class CodeSnapPanel {
             linkedin: '$(person)',
             x: '$(twitter)',
             bluesky: '$(cloud)',
+            mastodon: '$(radio-tower)',
             discord: '$(comment-discussion)',
 
             devto: '$(code)',

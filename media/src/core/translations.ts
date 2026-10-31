@@ -352,6 +352,11 @@ export const translations: {[key: string]: {[key: string]: string}} = {
         "ar": "شبكة موحدة",
         "ru": "Федеративная сеть"
     },
+    "instanceUrl": {
+        "en": "Instance URL",
+        "ar": "رابط السيرفر",
+        "ru": "URL-адрес сервера"
+    },
     "preview": {
         "en": "Preview",
         "ar": "معاينة",

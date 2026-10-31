@@ -32,6 +32,7 @@ import { shareToTelegram } from '../platforms/telegram';
 import { shareToX } from '../platforms/x';
 
 import { shareToBlueSky } from '../platforms/bluesky';
+import { shareToMastodon } from '../platforms/mastodon';
 import { shareToDevTo } from '../platforms/devto';
 
 import { parseFrontMatter } from '../utils/frontmatter-parser';
@@ -1055,6 +1056,28 @@ export class PostHandler {
         }
     }
 
+    private async shareToMastodonWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
+        try {
+            const instance = (await this.context.secrets.get('mastodonInstance') || '').trim();
+            const token = (await this.context.secrets.get('mastodonToken') || '').trim();
+
+            if (!instance || !token) {
+                throw new Error('Mastodon credentials not configured. Go to Settings to add them.');
+            }
+
+            await shareToMastodon(instance, token, post);
+
+            this.sendSuccess('Successfully posted to Mastodon!');
+            if (postId) this.historyService.recordShare(postId, 'mastodon', true);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (postId) this.historyService.recordShare(postId, 'mastodon', false, errorMessage);
+            throw new Error(`Error sharing to Mastodon: ${errorMessage}`);
+        } finally {
+            this.view.webview.postMessage({ command: 'shareComplete' });
+        }
+    }
+
     private async shareToDevToWithUpdate(post: PostData, message: Message, postId: string | undefined): Promise<void> {
         try {
             const msg = message as {
@@ -1158,6 +1181,9 @@ export class PostHandler {
                     case 'bluesky':
                         await this.shareToBlueSkyWithUpdate(post, postId);
                         break;
+                    case 'mastodon':
+                        await this.shareToMastodonWithUpdate(post, postId);
+                        break;
                     case 'devto': {
                         const devtoMsg: Message = {
                             command: 'shareToDevTo',
@@ -1182,7 +1208,7 @@ export class PostHandler {
                 if (postId) {
                     this.historyService.recordShare(
                         postId,
-                        platform as 'linkedin' | 'telegram' | 'discord' | 'x' | 'bluesky' | 'devto',
+                        platform as SocialPlatform,
                         false,
                         errorMessage
                     );
@@ -1278,6 +1304,18 @@ export class PostHandler {
 
                 // Images come compressed and optimized from the frontend (Webview Canvas)
                 await shareToBlueSky(identifier, password, { text: '', posts: processedPosts });
+
+            } else if (platform === 'mastodon') {
+                const instance = (await this.context.secrets.get('mastodonInstance') || '').trim();
+                const token = (await this.context.secrets.get('mastodonToken') || '').trim();
+
+                if (!instance || !token) {
+                    this.sendError('Mastodon credentials not configured. Go to Settings to add them.');
+                    this.view.webview.postMessage({ command: 'shareComplete' });
+                    return;
+                }
+
+                await shareToMastodon(instance, token, { text: '', posts: processedPosts });
             }
 
             this.sendSuccess(`Thread shared to ${platformConfig.name}!`);

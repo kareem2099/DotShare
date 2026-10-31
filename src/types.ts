@@ -2,7 +2,7 @@
 // Core Types
 // ---------------------------------------------------------
 
-export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'devto';
+export type SocialPlatform = 'linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'mastodon' | 'devto';
 export type AIProvider = 'gemini' | 'openai' | 'xai' | 'claude' | 'deepseek';
 export type PostStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'retrying' | 'server-scheduled';
 
@@ -68,6 +68,7 @@ export interface AnalyticsSummary {
 
     discordShares: number;
     blueskyShares: number;
+    mastodonShares: number;
     devtoShares: number;
     successRate: number;
 }
@@ -153,7 +154,10 @@ export interface Message {
 
     blueskyIdentifier?: string;
     blueskyPassword?: string;
-    
+
+    mastodonInstance?: string;
+    mastodonToken?: string;
+
     // Post Content & Media
     post?: string;
     mediaPath?: string; 
@@ -244,6 +248,8 @@ export interface SchedulerCredentials {
     discordWebhookUrl: string;
     blueskyIdentifier: string;
     blueskyPassword: string;
+    mastodonInstance: string;
+    mastodonToken: string;
 }
 
 export interface LinkedInApiConfig { linkedinToken: string; }
@@ -254,6 +260,8 @@ export interface DiscordApiConfig { discordWebhook: string; }
 
 export interface BlueskyApiConfig { blueskyIdentifier: string; blueskyPassword: string; }
 
+export interface MastodonApiConfig { mastodonInstance: string; mastodonToken: string; }
+
 export interface DevToApiConfig { devtoApiKey: string; }
 
 export type ApiCredentials =
@@ -263,6 +271,7 @@ export type ApiCredentials =
 
     | DiscordApiConfig
     | BlueskyApiConfig
+    | MastodonApiConfig
     | DevToApiConfig;
 
 export interface SavedApiConfiguration {

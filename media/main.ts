@@ -103,6 +103,7 @@ const platformSavers: Record<string, () => void> = {
     x: () => send({ command: 'saveXCredentials', xAccessToken: getValue('xAccessToken'), xAccessSecret: getValue('xAccessSecret') }),
 
     bluesky: () => send({ command: 'saveBlueSkyCredentials', blueskyIdentifier: getValue('blueskyIdentifier'), blueskyPassword: getValue('blueskyPassword') }),
+    mastodon: () => send({ command: 'saveMastodonCredentials', mastodonInstance: getValue('mastodonInstance'), mastodonToken: getValue('mastodonToken') }),
     discord: () => send({ command: 'saveDiscordWebhook', discordWebhookUrl: getValue('discordWebhook') }),
     devto: () => send({ command: 'saveDevToCredentials', devtoApiKey: getValue('devtoApiKey') }),
 };
@@ -364,6 +365,8 @@ function initEventListeners(): void {
         discordWebhook: 'discord',
         blueskyIdentifier: 'bluesky',
         blueskyPassword: 'bluesky',
+        mastodonInstance: 'mastodon',
+        mastodonToken: 'mastodon',
         devtoApiKey: 'devto'
     };
 
@@ -569,6 +572,7 @@ window.addEventListener('message', (event: MessageEvent) => {
                 linkedinToken: 'linkedinToken', telegramBot: 'telegramBot', telegramChat: 'telegramChat',
                 xAccessToken: 'xAccessToken', xAccessSecret: 'xAccessSecret', discordWebhook: 'discordWebhook',
                 blueskyIdentifier: 'blueskyIdentifier', blueskyPassword: 'blueskyPassword', devtoApiKey: 'devtoApiKey',
+                mastodonInstance: 'mastodonInstance', mastodonToken: 'mastodonToken',
                 githubToken: 'githubToken',
             };
             Object.entries(fields).forEach(([id, key]) => renderCredentialStatus(id, !!status[key]));

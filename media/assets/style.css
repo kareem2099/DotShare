@@ -177,6 +177,10 @@ header {
     border-left-color: #0085ff;
 }
 
+.platform-card.mastodon {
+    border-left-color: #6364ff;
+}
+
 .platform-card h3 {
     font-size: 1rem;
     font-weight: 600;

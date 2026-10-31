@@ -5,6 +5,7 @@ import { SavedApiConfiguration } from '../types';
 import { Logger } from '../utils/Logger';
 import { redactSensitiveText } from '../security/redaction';
 import { AI_PROVIDERS, PLATFORM_SECRET_KEYS, credentialStatus, isPlatform, publicApiConfiguration } from '../security/credentials';
+import { normalizeMastodonInstance } from '../platforms/mastodon';
 
 interface Message {
     command: string;
@@ -47,6 +48,10 @@ export class ConfigHandler {
 
                 case 'saveBlueSkyCredentials':
                     await this.handleSaveBlueSkyCredentials(message);
+                    break;
+
+                case 'saveMastodonCredentials':
+                    await this.handleSaveMastodonCredentials(message);
                     break;
 
                 case 'saveDevToCredentials':
@@ -153,6 +158,15 @@ export class ConfigHandler {
         await this.saveReplacement('blueskyIdentifier', identifier);
         await this.saveReplacement('blueskyPassword', password);
         this.sendSuccess('BlueSky credentials saved!');
+        await this.handleLoadConfiguration();
+    }
+
+    private async handleSaveMastodonCredentials(message: Message): Promise<void> {
+        const instance = message.mastodonInstance as string | undefined;
+        const token = message.mastodonToken as string | undefined;
+        await this.saveReplacement('mastodonInstance', instance?.trim() ? normalizeMastodonInstance(instance) : instance);
+        await this.saveReplacement('mastodonToken', token);
+        this.sendSuccess('Mastodon credentials saved!');
         await this.handleLoadConfiguration();
     }
 

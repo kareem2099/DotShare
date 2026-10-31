@@ -24,7 +24,7 @@ export function loadSavedApisForPlatform(platform: string): void {
 
 export function loadSavedApisForAllPlatforms(): void {
     // Load saved APIs for all platforms and populate account selectors
-    const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky'];
+    const platforms = ['linkedin', 'telegram', 'x', 'discord', 'bluesky', 'mastodon'];
 
     platforms.forEach(platform => {
         getVscode()?.postMessage({ command: 'loadSavedApis', platform });

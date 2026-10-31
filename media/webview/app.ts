@@ -146,7 +146,7 @@ const isCurrentPlatformConnected = () => {
 
 // ── Max chars fallback map ────────────────────────────────────────────────────
 const MAX_CHARS_MAP: Record<string, number> = {
-    x: 280, bluesky: 300, linkedin: 3000, telegram: 4096,
+    x: 280, bluesky: 300, mastodon: 500, linkedin: 3000, telegram: 4096,
     discord: 2000, devto: 100000,
 };
 

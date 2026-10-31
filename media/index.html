@@ -301,6 +301,36 @@
                         </details>
                     </div>
 
+                    <div class="platform-card mastodon">
+                        <div class="card-header">
+                            <h3 data-key="mastodon">Mastodon</h3>
+                            <div class="card-actions">
+                                <button class="create-post-btn" data-platform="mastodon" data-key="createPostBtn">✨
+                                    Create Post</button>
+                                <button class="saved-apis-btn" data-platform="mastodon" data-key="savedApisBtn">📚 Saved
+                                    APIs</button>
+                            </div>
+                        </div>
+                        <p data-key="mastodonDescription">Federated network</p>
+                        <div class="input-group">
+                            <label for="mastodonInstance" data-key="instanceUrl">Instance URL</label>
+                            <input type="url" id="mastodonInstance" placeholder="https://mastodon.social">
+                        </div>
+                        <div class="input-group">
+                            <label for="mastodonToken" data-key="accessTokenLabel">Access Token</label>
+                            <input type="password" id="mastodonToken" placeholder="">
+                        </div>
+                        <details class="guidelines">
+                            <summary>How to get Mastodon credentials</summary>
+                            <ol>
+                                <li>On your instance, open Preferences → Development → New application</li>
+                                <li>Enable only the <code>write:statuses</code> and <code>write:media</code> scopes</li>
+                                <li>Save, then copy "Your access token"</li>
+                                <li>Use your instance address as the URL (e.g. https://mastodon.social)</li>
+                            </ol>
+                        </details>
+                    </div>
+
                     <div class="platform-card devto">
                         <div class="card-header">
                             <h3>Dev.to</h3>

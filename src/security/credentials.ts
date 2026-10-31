@@ -8,6 +8,7 @@ export const PLATFORM_SECRET_KEYS: Record<SocialPlatform, readonly string[]> = {
     x: ['xAccessToken', 'xAccessSecret'],
     discord: ['discordWebhook'],
     bluesky: ['blueskyIdentifier', 'blueskyPassword'],
+    mastodon: ['mastodonInstance', 'mastodonToken'],
     devto: ['devtoApiKey'],
 };
 export const ALL_SECRET_KEYS = [

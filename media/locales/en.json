@@ -107,5 +107,6 @@
   "accessTokenSecret": "Access Secret",
   "webhookUrl": "Webhook URL",
   "appPassword": "App Password",
-  "usernameHandle": "Username / Handle"
+  "usernameHandle": "Username / Handle",
+  "instanceUrl": "Instance URL"
 }

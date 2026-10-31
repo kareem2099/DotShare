@@ -172,6 +172,7 @@
             "telegram",
             "discord",
             "bluesky",
+            "mastodon",
             "devto"
           ],
           "default": "twitter",
@@ -238,6 +239,7 @@
     "x",
     "discord",
     "bluesky",
+    "mastodon",
     "ai",
     "gemini",
     "openai",

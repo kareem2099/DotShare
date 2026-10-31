@@ -305,6 +305,16 @@ Format for BlueSky:
 - Note on URL budgeting: URLs consume their actual textual length. Account for full URL length when staying within the 290-character limit. If multiple CTA links cannot fit naturally, prioritize keeping valid post length rather than corrupting or shortening URLs.
 `;
 
+            case 'mastodon':
+                return `
+Format for Mastodon:
+- Max 480 characters total.
+- Plain text only; Mastodon does not render Markdown.
+- Engaging, open-source and tech-community focused tone.
+- Include 2-3 relevant CamelCase hashtags.
+- Note on URL budgeting: every URL counts as 23 characters regardless of its length. Never shorten or corrupt URLs.
+`;
+
             case 'discord':
                 return `
 Format for Discord Announcements channel:

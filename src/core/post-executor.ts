@@ -5,6 +5,7 @@ import { shareToX } from '../platforms/x';
 import { shareToDiscord } from '../platforms/discord';
 
 import { shareToBlueSky } from '../platforms/bluesky';
+import { shareToMastodon } from '../platforms/mastodon';
 import { CredentialProvider } from '../storage/credential-provider';
 import { PostData } from '../types';
 import { Logger } from '../utils/Logger';
@@ -45,6 +46,9 @@ export class PostExecutor {
 
                 case 'bluesky':
                     return await this.executeBlueSkyPost(postData);
+
+                case 'mastodon':
+                    return await this.executeMastodonPost(postData);
                 default:
                     return {
                         success: false,
@@ -117,6 +121,20 @@ export class PostExecutor {
         }
 
         const postUri = await shareToBlueSky(identifier, password, {
+            text: postData.text,
+            media: postData.media
+        });
+
+        return { success: true, postUri: postUri || undefined };
+    }
+
+    private async executeMastodonPost(postData: PostData): Promise<PlatformResult> {
+        const { instance, token } = await this.credentialProvider.getMastodonCredentials();
+        if (!instance || !token) {
+            return { success: false, errorMessage: 'Mastodon credentials not configured' };
+        }
+
+        const postUri = await shareToMastodon(instance, token, {
             text: postData.text,
             media: postData.media
         });

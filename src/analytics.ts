@@ -12,6 +12,7 @@ export class Analytics {
         let discordShares = 0;
 
         let blueskyShares = 0;
+        let mastodonShares = 0;
         let devtoShares = 0;
 
 
@@ -25,6 +26,7 @@ export class Analytics {
                     case 'discord': discordShares++; break;
 
                     case 'bluesky': blueskyShares++; break;
+                    case 'mastodon': mastodonShares++; break;
                     case 'devto': devtoShares++; break;
 
                 }
@@ -51,6 +53,7 @@ export class Analytics {
             discordShares,
 
             blueskyShares,
+            mastodonShares,
             devtoShares,
 
             successRate
