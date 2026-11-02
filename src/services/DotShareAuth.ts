@@ -11,6 +11,7 @@ export class DotShareAuth {
     private static API_BASE_URL = process.env.DOTSUITE_API_URL || DOTSUITE_CORE_API_URL;
     
     private static cachedTierInfo: TierInfo | null = null;
+    private static tierFetchedAt = 0;
     private static _context: vscode.ExtensionContext | null = null;
     // Note: _context is set via setContext() for future ban-check use
     public static getContext() { return this._context; }
@@ -125,6 +126,7 @@ export class DotShareAuth {
         }
 
         await context.secrets.store(this.TOKEN_KEY, decodedToken);
+        this.cachedTierInfo = null;
         Logger.info('[DotShareAuth] Token stored successfully.');
         // Fetch and cache tier info immediately after storing
         await this.fetchTierInfo(context);
@@ -216,6 +218,7 @@ export class DotShareAuth {
             if (response.ok) {
                 const data = await response.json() as TierInfo;
                 this.cachedTierInfo = data;
+                this.tierFetchedAt = Date.now();
                 Logger.info('[DotShareAuth] Tier info fetched successfully:', data);
                 return data;
             } else {
@@ -232,7 +235,7 @@ export class DotShareAuth {
      * Get the cached tier info (or fetch if not available).
      */
     public static async getTierInfo(context: vscode.ExtensionContext): Promise<TierInfo | null> {
-        if (this.cachedTierInfo) {
+        if (this.cachedTierInfo && Date.now() - this.tierFetchedAt < 60_000) {
             return this.cachedTierInfo;
         }
         return await this.fetchTierInfo(context);

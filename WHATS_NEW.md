@@ -2,6 +2,24 @@
 
 ---
 
+## 🐘 v3.5.3 — "Mastodon"
+
+*Released: November 2, 2026*
+
+### Post to the Fediverse from VS Code
+
+DotShare now publishes to **Mastodon**. Add your instance URL and an access token on the new Mastodon card, then share posts, threads and up to 4 images to any Mastodon server.
+
+**Key Highlights**
+- **Any instance**: DotShare reads your server's character and media limits and splits long posts into threads automatically.
+- **Cloud scheduling**: schedule Mastodon posts through DotSuite. You'll be asked once before your Mastodon token is synced.
+- **Thread images fixed**: images attached to thread posts on X, Bluesky and Mastodon are now published with the post. If an image can't be sent, the post fails with an error instead of going out without it.
+- **Security updates**: patched 8 dependency vulnerabilities.
+
+**Get a Mastodon token**: on your server, open *Preferences → Development → New application*, enable `write:statuses` and `write:media`, and copy *Your access token*.
+
+---
+
 ## 📰 v3.5.2 — "Blog Pilot (Dev.to) & Workspace Context Search"
 
 *Released: October 4, 2026*

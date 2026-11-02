@@ -194,7 +194,7 @@ export class CodeSnapPanel {
                     'Maybe Later',
                 );
                 if (action === 'Upgrade Now') {
-                    vscode.env.openExternal(vscode.Uri.parse('https://dotsuite.dev/pricing'));
+                    vscode.env.openExternal(vscode.Uri.parse('https://dotsuite.dev/en/dashboard/dotshare/upgrade'));
                 }
                 break;
             }

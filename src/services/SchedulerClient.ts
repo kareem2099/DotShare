@@ -4,7 +4,9 @@ import { PostData, SocialPlatform, ScheduledPost } from '../types';
 import { Logger } from '../utils/Logger';
 import FormData from 'form-data';
 import axios from 'axios';
+import { normalizeMastodonInstance } from '../platforms/mastodon';
 
+export const MASTODON_CONSENT_KEY = 'dotshare.cloudMastodonConsentGiven';
 
 export class SchedulerClient {
     
@@ -104,6 +106,14 @@ export class SchedulerClient {
                     credToken = `${id}::${pw}`; // assuming bluesky needs identifier::password
                 }
 
+            } else if (platform === 'mastodon') {
+                // Earlier consent never named Mastodon, so it needs its own.
+                if (context.globalState.get<boolean>(MASTODON_CONSENT_KEY) !== true) continue;
+                const instance = await context.secrets.get('mastodonInstance');
+                const mastodonToken = await context.secrets.get('mastodonToken');
+                if (instance && mastodonToken) {
+                    credToken = `${normalizeMastodonInstance(instance)}::${mastodonToken}`;
+                }
             } else if (platform === 'linkedin') {
                 const token = await context.secrets.get('linkedinToken');
                 if (token) credToken = token;

@@ -10,7 +10,7 @@ import { PostData, SocialPlatform } from '../types';
 
 import { Logger } from '../utils/Logger';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
-import { SchedulerClient } from '../services/SchedulerClient';
+import { MASTODON_CONSENT_KEY, SchedulerClient } from '../services/SchedulerClient';
 import { DotShareAuth } from '../services/DotShareAuth';
 import { AI_PROVIDERS } from '../security/credentials';
 import { rememberSecret, redactSensitiveText } from '../security/redaction';
@@ -36,6 +36,7 @@ import { shareToMastodon } from '../platforms/mastodon';
 import { shareToDevTo } from '../platforms/devto';
 
 import { parseFrontMatter } from '../utils/frontmatter-parser';
+import { resolveThreadMedia } from '../utils/thread-media';
 import { validateDevTo } from '../utils/blog-validator';
 import { DraftsService } from '../services/DraftsService';
 import { fetchDevToArticles, updateDevToArticle } from '../platforms/devto';
@@ -695,7 +696,7 @@ export class PostHandler {
                         'to the DotSuite server.\n\n' +
                         'The server receives your keys to run scheduled posts. Local SecretStorage does not protect server-side copies.\n' +
                         '🗑️ You can revoke access at any time from the DotSuite Dashboard.\n' +
-                        'Sync applies to Telegram, Dev.to, Bluesky, LinkedIn and X.\n\n' +
+                        'Sync applies to Telegram, Dev.to, Bluesky, Mastodon, LinkedIn and X.\n\n' +
                         'By clicking "I Agree", you consent to this secure key sync.',
                 },
                 'I Agree',
@@ -710,14 +711,34 @@ export class PostHandler {
 
             // Persist consent so we never ask again on this machine
             await this.context.globalState.update(CONSENT_KEY, true);
+            await this.context.globalState.update(MASTODON_CONSENT_KEY, true);
             Logger.info('[PostHandler] Cloud credentials consent granted by user.');
+        } else if (
+            this.context.globalState.get<boolean>(MASTODON_CONSENT_KEY) === undefined &&
+            await this.context.secrets.get('mastodonToken')
+        ) {
+            // Consent given before Mastodon existed doesn't cover its token. Ask once, and
+            // remember a refusal: the other platforms keep working either way.
+            const answer = await vscode.window.showInformationMessage(
+                '☁️ Schedule Mastodon posts in the cloud?',
+                {
+                    modal: true,
+                    detail:
+                        'This syncs your Mastodon access token and instance URL to the DotSuite server, ' +
+                        'which uses them to run scheduled posts. Local SecretStorage does not protect server-side copies.\n' +
+                        '🗑️ You can revoke access at any time from your Mastodon account settings.',
+                },
+                'I Agree',
+                'Not Now'
+            );
+            await this.context.globalState.update(MASTODON_CONSENT_KEY, answer === 'I Agree');
         }
         // ─────────────────────────────────────────────────────────────────────
 
         // Sync local credentials to backend first (fire and forget to not block UI immediately)
         // We await it here so the subsequent getConnections includes them if newly added.
         try {
-            const platformsToSync = ['telegram', 'devto', 'bluesky', 'linkedin', 'x'] as SocialPlatform[];
+            const platformsToSync = ['telegram', 'devto', 'bluesky', 'mastodon', 'linkedin', 'x'] as SocialPlatform[];
             await SchedulerClient.syncLocalCredentials(this.context, platformsToSync);
         } catch (err) {
             Logger.warn('[PostHandler] Failed to sync local credentials', err);
@@ -799,7 +820,7 @@ export class PostHandler {
         const result = await SchedulerClient.schedulePost(
             this.context,
             postData,
-            msg.platforms as ('linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky')[],
+            msg.platforms as ('linkedin' | 'telegram' | 'x' | 'discord' | 'bluesky' | 'mastodon')[],
             scheduledTimeLocal
         );
 
@@ -1268,8 +1289,7 @@ export class PostHandler {
                 let postMedia: string[] | undefined;
 
                 if (currentPost.mediaFilePaths?.length) {
-                    const validPaths = (currentPost.mediaFilePaths as string[]).filter(p => fs.existsSync(p));
-                    if (validPaths.length > 0) postMedia = validPaths;
+                    postMedia = await resolveThreadMedia(currentPost.mediaFilePaths, tempMediaPaths);
                 } else if (currentPost.mediaBase64 && currentPost.mediaType) {
                     const ext = currentPost.mediaType.split('/')[1] || 'png';
                     const tempFileName = `thread_media_${i}_${Date.now()}.${ext}`;

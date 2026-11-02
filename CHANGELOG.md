@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.3] - 2026-11-02 — "Mastodon"
+
+### Added
+- **🐘 Mastodon platform**: publish posts, threads and up to 4 images to any Mastodon instance from a new Mastodon card and Thread Composer.
+  - Reads character and media limits from the instance (`/api/v2/instance`), falling back to 500 characters and 4 attachments.
+  - Counts URLs as 23 characters, as Mastodon does, and splits long posts into numbered threads.
+  - Waits for media that the server is still processing before posting.
+  - Requires an HTTPS instance URL without embedded credentials and refuses redirects, so the access token only reaches the configured server.
+  - If a media upload fails, the post is not published. If a thread stops partway, the error says how many posts were already published.
+  - Saved API sets, analytics, hashtags, AI prompts and Arabic, English and Russian labels include Mastodon.
+- **☁️ Mastodon cloud scheduling**: Mastodon credentials sync to DotSuite for scheduled posts. Users who consented to cloud sync before Mastodon existed are asked separately, and a refusal leaves the other platforms unaffected.
+
+### Fixed
+- **🖼️ Thread images**: images attached to thread posts were uploaded to cloud storage but then dropped before publishing, so threads on X, Bluesky and Mastodon went out without them. Uploaded images are now downloaded for publishing, and a post fails with an error rather than publishing without its media.
+- **💎 Plan alignment**: removed the Basic tier, which DotSuite does not offer, and show Pro scheduled posts on the server's 5-minute interval.
+- **⌨️ CLI packaging**: restored the `dotshare` CLI entrypoint, esbuild bundle and npm packaging, and excluded `bin/` from the VSIX.
+
+### Security
+- Fixed 8 Dependabot alerts: `dompurify` 3.4.17, `follow-redirects` 1.16.2 and `handlebars` 4.7.10.
+- Overrode `minimatch` and `glob` for dev-only audit findings, and refreshed dependencies including `@anthropic-ai/sdk` 1.x, `openai`, `@google/genai`, `axios` and `marked`.
+
+### Documentation
+- Rewrote the README with platform setup guides (including Mastodon), a Free/Pro/Max comparison and an FAQ, and corrected CLI examples to the commands that exist.
+
 ## [3.5.2] - 2026-10-04 — "Blog Pilot (Dev.to) & Workspace Context Search"
 
 ### Release engine hardening

@@ -101,7 +101,7 @@ export const PLATFORM_CONFIGS: Record<string, PlatformConfig> = {
         supportsThreads:  true,
         supportsMedia:    true,
         maxMediaCount:    4,
-        supportsScheduling: false, // Not supported by the DotSuite cloud scheduler yet
+        supportsScheduling: true,
         workspaceType:    'threads',
         charCountMethod:  'twitter', // Mastodon also counts URLs as 23 chars
         authType:         'token',

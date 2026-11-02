@@ -1,460 +1,260 @@
 <div align="center">
 
-# 🚀 DotShare
+<img src="https://raw.githubusercontent.com/kareem2099/DotShare/master/assets/icons/icon.png" alt="DotShare logo" width="96" height="96">
 
-### *Share Your Code Journey, Amplify Your Voice*
+# DotShare — Share Code Updates to LinkedIn, X, Bluesky, Mastodon & Dev.to from VS Code
 
-[![Version](https://img.shields.io/badge/version-3.5.2-blue.svg)](https://github.com/kareem2099/DotShare)
-![Codename](https://img.shields.io/badge/codename-DotShare--AI-10b981?style=flat-square&labelColor=0f0f0f)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![VS Code](https://img.shields.io/badge/VS%20Code-1.90%2B-007ACC?logo=visual-studio-code)](https://code.visualstudio.com/)
-[![Node](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js)](https://nodejs.org/)
-<a href="https://www.buymeacoffee.com/freerave"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+**Write, generate with AI, and publish developer updates, threads, code snapshots and Dev.to articles without leaving your editor.**
 
-**Transform your development updates into compelling social media content—right from your IDE.**
+[![VS Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/freerave.dotshare?label=VS%20Marketplace&logo=visualstudiocode&color=007ACC)](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/freerave.dotshare?color=10b981)](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare)
+[![Open VSX](https://img.shields.io/open-vsx/v/freerave/dotshare?label=Open%20VSX&color=a60ee5)](https://open-vsx.org/extension/freerave/dotshare)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/kareem2099/DotShare/blob/master/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/kareem2099/DotShare?style=flat&logo=github)](https://github.com/kareem2099/DotShare)
 
-[Installation](#-installation) • [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Support](#-support)
+[Install](#-install) · [Features](#-features) · [Platforms](#-supported-platforms) · [Pricing](#-free-vs-dotsuite-plans) · [Setup guides](#-platform-setup-guides) · [FAQ](#-faq) · [Website](https://dotsuite.dev/en/product/dotshare)
 
 </div>
 
 ---
 
-## 🆕 What's New — v3.5.2 "Blog Pilot (Dev.to) & Workspace Context Search"
+**DotShare** is a free, open-source **VS Code extension for building in public**. It turns your commits, changelog and code into posts for **LinkedIn, X (Twitter), Bluesky, Mastodon, Telegram, Discord and Dev.to**, then publishes them directly from the editor. Generate drafts with **Gemini, OpenAI, Claude, DeepSeek or Grok**, build threads, attach images, capture **CodeSnap** code screenshots, create **GitHub Gists**, and schedule posts through **[DotSuite](https://dotsuite.dev)** cloud.
 
-- **Release evidence and article quality**:
-  - Select the latest tagged release, a specific tag, committed HEAD work, or tracked uncommitted changes. All release sources use one immutable commit.
-  - Complete multiline changelog entries and version-specific `docs/releases` documents supply reported verification and remaining checks.
-  - Articles use supplied source excerpts, with a code toggle and at most one automatic repair for detectable problems. Remaining unverifiable code is omitted with a visible review notice; other unresolved errors still block generation.
-  - Incomplete or empty responses are detected across all five AI providers. Quick social posts share the same evidence collection.
-  - Quality checks cover code provenance, selected URLs, supported scope statistics, frontmatter and code-fence completeness; they do not prove every prose claim.
-- **📰 Dev.to Technical Article Generator & Live Markdown Preview**:
-  - One-click article generation directly from workspace release context using the dedicated `Full Article (Dev.to)` tone.
-  - Strict **Pure Markdown Rule**: AI writes standard GitHub Flavored Markdown with clean code fences, language tags, and structured technical sections.
-  - Smart YAML Frontmatter auto-parsing into `blog-title`, `blog-tags` (max 4 lowercase alphanumeric tags), and `blog-description`.
-  - Dual-mode segmented toggle (`✏️ Raw Markdown` / `👁️ Live Preview`) powered by `marked` and sanitized with `DOMPurify`.
-  - Real-time article reading metrics: word counter, character counter, and estimated reading time.
-- **🔍 Query-Driven Git Topic Search**:
-  - Automatically queries Git commit history using `git log --grep` (with `--all-match` precision) and pickaxe `git log -S` matching the user's custom topic or prompt.
-  - Dynamically extracts high-relevance commits instead of relying solely on generic recent logs.
-- **💻 Semantic Diff & Code Snippet Extraction**:
-  - Reads verified function excerpts around changed executable code, with real file paths and line ranges, prioritized by topic relevance and implementation coverage.
-  - Supplies the AI with ground-truth code implementation details while excluding binaries, lockfiles, minified bundles, and tests.
-- **📦 Working-Tree Dependency Diff Engine**:
-  - Compares Node, Rust, Python and Go dependency manifests within the selected release boundary; local edits are included only in Uncommitted changes mode.
-  - Informs the AI of newly installed, upgraded, or removed libraries with exact version numbers.
-- **🌐 Multi-Ecosystem Manifests**:
-  - Extended project metadata, version, repository, and tech stack auto-detection to **Rust (`Cargo.toml`)**, **Python (`pyproject.toml`)**, **Go (`go.mod`)**, and **Node.js (`package.json`)**.
-- **📄 Active Editor Working Context**:
-  - Seamlessly captures the currently open file path, language identifier, and selected code focus snippet directly from `vscode.window.activeTextEditor`.
-- **📚 Workspace Docs & Architecture Search**:
-  - Scans workspace markdown documentation (`docs/**`, `*.md`) for topic-relevant paragraphs to inject real architecture context into articles.
-- **🛡️ Security, Zero Shell Invocation & Secret Redaction**:
-  - Switched subprocess execution to `execFile` with structured array arguments, eliminating shell injection risks and Windows pathspec quoting errors.
-  - Automated secret redaction (`sanitizeSnippetSecrets`) protecting sensitive API keys (`sk-`, `ghp_`, `AIza`, `AKIA`, bearer tokens, private keys) from code snippets.
-  - Dynamic UI badges (`🏷️ tag → HEAD`, `⚠️ Uncommitted`, `⚠️ No tags`) and guidance banners keeping developers informed of their Git workspace state.
+> Part of **[DotSuite](https://dotsuite.dev)**, a family of developer tools for VS Code, Next.js and Python.
 
 ---
 
-## 🆕 What's New — v3.5.1 "Smart CTA Hub & Pure Dynamic AI Discovery"
+## 🆕 What's New in 3.5.3 — Mastodon
 
-- **🔗 Smart User CTA & Links Hub**:
-  - Save, edit, and manage persistent personal/community links with custom labels, URLs, and emojis stored securely in `globalState`.
-  - Automatic detection of your Workspace Repository URL with separate runtime toggle.
-  - Real-time multi-panel broadcast synchronization (`userCtaLinksUpdated`) keeping all open composer tabs in sync.
-  - Authoritative `Set<string>` selection state maintaining checkbox selections across multi-panel link additions and re-renders.
-  - Race-condition elimination on repository checkbox during background extraction.
-  - Strict URL Fidelity and zero-hallucination prompt rules ensuring exact verbatim URL output with platform-specific URL budgeting.
-- **✨ Pure Dynamic AI Model Discovery**:
-  - 100% dynamic live model discovery: Provider APIs are the sole source of truth with zero static hardcoded model fallbacks.
-  - **Google Gemini**: Migrated to official `@google/genai` SDK with `GoogleGenAI` and `pageSize=1000` discovery.
-  - **OpenAI**: Migrated generation engine to the modern `Responses API` (`responses.create({ model, input, max_output_tokens })`).
-  - **xAI Grok**: Integrated dedicated `/v1/language-models` endpoint with `output_modalities: ['text']` filtering.
-  - **DeepSeek**: Integrated live model discovery and optimized social generation with `thinking: { type: 'disabled' }`.
-  - **Anthropic Claude**: Integrated live model discovery via `client.models.list()`.
-- **🔐 SecretStorage Hardening & Auto-Fetch**:
-  - Automatic background live model fetch upon opening `Select AI Model` modal using secure keys stored in `SecretStorage`.
-  - Safely updates model selection without re-typing API key when a valid key already exists in `SecretStorage`.
-  - Added UI Security Vault banner, dynamic provider key status badges (`🔒 Key Saved & Active` / `⚠️ Not Configured`), and status-only saved-key displays with empty replacement fields.
-- **🛡️ Strict Compile-Time & Runtime Model Verification**:
-  - Enforced `GenerateContentOptions.model: string` (required) across the entire engine, preventing runtime regressions or missing model arguments.
-- **🎨 Platform Post Header Clean-up**: Consolidated AI actions into the unified DotShare AI modal and streamlined platform headers.
+- **🐘 Mastodon support**: publish posts, threads and up to 4 images to **any Mastodon instance**. DotShare reads each server's character and media limits, and splits long posts into threads automatically.
+- **☁️ Mastodon cloud scheduling**: schedule Mastodon posts through DotSuite, with a separate consent prompt before your token is synced.
+- **🖼️ Thread image fix**: images attached to thread posts on X, Bluesky and Mastodon are now always published, or the post fails with a clear error instead of going out without them.
+- **🔐 Security updates**: patched dependency vulnerabilities and aligned plan limits with DotSuite.
+
+👉 [Full changelog](https://github.com/kareem2099/DotShare/blob/master/CHANGELOG.md)
 
 ---
 
-## 🆕 What's New — v3.5.0 "DotShare AI Release Copilot"
+## 📦 Install
 
-- **🧠 DotShare AI Context Engine**: Automatically parses your project's `CHANGELOG.md`, `README.md`, `package.json`, Git commits, and diffs (`git diff --stat HEAD~1 HEAD`) in parallel to understand what actually changed in your codebase.
-- **🎭 5 Distinct Writing Tones**:
-  - 👔 **Professional & Formal**: Corporate and polished, optimized for LinkedIn.
-  - 🚀 **Build in Public / Casual**: Friendly, authentic developer journey for 𝕏 and BlueSky.
-  - 🧠 **Technical Deep-Dive**: In-depth code changes, architecture, and performance analysis.
-  - ⚡ **Quick TL;DR**: Rapid, scannable bullet points for instant reading.
-  - 📝 **Full Markdown Article**: Strict pure Markdown with YAML Frontmatter for Dev.to and technical blogs.
-- **🌍 Fluent Bilingual Generation**: Native AI prompt support for both developer-focused English and technical Arabic (العربية الفصحى التقنية السلسة).
-- **🔍 Inspect Release Context Command**: Use `DotShare: 🧠 Inspect AI Release Context` (`dotshare.inspectReleaseContext`) to inspect extracted workspace context directly in VS Code.
-- **⚡ Unified AI Engine**: Standardized custom content generation across Gemini, Claude, OpenAI (with `max_completion_tokens` reasoning models support), and Grok with tone-aware token budgets.
+**From VS Code:** open Extensions (`Ctrl+Shift+X` / `Cmd+Shift+X`), search **DotShare**, and click **Install**.
 
----
+**From the command line:**
 
-## 🆕 What's New — v3.4.1 "Cleanup"
+```bash
+code --install-extension freerave.dotshare
+```
 
-- **🧹 Platform Purge**: Facebook, Reddit, and Medium have been fully removed from DotShare. All backend adapters, OAuth flows, UI components, secret management, and CSS styles related to these platforms are gone.
-- **🔧 TypeScript Cleanup**: Resolved all `noUnusedLocals` errors across `src/` and `media/src/`. Unused constructor parameters, dead imports, and leftover null constants from removed platforms are cleaned up.
-- **🐛 Type Fixes**: Corrected `ScheduledPost` property names (`scheduledTime` → `scheduled_at`, `postData` → `text_preview`/`has_media`), fixed `getProviderEmoji` to accept `claude`, and fixed `saved-apis.ts` module resolution path.
-- **📦 Zero Dead Code**: All `unused variable` and `unused import` warnings silenced without suppression hacks — unused constructor params are now proper plain params or have accessor methods.
+Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.
 
----
+### Quick start
 
-## 🆕 What's New — v3.4.0 "CodeSnap"
-
-- **📸 CodeSnap Panel**: Create beautiful, syntax-highlighted code snapshots directly from your editor with full customization controls (themes, font size, padding, line numbers, watermark, background color).
-- **🎨 9+ Professional Themes**: Choose from Atom One Dark, GitHub Dark, Monokai, Dracula, Nord, VS2015, Tokyo Night, GitHub Light, Catppuccin Mocha, and more—with accurate syntax highlighting via Highlight.js.
-- **📱 Share to All Platforms**: Export your CodeSnap directly to LinkedIn, X (Twitter), BlueSky, Telegram, Discord, Dev.to, and more—with the Composer automatically loading your snapshot.
-- **💾 Local Save**: Download CodeSnap images as PNG files to your computer with one click.
-
----
-
-## [3.3.3] - 2026-05-27 — "Auth Hotfix"
-
-- **Critical Fix**: Resolved an issue where the production version was incorrectly pointing to `localhost:3000` for authentication callbacks instead of the live Vercel URL.
-- **URI Handler Update**: Fixed the `vscode://freerave.dotshare` URI scheme handler to properly intercept production tokens.
-
----
-
-## [3.3.2] - 2026-05-25 — "GitHub Gists & Developer Workflows"
-
-- **🪄 1-Click Gist Creation**: Highlight code in your VS Code editor, click "Create Gist", and DotShare instantly opens with your code snippet and current filename auto-populated.
-- **💾 Universal Drafts Integration**: Gists are now a first-class citizen inside the global Drafts System. Save your snippets and resume them anytime alongside your social and blog drafts.
-
----
-
-## 🔐 Security Patch — v3.3.1
-
-- **Explicit Cloud Consent**: Platform credentials are synced to the DotSuite scheduler only after a one-time consent dialog. Local publishing and AI requests send credentials to their respective services as needed.
-- **Security & Privacy Documentation**: New README section fully documents the consent mechanism, encryption layers (in-transit and at-rest), and your rights as a user.
-
----
-
-## 🎯 Why DotShare?
-
-Building in public shouldn't be hard. DotShare bridges the gap between your code editor and your audience, letting you share achievements, updates, and insights across **7 platforms** with AI-powered assistance—all without leaving VS Code.
-
-### The Problem We Solve
-
-- ⏰ **Time Drain**: Manually crafting posts for multiple platforms
-- 🎨 **Writer's Block**: Struggling to articulate technical achievements
-- 🔄 **Context Switching**: Jumping between editor and social media
-- 📅 **Consistency**: Forgetting to share progress regularly
-
-### Our Solution
-
-A unified, intelligent posting experience that understands your code and speaks your audience's language.
+1. Click the **DotShare** icon in the Activity Bar.
+2. On a platform card, add your credentials (see the [setup guides](#-platform-setup-guides)).
+3. Click **✨ Create Post**, write or generate your post, and press **Share** (or `Ctrl+Enter`).
 
 ---
 
 ## ✨ Features
 
-### 🤖 AI-Powered Content Creation
+### 🤖 AI release copilot
+- Generate posts and full articles with **Google Gemini, OpenAI, Anthropic Claude, DeepSeek or xAI Grok**, using your own API key. Models are discovered live from each provider.
+- DotShare reads your **CHANGELOG, README, package manifest, Git commits and diffs** so posts describe what actually changed.
+- Five writing tones: Professional, Build in Public, Technical Deep-Dive, Quick TL;DR, and Full Markdown Article.
+- Writes in **English or Arabic**. Run **DotShare: 🧠 Inspect AI Release Context** to see exactly what the AI receives.
+- Known secret patterns (API keys, tokens, private keys) are redacted from code excerpts before they reach an AI provider.
 
-Leverage cutting-edge AI to transform code updates into engaging narratives:
+### 🧵 Thread composer
+- Build threads for **X, Bluesky and Mastodon**, with a character counter per post and up to **4 images per post**.
+- Long single posts are split into numbered threads automatically.
+- **X Premium** mode for posts up to 25,000 characters.
 
-- **Google Gemini**: Nuanced, high-context technical updates
-- **OpenAI GPT**: Industry-leading conversational and reasoning models (`o1`, `o3`, `o4`, `gpt-4o`)
-- **Anthropic Claude**: Advanced reasoning, structured analysis, and long-form articles
-- **DeepSeek**: Ultra-efficient coding and reasoning models (`deepseek-chat`, `deepseek-reasoner`)
-- **xAI Grok**: Real-time awareness and developer-focused summaries
+### 📰 Dev.to publishing
+- Generate technical articles with YAML frontmatter, or load the Markdown file open in your editor.
+- Live sanitized preview with word count and reading time; publish as draft or public, with series support.
 
-### 📱 Platform Integrations
+### 📸 CodeSnap
+- Turn selected code into a polished image with 9+ themes (Dracula, Nord, Tokyo Night, GitHub, Catppuccin and more).
+- Send the snapshot straight to the composer, or save it as PNG.
 
-Share seamlessly across your entire professional network:
+### 💻 GitHub Gists
+- Create a public or secret Gist from a selection or a whole file, then share it in one click.
 
-| Platform | Type | Features | Status |
-|----------|------|----------|---------|
-| 🔗 **LinkedIn** | Social | Profile posts, rich media | ✅ Full Support |
-| 📱 **Telegram** | Social | Channels, groups, scheduling | ✅ Full Support |
-| 𝕏 **X (Twitter)** | Social | Tweets, threads, X Premium (25K chars), **up to 4 images** | ✅ Full Support |
-| 💬 **Discord** | Social | Webhooks, embeds | ✅ Full Support |
-| 🦋 **BlueSky** | Social | Threads, facets, **up to 4 images**, JIT compression | ✅ Full Support |
-| 🐘 **Mastodon** | Social | Threads, any instance, **up to 4 images** | ✅ Full Support |
-| 👨‍💻 **Dev.to** | Blog | Articles, series, drafts | ✅ Full Support |
-| 💻 **GitHub Gist** | Code | Snippets, public/secret, auto-populate | ✅ Full Support |
-
-### 📰 The Publishing Suite (v3.0 New!)
-
-DotShare is no longer just a social poster — it's a full **publishing suite**:
-
-- **Blog Publish Page**: Dedicated UI for long-form article publishing
-- **Active File Reader**: Load your `.md` file directly from VS Code editor
-- **YAML Frontmatter Parser**: Auto-fills title, tags, canonical URL from your markdown
-- **Draft vs. Publish Toggle**: Per-platform draft / publish.
-- **Platform-First Navigation**: Click a platform icon → workspace adapts automatically
-- **Universal Drafts System**: Save any social post or blog article as a draft and resume later across all supported platforms. *(New in v3.2.6)*
-
-### 🖼️ Multi-Image Media Grid *(New in v3.2)*
-
-Attach up to **4 images per post**, just like native platform clients:
-
-- **Live Thumbnail Previews** — See exactly what you're posting before you hit share
-- **Individual Remove Buttons** — Remove a single image without clearing everything
-- **"Remove All" Bulk Action** — One click resets the entire media selection
-- **Smart File Size Warning** — Files over 2 MB get an inline warning; compression is handled automatically at post time
-- **Secure Webview URIs** — Thumbnails load instantly using VS Code's sandboxed `vscode-resource://` protocol
-
-### 🧵 Thread Composer
-
-Build and share threads natively:
-- Multi-post thread builder for X and Bluesky
-- Per-post character counters with platform limits
-- **Up to 4 images per thread post** *(New in v3.2)*
-- X Premium mode (25,000 chars)
-
-### ☁️ Cloud Scheduling with Secure Media (v3.2.7)
-
-When you schedule a post with images, DotShare now:
-
-1. **Uploads each image** to Cloudflare R2 via `POST /v1/media/upload` (authenticated with your session JWT)
-2. **Replaces local paths** with permanent CDN URLs in the schedule payload
-3. **Sends the payload** to the Rust scheduler — which can always reach the assets at dispatch time
-
-> **Why this matters**: Previously, if a post was scheduled for tomorrow and your local file was moved or deleted, the scheduler would fail silently. Now the asset lives in the cloud from the moment you schedule.
+### 📊 Productivity
+- **Drafts** for social posts, articles and Gists.
+- **Analytics** for share counts and success rates per platform.
+- **Smart hashtags** from your project, commits and tech stack (skipped where they don't help, such as Discord).
+- **Saved API sets** to switch between accounts.
+- Interface available in **English, Arabic and Russian**.
 
 ---
 
-### 🔐 Security, Privacy & Your API Keys
+## 🌐 Supported Platforms
 
-Saved extension credentials use VS Code `SecretStorage`. The webviews receive boolean saved status, not credential values. A saved key is displayed as **🔒 Key Saved & Active** with no masked value; choose **Change saved key** to open an empty replacement field. This status means a local key is configured, rather than a guarantee that its remote permissions are still valid.
-
-- Empty replacement fields keep the saved value. Publishing and AI generation read keys on the extension host.
-- Saved API lists expose configuration metadata only. Loading a saved configuration activates its credentials on the host.
-- **Clear All Credentials** removes local platform, AI, GitHub and DotShare account secrets, saved configurations and cloud consent. It does not delete credentials previously uploaded to a server.
-- Legacy Saved APIs in ordinary extension state are moved to SecretStorage; stale plaintext copies are removed after a secure copy exists.
-- Credential values and OAuth callback queries are excluded from logs, with redaction for known secrets and common token formats.
-
-#### Cloud Scheduling
-
-The extension asks for explicit consent before syncing Telegram, Dev.to, Bluesky, LinkedIn and X credentials to the DotSuite server. This applies to manual credentials and OAuth callback sync. The credential upload requires HTTPS and a signed-in DotShare account. Consent is remembered locally until credentials are cleared.
-
-Cloud scheduling requires the server to receive and use your platform credentials. Server-side encryption, access controls and retention must be verified in the separately maintained [dotsuite-core](https://github.com/kareem2099/dotsuite-core) deployment; local SecretStorage does not establish those guarantees. Revoke cloud copies separately through the DotSuite Dashboard.
-
-#### CLI Storage
-
-CLI Telegram and LinkedIn credentials use the native OS credential store through `@napi-rs/keyring`; `~/.dotshare/config.json` stores preferences only. Legacy plaintext credentials are moved before the file is rewritten. If the OS store fails, migration retains the original file for retry and new credentials are never saved to plaintext. On headless systems, configure an available system credential store first.
+| Platform | Posts | Threads | Images | Cloud scheduling | Sign-in |
+|---|:---:|:---:|:---:|:---:|---|
+| 🔗 **LinkedIn** | ✅ | — | 1 | ✅ | OAuth or access token |
+| 𝕏 **X (Twitter)** | ✅ | ✅ | 4 | ✅ | OAuth |
+| 🦋 **Bluesky** | ✅ | ✅ | 4 | ✅ | Handle + app password |
+| 🐘 **Mastodon** | ✅ | ✅ | 4 | ✅ | Instance URL + access token |
+| 📱 **Telegram** | ✅ | — | 10 | ✅ | Bot token + chat ID |
+| 💬 **Discord** | ✅ | — | 10 | — | Webhook URL |
+| 👨‍💻 **Dev.to** | Articles | — | Cover image URL | ✅ | API key |
+| ⚡ **GitHub Gist** | Snippets | — | — | — | GitHub sign-in |
 
 ---
 
-### ⏰ Automation & Scheduling
+## 💎 Free vs DotSuite Plans
 
-Never miss your posting rhythm:
+Everything that runs inside VS Code with your own accounts and AI keys is **free and open source**. Paid plans add cloud services hosted by DotSuite.
 
-```bash
-# Schedule posts for maximum engagement
-dotshare schedule --time "09:00" --platforms "linkedin,twitter"
+| | **Free** | **Pro** | **Max** |
+|---|:---:|:---:|:---:|
+| Direct publishing to every platform | ✅ | ✅ | ✅ |
+| AI generation with your own key | ✅ | ✅ | ✅ |
+| Threads, drafts, Gists, analytics | ✅ | ✅ | ✅ |
+| Cloud-scheduled posts per month | 100 | Unlimited | Unlimited |
+| Scheduled posts with images per month | 10 | Unlimited | Unlimited |
+| Scheduler precision | Hourly | Every 5 minutes | Exact time |
+| CodeSnap without watermark, custom branding, 3× and JPG/WEBP export | — | ✅ | ✅ |
+| Price | **$0** | **$15 / month** | **$30 / month** |
 
-# Automated cross-posting
-dotshare "New release v3.0.0 🎉" --all-platforms
-```
-
-### 🌐 Multilingual Support
-
-- 🇬🇧 English
-- 🇸🇦 Arabic
-- 🇷🇺 Russian
-
-### 📊 Analytics Dashboard
-
-Track your reach and engagement across platforms:
-- Post performance metrics per platform
-- Per-platform success rates and share counts
-- Post history with AI model and timestamp
-
-### #️⃣ Smart Hashtag Engine
-
-Context-aware hashtags generated automatically:
-- Reads your project name, type, and `package.json` keywords
-- Scans recent git commit messages for intent
-- Detects tech terms and frameworks in generated post
-- Platform-aware: hashtags **skipped** for Discord
-- Add permanent tags via **VS Code Settings → DotShare → Custom Hashtags**
+See current plans on the [DotShare page on DotSuite](https://dotsuite.dev/en/product/dotshare).
 
 ---
 
-## 🚀 Quick Start
+## 🔑 Platform Setup Guides
 
-### For VS Code Users
+<details>
+<summary><b>🐘 Mastodon</b></summary>
 
-**Step 1: Install the Extension**
+1. On your Mastodon server, open **Preferences → Development → New application** (for example `https://mastodon.social/settings/applications/new`).
+2. Enter any name, keep the redirect URI as `urn:ietf:wg:oauth:2.0:oob`, and enable only **`write:statuses`** and **`write:media`**.
+3. Save, open the application, and copy **Your access token**.
+4. In DotShare's Mastodon card, enter your instance URL (such as `https://mastodon.social`) and the token.
 
-```bash
-# Via VS Code Marketplace
-1. Press Ctrl+Shift+X (Cmd+Shift+X on Mac)
-2. Search "DotShare"
-3. Click Install
+Any instance works. The URL must use HTTPS, and the token is only ever sent to that server.
+</details>
 
-# Or via command line
-code --install-extension freerave.dotshare
-```
+<details>
+<summary><b>🦋 Bluesky</b></summary>
 
-**Step 2: Configure Your Platforms**
+1. Go to [Bluesky → Settings → App passwords](https://bsky.app/settings/app-passwords) and create an app password (never use your main password).
+2. Enter your handle (such as `yourname.bsky.social`) and the app password in DotShare.
+</details>
 
-```bash
-# Open Command Palette (Ctrl+Shift+P)
-> DotShare: Open Platform Hub
+<details>
+<summary><b>𝕏 X (Twitter)</b></summary>
 
-# Navigate to Settings tab
-# Add credentials for your platforms
-```
+Click **Connect** on the X card and authorize DotShare in your browser. Tokens refresh automatically.
+</details>
 
-**Step 3: Share Your First Post**
+<details>
+<summary><b>🔗 LinkedIn</b></summary>
 
-```bash
-# Click a platform icon in the sidebar
-# Compose your post or Generate with AI
-# Hit Share!
-```
+Click **Connect** on the LinkedIn card to sign in with OAuth. You can also paste an access token with the `w_member_social` scope from [LinkedIn Developers](https://www.linkedin.com/developers/) under the advanced options.
+</details>
 
-### For CLI Power Users
+<details>
+<summary><b>📱 Telegram</b></summary>
 
-**Step 1: Install Globally**
+1. Message [@BotFather](https://t.me/botfather), create a bot with `/newbot`, and copy its token.
+2. Add the bot to your channel or group, then get the chat ID (for example with [@FreeID](https://github.com/kareem2099/FreeID)).
+3. Enter both in DotShare.
+</details>
+
+<details>
+<summary><b>💬 Discord</b></summary>
+
+In your server, open **Channel settings → Integrations → Webhooks**, create a webhook, and paste its URL into DotShare.
+</details>
+
+<details>
+<summary><b>👨‍💻 Dev.to</b></summary>
+
+Generate a key under [Dev.to Settings → Extensions](https://dev.to/settings/extensions) and paste it into DotShare. Dev.to's API doesn't accept image uploads, so use publicly hosted image URLs in your article and cover image.
+</details>
+
+---
+
+## ⌨️ DotShare CLI
+
+Post to Telegram and LinkedIn from your terminal or CI. Requires Node.js 22.12+.
 
 ```bash
 npm install -g dotshare-cli
-```
 
-**Step 2: Initialize & Authenticate**
-
-```bash
 dotshare init
-dotshare login linkedin
 dotshare login telegram
+dotshare login linkedin
 dotshare whoami
+
+dotshare "🚀 Just shipped v3.5.3!"
+dotshare "New UI 🎨" --media ./screenshot.png --platforms telegram,linkedin
 ```
 
-**Step 3: Start Posting**
-
-```bash
-# Simple text post
-dotshare "🚀 Just deployed v3.0 with Dev.to support!"
-
-# With media
-dotshare "Check out our new UI! 🎨" --media ./screenshot.png
-
-# Specific platforms
-dotshare "Backend optimization complete ⚡" --platforms linkedin,twitter
-```
+CLI credentials are kept in your operating system's credential store via `@napi-rs/keyring`; `~/.dotshare/config.json` holds preferences only.
 
 ---
 
-## 📖 Documentation
+## 🔐 Security & Privacy
 
-### Getting API Tokens
+- **Your keys stay in VS Code SecretStorage.** Webviews only receive whether a key is saved, never its value, and saved keys show as **🔒 Key Saved & Active**.
+- **Direct publishing** sends each credential only to its own platform. AI prompts go only to the provider you choose.
+- **Cloud scheduling is opt-in.** Before any credential is synced to DotSuite, DotShare asks for explicit consent (Mastodon has its own prompt). Sync requires HTTPS and a signed-in DotSuite account.
+- **Logs are redacted**: credential values and OAuth callback queries are excluded, and known secret formats are masked.
+- **Clear All Credentials** removes local platform, AI, GitHub and DotSuite secrets and cloud consent. Copies already synced to DotSuite are revoked from the DotSuite Dashboard.
 
-<details>
-<summary><b>👨‍💻 Dev.to API Key</b></summary>
+Server-side handling is implemented in the separately maintained DotSuite backend; local SecretStorage does not protect copies held there.
 
-1. Go to [Dev.to Settings → Extensions](https://dev.to/settings/extensions)
-2. Under "DEV API Keys", generate a new key
-3. Add to DotShare Settings
+---
 
-**Note**: Dev.to does not support image file uploads via API. Use publicly hosted image URLs (Cloudinary, GitHub, Imgur) in your markdown or as cover image.
-</details>
+## ❓ FAQ
 
-<details>
-<summary><b>🔗 LinkedIn Access Token</b></summary>
+**Is DotShare free?**
+Yes. The extension is open source under Apache 2.0, and direct publishing with your own accounts and AI keys is free. Only DotSuite cloud services, such as higher scheduling limits, are paid.
 
-1. Create an app at [LinkedIn Developers](https://www.linkedin.com/developers/)
-2. Request access to **Sign In with LinkedIn**
-3. Generate token with `w_member_social` scope
-4. Add to DotShare settings
-</details>
+**Do I need my own server to post to Mastodon?**
+No. You only need an account on any Mastodon instance and an access token. DotShare talks to your instance directly.
 
-<details>
-<summary><b>📱 Telegram Bot Setup</b></summary>
+**Which AI models can I use?**
+Any text model your key can access from Google Gemini, OpenAI, Anthropic Claude, DeepSeek or xAI Grok. DotShare lists them live from each provider.
 
-1. Message [@BotFather](https://t.me/botfather) on Telegram
-2. Create new bot with `/newbot`
-3. Copy the bot token
-4. Get your chat ID from [@FreeID](https://github.com/kareem2099/FreeID)
-5. Add both to DotShare settings
-</details>
+**Can I schedule posts for later?**
+Yes, with a free DotSuite account. Scheduled posts run on DotSuite servers, so your computer doesn't need to stay on.
 
-<details>
-<summary><b>𝕏 X (Twitter) Authentication</b></summary>
+**Does DotShare work in VSCodium, Cursor or Windsurf?**
+Yes, install it from [Open VSX](https://open-vsx.org/extension/freerave/dotshare).
 
-1. Apply for developer access at [Twitter Developers](https://developer.twitter.com/)
-2. Create an app with Read & Write permissions
-3. Generate OAuth 2.0 access token
-4. Add to DotShare settings
-</details>
+**Where are my API keys stored?**
+In VS Code's encrypted SecretStorage on your machine. See [Security & Privacy](#-security--privacy).
 
-
+---
 
 ## 🤝 Contributing
 
-We love contributions! Whether it's adding new platforms, fixing bugs, or improving documentation, we welcome your help.
-👉 **[Read our Contributing Guidelines](CONTRIBUTING.md)** to get started.
-
----
-
-## 📈 Roadmap
-
-Our development roadmap and feature tracking has been moved to a dedicated file. 
-👉 **[View the full Roadmap here](ROADMAP.md)**
-
----
-
-## 📜 Changelog
-
-A detailed history of all changes, features, and bug fixes can be found in our CHANGELOG file.
-👉 **[Read the Full Changelog here](CHANGELOG.md)**
-
----
+Bug reports, platform ideas and pull requests are welcome. Read the [contributing guide](https://github.com/kareem2099/DotShare/blob/master/CONTRIBUTING.md) to get started, and see the [roadmap](https://github.com/kareem2099/DotShare/blob/master/ROADMAP.md) for what's planned.
 
 ## 💝 Support the Project
 
-The DotShare extension is free and open source, including direct publishing with your own accounts and AI keys. Paid DotSuite plans add cloud services such as higher scheduling limits, plus extras like CodeSnap branding. Your support keeps the project alive and helps fund the Cloud Scheduling Server.
+If DotShare saves you time, you can help keep it alive:
 
 <div align="center">
 
-<a href="https://www.buymeacoffee.com/freerave" target="_blank">
-  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;">
-</a>
-
-<a href="https://github.com/sponsors/kareem2099">
-  <img src="https://img.shields.io/badge/Sponsor%20on-GitHub-pink?style=for-the-badge&logo=github-sponsors" height="60">
-</a>
-
-<a href="https://paypal.me/freerave1">
-  <img src="https://img.shields.io/badge/Donate%20via-PayPal-blue?style=for-the-badge&logo=paypal" height="60">
-</a>
+<a href="https://www.buymeacoffee.com/freerave"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee"></a>
+<a href="https://github.com/sponsors/kareem2099"><img src="https://img.shields.io/badge/Sponsor%20on-GitHub-ea4aaa?style=for-the-badge&logo=github-sponsors" alt="Sponsor on GitHub"></a>
+<a href="https://paypal.me/freerave1"><img src="https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal" alt="Donate via PayPal"></a>
 
 </div>
 
-If you can't donate, you can still help:
-- ⭐ [Star the repository](https://github.com/kareem2099/DotShare)
-- 📢 Share with your network
-- 🐛 Report bugs and suggest features
-
----
-
-## 👏 Acknowledgments
-
-- [VS Code Extension API](https://code.visualstudio.com/api) — Microsoft
-- [Gemini AI](https://deepmind.google/technologies/gemini/) — Google DeepMind
-- [Anthropic Claude](https://www.anthropic.com/) — Anthropic
-- [Dev.to / Forem API](https://developers.forem.com/api)
-
-- All our [contributors](https://github.com/kareem2099/DotShare/graphs/contributors) ❤️
-
----
+Or ⭐ [star the repository](https://github.com/kareem2099/DotShare), share DotShare with your network, and [report issues](https://github.com/kareem2099/DotShare/issues).
 
 ## 📄 License
 
-DotShare is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+DotShare is licensed under the [Apache License 2.0](https://github.com/kareem2099/DotShare/blob/master/LICENSE).
 
 <div align="center">
 
-**Made with ❤️ by developers, for developers**
-
-[⬆ Back to Top](#-dotshare)
+**Made with ❤️ by [FreeRave](https://dotsuite.dev) for developers who build in public.**
 
 </div>

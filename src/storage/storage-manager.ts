@@ -420,7 +420,7 @@ export class StorageManager {
             for (const provider of AI_PROVIDERS) {
                 await this._context.globalState.update(`selected_${provider}_model`, undefined);
             }
-            for (const key of ['last_selected_ai_provider', 'x_should_refresh_soon', 'linkedin_should_refresh_soon', 'dotshare.cloudCredentialsConsentGiven']) {
+            for (const key of ['last_selected_ai_provider', 'x_should_refresh_soon', 'linkedin_should_refresh_soon', 'dotshare.cloudCredentialsConsentGiven', 'dotshare.cloudMastodonConsentGiven']) {
                 await this._context.globalState.update(key, undefined);
             }
             await DotShareAuth.logout(this._context);

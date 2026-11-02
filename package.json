@@ -1,8 +1,8 @@
 {
   "name": "dotshare",
   "displayName": "DotShare",
-  "description": "The Ultimate Publishing Suite: Share your code/ideas across multiple social and blogging platforms directly from VS Code.",
-  "version": "3.5.2",
+  "description": "Share code updates to LinkedIn, X, Bluesky, Mastodon, Telegram, Discord and Dev.to from VS Code. AI-written posts, threads, CodeSnap images, Gists and scheduling.",
+  "version": "3.5.3",
   "publisher": "freerave",
   "funding": [
     {
@@ -243,7 +243,17 @@
     "ai",
     "gemini",
     "openai",
-    "xai"
+    "xai",
+    "claude",
+    "deepseek",
+    "build in public",
+    "social media",
+    "threads",
+    "fediverse",
+    "codesnap",
+    "gist",
+    "release notes",
+    "changelog"
   ],
   "author": "FreeRave",
   "license": "Apache-2.0",
