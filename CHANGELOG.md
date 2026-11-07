@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.6.0] - 2026-11-07 — MCP & Publishing Library
 
+The VS Code extension and CLI have separate version numbers. The [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0) contains `dotshare-3.6.0.vsix` for VS Code and `dotshare-cli-3.0.0.tgz` for the CLI and MCP server. See the [MCP quick start](README.md#quick-start-for-ai-agents) and [Publishing Library guide](docs/PUBLISHING_LIBRARY.md).
+
 ### Added
 - VS Code Publishing Library connected to the configured local MCP installation and its existing draft/template store. Visual draft, thread, article and per-account editors, template discovery/filling/customization, saved previews and per-target publication receipts use the same tools as agents and the CLI.
 - Live library refresh with preservation of unsaved edits, revision-conflict handling, stable publication request IDs across webview reloads, read-only publication recovery and disabled-tool policy enforcement. Existing composer drafts remain available without silent migration or credential copying.
@@ -42,8 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent image access requires `DOTSHARE_MEDIA_ROOTS` with absolute directories. It previously defaulted to the server's working directory, so a client started from the home folder let the agent publish any image there. Unset or invalid values now disable local images; text posts still work.
 
 ### CLI 3.0.0 upgrade
-- Replace legacy CLI relay and login scripts with `dotshare-agent accounts add` and direct publishing through named accounts.
-- Run `dotshare-agent security protect` to migrate an existing local library, then restart all DotShare MCP clients and VS Code windows. If the launcher path changed, run `dotshare-agent setup` before reconnecting.
+
+1. Stop active publications and install `dotshare-cli-3.0.0.tgz` with `npm install -g ./dotshare-cli-3.0.0.tgz`.
+2. Run `dotshare-agent security protect` to migrate existing drafts, custom templates and operation journals in place.
+3. If the launcher path changed, review the new configuration with `dotshare-agent setup --dry-run --replace`, then apply it with `dotshare-agent setup --replace`. Restart the DotShare MCP clients and VS Code windows, then run `dotshare-agent doctor --check-accounts` to verify keyring access and account identity.
+4. Update scripts that used the legacy CLI login or relay. Connect accounts with `dotshare-agent accounts add` and use direct publishing with named accounts. For local image uploads, configure absolute directories with `dotshare-agent setup --media-root /absolute/path/to/images`.
+
+[Upgrade and recovery details](SECURITY.md#upgrading-an-existing-library) · [CLI commands and examples](docs/AGENT_INTEGRATION.md)
 
 ## [3.5.3] - 2026-11-02 — "Mastodon"
 

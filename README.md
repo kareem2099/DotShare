@@ -12,7 +12,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/kareem2099/DotShare/blob/master/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/kareem2099/DotShare?style=flat&logo=github)](https://github.com/kareem2099/DotShare)
 
-[Install](#-install) · [Features](#-features) · [Platforms](#-supported-platforms) · [Pricing](#-free-vs-dotsuite-plans) · [Setup guides](#-platform-setup-guides) · [FAQ](#-faq) · [Website](https://dotsuite.dev/en/product/dotshare)
+[Install](#-install) · [MCP quick start](#quick-start-for-ai-agents) · [Publishing Library](docs/PUBLISHING_LIBRARY.md) · [Changelog](CHANGELOG.md) · [Website](https://dotsuite.dev/en/product/dotshare)
 
 </div>
 
@@ -31,11 +31,11 @@
 - **Saved previews and receipts** that record exactly which draft revision was published and where.
 - **Encrypted local records** with an OS-keyring master key and verified migration for existing libraries.
 
-👉 [Full changelog](https://github.com/kareem2099/DotShare/blob/master/CHANGELOG.md)
+[Download VS Code 3.6.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-3.6.0.vsix) · [Download CLI/MCP 3.0.0 (.tgz)](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-cli-3.0.0.tgz) · [Release notes](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
 
 ---
 
-## 🤖 Publish through an AI agent
+## Quick start for AI agents
 
 DotShare now includes a local **MCP server** and an agent CLI. Connect Codex or another
 MCP client, then ask it to preview or publish posts, images and threads to named
@@ -43,17 +43,28 @@ accounts on LinkedIn, X, Bluesky, Mastodon, Telegram, Discord and Dev.to. Per-ac
 content, multiple accounts, durable retry protection and DotSuite cloud scheduling
 are available through structured tools.
 
-Install `dotshare-cli-3.0.0.tgz` from the [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
-with `npm install -g ./dotshare-cli-3.0.0.tgz`, or build this checkout with `npm run compile`.
-Run `dotshare-agent setup` to connect Codex, then `dotshare-agent doctor` to verify
-the connection. Connect accounts with `dotshare-agent accounts add`.
-`dotshare-agent doctor --check-accounts` checks platform identities without publishing.
-From a source checkout, replace `dotshare-agent` with `node bin/dotshare-agent.js`.
+Download `dotshare-cli-3.0.0.tgz` above. With Node.js 22.12+ and an unlocked OS
+credential store, run these commands from the download directory:
 
-Existing users should run `dotshare-agent security protect` and restart
-all MCP clients/VS Code windows. Shared library records are encrypted with an
-OS-keyring master key; Linux requires Secret Service without automatic fallback.
-See [the local security model and recovery requirements](SECURITY.md).
+```sh
+npm install -g ./dotshare-cli-3.0.0.tgz
+dotshare-agent setup
+dotshare-agent accounts add personal-mastodon --platform mastodon
+dotshare-agent doctor --account personal-mastodon
+```
+
+Enter the Mastodon instance and token in the terminal prompts. After setup, reconnect
+or restart Codex. Try this prompt to save a draft and prepare a preview:
+
+> Use DotShare to save a draft titled “My first DotShare post” for `personal-mastodon` with the text “Hello from DotShare!” and prepare a preview for me to review.
+
+To review it in VS Code, install the extension and run **DotShare: Open Publishing Library**
+from the Command Palette. Open the draft and review it before selecting **Publish this saved preview**.
+The receipt includes the result for each account and the post URL when the platform returns one.
+
+Upgrading an existing library? Stop active publications, run `dotshare-agent security protect`,
+and restart all DotShare MCP clients and VS Code windows. Linux requires an unlocked Secret Service
+session. See the [upgrade and recovery guide](SECURITY.md#upgrading-an-existing-library).
 
 Saved drafts have explicit **Draft → Preview → Published** states, with separate
 in-progress/uncertain results and publication URLs. Editing invalidates the preview;
@@ -91,6 +102,9 @@ composer drafts remain in their existing screen; no automatic migration occurs.
 ```bash
 code --install-extension freerave.dotshare
 ```
+
+**From GitHub:** download the `v3.6.0` VSIX above and run `code --install-extension ./dotshare-3.6.0.vsix`.
+For the shared Publishing Library, also complete the [MCP quick start](#quick-start-for-ai-agents).
 
 Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.
 
@@ -227,17 +241,16 @@ Generate a key under [Dev.to Settings → Extensions](https://dev.to/settings/ex
 ## ⌨️ DotShare CLI
 
 Use named local accounts from your terminal or CI. Requires Node.js 22.12+ and
-an unlocked OS credential store. Build/install this checkout for the current agent
-and security features; older published npm packages do not contain them.
+an unlocked OS credential store. Install the `3.0.0` tarball from the [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0).
+With an account already connected, save and preview a draft from the terminal:
 
 ```bash
-node bin/dotshare-agent.js security protect
-node bin/dotshare-agent.js accounts add personal-mastodon --platform mastodon
-node bin/dotshare-agent.js templates list
-node bin/dotshare-agent.js drafts create --input draft.json
-node bin/dotshare-agent.js drafts preview DRAFT_ID --revision 1
-node bin/dotshare-agent.js drafts publish DRAFT_ID --revision 1 --preview-id PREVIEW_ID --request-id release-1
+printf '%s\n' '{"title":"My first draft","content":{"accountIds":["personal-mastodon"],"text":"Hello from DotShare!"}}' | dotshare-agent drafts create --input -
+dotshare-agent drafts preview DRAFT_ID --revision 1
 ```
+
+Replace `DRAFT_ID` with the ID from the create response. After reviewing the output,
+see the [CLI draft commands](docs/AGENT_INTEGRATION.md) for publishing the saved revision.
 
 Credentials stay in the required OS keyring. Shared drafts, custom templates and
 journals are encrypted with a separate OS-keyring master key. The old `dotshare

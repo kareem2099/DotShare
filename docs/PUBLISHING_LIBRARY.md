@@ -7,13 +7,16 @@ to edit/preview it. There is no second copy to synchronize.
 
 ## Open it
 
-1. Keep a current local DotShare CLI/source installation configured using
-   `node /absolute/path/to/DotShare/bin/dotshare-agent.js setup`.
-2. Install the updated extension, or run `npm run compile` and press F5 in this
-   repository to open the Extension Development Host.
+1. Install CLI 3.0.0 and connect a named account using the [agent setup guide](AGENT_INTEGRATION.md#install-and-set-up).
+2. Install DotShare 3.6.0 in VS Code. To install from GitHub, download the
+   [VSIX](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-3.6.0.vsix)
+   and run `code --install-extension ./dotshare-3.6.0.vsix`.
 3. Run **DotShare: Open Publishing Library** from the Command Palette, or click
    **Open Publishing Library** in the DotShare sidebar. Platform composers also
    have a library navigation button.
+
+For development, run `npm run compile`, register the local launcher with
+`node bin/dotshare-agent.js setup`, and press F5 in this repository.
 
 DotSuite sign-in is not required for this local library. The UI launches the same
 local MCP server configured in `CODEX_HOME/config.toml` or `~/.codex/config.toml`,
@@ -31,6 +34,11 @@ or library settings. Your configured `enabled_tools`, `disabled_tools` and per-t
 through another publication path.
 
 ## Drafts
+
+To try the shared workflow, ask your agent to save a draft for a named account.
+Open that draft in the library, select **Prepare preview**, review the exact text
+and account, then select **Publish this saved preview** when ready. Check the draft for
+`Published` and its saved receipt. A preview stays private until you publish it.
 
 - Open a saved draft, or click **New draft**. New drafts are saved immediately.
 - Select local account IDs and edit the shared message. Use **Choose images** for

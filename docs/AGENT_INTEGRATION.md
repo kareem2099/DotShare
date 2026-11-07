@@ -10,13 +10,18 @@ The local MCP server uses stdio and does not require a separate model/API key.
 Requires Node.js 22.12+ and an unlocked OS credential store. On Linux, a working
 Secret Service/keyring session is required. There is no plaintext secret fallback.
 
-Download `dotshare-cli-3.0.0.tgz` from the [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0).
+Download the [CLI/MCP 3.0.0 tarball](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-cli-3.0.0.tgz). For an existing library, follow the [upgrade steps](#local-storage-protection) before resuming publication.
 
 ```sh
 npm install -g ./dotshare-cli-3.0.0.tgz
 dotshare-agent setup
-dotshare-agent doctor
+dotshare-agent accounts add personal-mastodon --platform mastodon --name "Personal Mastodon"
+dotshare-agent doctor --account personal-mastodon
 ```
+
+Restart or reconnect Codex after setup. In Codex, ask DotShare to list your local
+accounts, save a draft for one of them and prepare its preview. To review that draft
+in VS Code, follow the [Publishing Library guide](PUBLISHING_LIBRARY.md).
 
 To build and configure from source instead:
 
@@ -30,9 +35,9 @@ node bin/dotshare-agent.js accounts add work-linkedin --platform linkedin --name
 node bin/dotshare-agent.js accounts list
 ```
 
-Account setup prompts hide typed credentials. Connect each account in your
-terminal; do not paste platform secrets into an agent conversation. Existing VS Code
-accounts are not automatically copied. Multiple accounts on one platform use
+Account setup prompts hide typed credentials. Enter platform secrets in your
+terminal prompts. Existing VS Code accounts are not automatically copied.
+Multiple accounts on one platform use
 different IDs. To replace an account's credentials, run `accounts add` with its ID.
 `accounts remove <id>` removes the local account and deletes its credential from the OS keyring.
 It does not revoke the token on the platform. Expired/revoked platform tokens must
@@ -69,17 +74,23 @@ The master key is generated randomly and stored in the OS keyring only; a locked
 missing or mismatched key fails closed. Restore the original OS key and security.json
 instead of generating a replacement key for existing ciphertext.
 
-For an existing installation, stop active publications, then run:
+To upgrade an existing installation, stop active publications and install CLI 3.0.0, then run:
 
 ```sh
-node bin/dotshare-agent.js security status
-node bin/dotshare-agent.js security protect
+dotshare-agent security status
+dotshare-agent security protect
 ```
+
+For a source checkout, substitute `node bin/dotshare-agent.js` for `dotshare-agent`.
+If you switched from a source checkout to the installed package, use
+`dotshare-agent setup --dry-run --replace` to review the new launcher paths.
+Then run `dotshare-agent setup --replace` to replace the existing DotShare entry.
+Review the media roots and include `--media-root` for any directory you want to allow.
 
 `protect` verifies existing account access, repairs private permissions and converts
 existing plaintext records in place. It verifies preserved content without making
-plaintext backups. Restart all DotShare MCP clients and VS Code windows afterwards
-so older processes cannot write the previous format. Prior snapshots/backups may
+plaintext backups. Restart all DotShare MCP clients and VS Code windows afterwards,
+then run `dotshare-agent doctor --check-accounts`. Prior snapshots and backups may
 still contain plaintext; the migration does not securely erase old disk pages.
 
 Credential JSON input files must be private (0600 on Unix), regular files owned by
