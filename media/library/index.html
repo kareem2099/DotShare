@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="{{CSP}}">
+  <link rel="stylesheet" href="{{STYLE_URI}}">
+  <title>DotShare Publishing Library</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">D</span><div><strong>Publishing Library</strong><span>One place for your drafts, templates and AI agent.</span></div></div>
+    <div class="top-actions"><span id="connection-status" class="connection">Connecting…</span><button id="refresh">Refresh</button><button id="reconnect">Reconnect</button><button id="settings" class="quiet">Settings</button></div>
+  </header>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <div id="external-change" class="notice warning" hidden><span>Your library changed elsewhere. Your unsaved edits are kept. Save to check the revision, or discard and reload.</span><button id="reload-current">Discard edits and reload</button></div>
+  <div id="dirty-bar" class="dirty-bar" hidden><span>Unsaved changes</span><button id="discard">Discard changes</button></div>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Library navigation">
+      <div class="switcher" role="tablist" aria-label="Library section"><button id="tab-drafts" role="tab" aria-selected="true">Drafts <span id="draft-count">0</span></button><button id="tab-templates" role="tab" aria-selected="false">Templates <span id="template-count">0</span></button></div>
+      <label class="sr-only" for="search">Search the library</label><input id="search" type="search" placeholder="Search titles…">
+      <label class="sr-only" for="status-filter">Filter drafts by status</label><select id="status-filter"><option value="">All statuses</option><option>Draft</option><option>Preview</option><option>Publishing</option><option>Published</option><option>NeedsReview</option><option>SavedRemotely</option></select>
+      <button id="new-item" class="primary">New draft</button>
+      <div id="items" class="items" aria-label="Library items"></div>
+      <footer><strong>Shared with your agent</strong><p>Save to the same local library used by MCP and the CLI. Showing up to 100 items per section.</p><details><summary>Library location</summary><code id="library-home">Not connected</code></details></footer>
+    </aside>
+    <main id="workspace" tabindex="-1"><div class="empty hero"><span class="eyebrow">YOUR PUBLISHING WORKSPACE</span><h1>From first draft<br>to published.</h1><p>Open a draft from your agent, or start with a reusable template. Review the exact version before it goes live.</p></div></main>
+  </div>
+  <template id="draft-layout">
+    <section class="editor">
+      <header class="editor-header"><div><span class="eyebrow">SAVED DRAFT</span><h1 id="draft-heading"></h1><p id="draft-meta"></p></div><span id="draft-status" class="badge"></span></header>
+      <div id="draft-locked" class="callout" hidden></div>
+      <div class="editor-grid"><section class="card">
+        <h2>Shared content</h2><p class="hint">The starting version for every selected account.</p>
+        <label>Draft title<input id="draft-title" maxlength="200"></label>
+        <fieldset><legend>Publish to</legend><div id="draft-accounts" class="account-options"></div></fieldset>
+        <label class="check"><input id="draft-thread-mode" type="checkbox">Write an explicit thread</label>
+        <div id="draft-message-wrap"><label>Message<textarea id="draft-text" rows="10" placeholder="Write your post…" dir="auto"></textarea></label><label>Images, one path or URL per line<textarea id="draft-media" rows="2" placeholder="Allowed local image paths; public HTTPS URLs for Dev.to"></textarea></label><button id="choose-images" class="quiet">Choose images</button><p class="hint">Local images must be inside your configured image directories. Dev.to uses public HTTPS image URLs.</p></div>
+        <div id="draft-thread-wrap" hidden><div id="draft-parts"></div><button id="add-draft-part" class="quiet">Add thread part</button></div>
+        <label class="check"><input id="draft-auto-split" type="checkbox">Automatically split long text on supported platforms</label>
+        <details id="article-details"><summary>Dev.to article details</summary><label class="check"><input id="article-enabled" type="checkbox">Include article metadata</label><div id="article-fields">
+          <label>Article title<input id="article-title" maxlength="128"></label><label>Tags, comma separated<input id="article-tags" placeholder="typescript, opensource"></label>
+          <label>Description<textarea id="article-description" rows="2" maxlength="500"></textarea></label><label>Canonical HTTPS URL<input id="article-canonical"></label><label>Cover image HTTPS URL<input id="article-cover"></label><label>Series<input id="article-series"></label>
+          <label class="check"><input id="article-public" type="checkbox">Publish the article publicly (uncheck to save a remote Dev.to draft)</label>
+        </div></details>
+        <div class="actions"><button id="save-draft" class="primary">Save changes</button></div>
+      </section><section class="card versions"><h2>Account versions</h2><p class="hint">Review or customize each account. Editing a version requires a new preview.</p><div id="variant-tabs" class="variant-tabs"></div><div id="variant-content"></div></section></div>
+      <section class="card review"><div class="section-heading"><div><h2>Review and publish</h2><p class="hint">Draft and Preview are saved locally. They are not public posts.</p></div><button id="preview-draft">Prepare preview</button></div><div id="preview-content"></div><div class="actions"><button id="publish-draft" class="primary" hidden>Publish this saved preview</button><button id="recover-draft" hidden>Check saved outcome</button></div></section>
+    </section>
+  </template>
+  <script nonce="{{NONCE}}" src="{{SCRIPT_URI}}"></script>
+</body>
+</html>

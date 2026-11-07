@@ -52,6 +52,7 @@ media/src/
 media/main.ts
 media/webview/app.ts
 media/webview/tsconfig.webview.json
+media/library/tsconfig.json
 # media/locales/ — kept: locale JSON files must ship with the extension
 media/media/
 media/tsconfig.json
@@ -62,3 +63,9 @@ media/package-lock.json
 *.vsix
 *.tgz
 package.vscode.backup.json
+
+# Agent tooling ships in the separate CLI package
+scripts/
+docs/AGENT_INTEGRATION.md
+artifacts/
+**/*.tgz

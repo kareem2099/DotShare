@@ -122,10 +122,16 @@ describe('shareToMastodon', () => {
         });
         afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 
-        it('attaches uploaded media, capped at the instance limit', async () => {
+        it('rejects excess media instead of silently dropping attachments', async () => {
             mockInstance(500, 2);
-            await shareToMastodon(INSTANCE, TOKEN, { text: 'pics', media: [image, image, image] });
+            await expect(shareToMastodon(INSTANCE, TOKEN, { text: 'pics', media: [image, image, image] })).rejects.toThrow('at most 2 attachments');
+            expect(mediaCalls()).toHaveLength(0);
+            expect(statusCalls()).toHaveLength(0);
+        });
 
+        it('attaches all uploaded media within the instance limit', async () => {
+            mockInstance(500, 2);
+            await shareToMastodon(INSTANCE, TOKEN, { text: 'pics', media: [image, image] });
             expect(mediaCalls()).toHaveLength(2);
             expect((statusCalls()[0][1] as { media_ids: string[] }).media_ids).toHaveLength(2);
         });

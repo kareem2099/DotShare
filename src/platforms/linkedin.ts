@@ -1,11 +1,12 @@
-import * as vscode from 'vscode';
+import { getPlatformHost, PublicationObserver, PublicationReceipt } from './runtime';
 import axios from 'axios';
+import { linkedinUploadUrl } from '../security/http';
 import * as fs from 'fs';
 import { PostData } from '../types';
 import * as path from 'path';
 
 // Check if we're running in VS Code environment
-const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
+
 
 interface LinkedInMediaAsset {
     status: string;
@@ -31,14 +32,15 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
     onSuccess?: (message: string) => void;
     onError?: (message: string) => void;
     onOpenLink?: (url: string) => void;
-}) {
+}, onPublished?: PublicationObserver): Promise<PublicationReceipt | undefined> {
+    const vscode = getPlatformHost();
     if (!accessToken) {
         // Fallback for manual sharing if no token is provided
-        const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '')}`;
+        const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(vscode?.workspace.workspaceFolders?.[0]?.uri.fsPath || '')}`;
 
-        if (!isVscodeEnvironment && callbacks?.onOpenLink) {
+        if (!vscode && callbacks?.onOpenLink) {
             callbacks.onOpenLink(shareUrl);
-        } else if (isVscodeEnvironment) {
+        } else if (vscode) {
             vscode.env.openExternal(vscode.Uri.parse(shareUrl));
             vscode.window.showInformationMessage('Opened LinkedIn share. Copy the generated post: ' + post.text);
         }
@@ -85,7 +87,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
                     });
 
                     const uploadMechanism = registerRes.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'];
-                    const uploadUrl = uploadMechanism.uploadUrl;
+                    const uploadUrl = linkedinUploadUrl(uploadMechanism.uploadUrl);
                     const assetUrn = registerRes.data.value.asset;
 
                     // Upload the actual file bytes to LinkedIn
@@ -102,6 +104,8 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
                         media: assetUrn,
                         title: { text: path.basename(filePath) }
                     });
+                } else {
+                    throw new Error(`LinkedIn media file not found: ${path.basename(filePath)}`);
                 }
             }
         }
@@ -134,7 +138,7 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         }
 
         // Final API call to publish the post
-        await axios.post('https://api.linkedin.com/v2/ugcPosts', postBody, {
+        const response = await axios.post('https://api.linkedin.com/v2/ugcPosts', postBody, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
@@ -142,14 +146,19 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
             }
         });
 
+        const id = String(response.headers?.['x-restli-id'] || response.data?.id || '');
+        if (!id) throw new Error('LinkedIn returned no post ID; check the account before retrying.');
+        const receipt = { id, url: `https://www.linkedin.com/feed/update/${encodeURIComponent(id)}/` };
+        onPublished?.(receipt);
         // 4. Handle Success
         const successMessage = 'Posted to LinkedIn successfully!';
         if (callbacks?.onSuccess) {
             callbacks.onSuccess(successMessage);
-        } else if (isVscodeEnvironment) {
+        } else if (vscode) {
             vscode.window.showInformationMessage(successMessage);
         }
 
+        return receipt;
     } catch (error: unknown) {
         // Handle Errors elegantly
         let errorMessage = 'Failed to post to LinkedIn';
@@ -162,8 +171,9 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
 
         if (callbacks?.onError) {
             callbacks.onError(errorMessage);
-        } else if (isVscodeEnvironment) {
+        } else if (vscode) {
             vscode.window.showErrorMessage(errorMessage);
         }
+        throw new Error(errorMessage);
     }
 }

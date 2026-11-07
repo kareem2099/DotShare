@@ -11,7 +11,7 @@ let secrets: CliCredentialStore;
 beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'dotshare-cli-test-'));
     stored = new Map();
-    secrets = { get: key => stored.get(key), set: (key, value) => { stored.set(key, value); } };
+    secrets = { get: key => stored.get(key), set: (key, value) => { stored.set(key, value); }, delete: key => { stored.delete(key); } };
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -26,18 +26,17 @@ it('persists metadata only and retrieves credentials from the keyring', () => {
     expect(config.getConfiguredPlatforms()).toEqual(['telegram', 'linkedin']);
 });
 
-it('migrates plaintext only after successful secure writes, preserving newer secure data', () => {
+it('preserves conflicting legacy credentials instead of silently discarding them', () => {
     stored.set('linkedin', JSON.stringify({ accessToken: 'newer-secure-token' }));
-    fs.writeFileSync(path.join(root, 'config.json'), JSON.stringify({ credentials: { telegram: { botToken: 'old-bot', chatId: 'old-chat' }, linkedin: { accessToken: 'old-token' } } }));
-    const config = new ConfigManager(root, secrets).getConfig();
-    expect(config.credentials.linkedin.accessToken).toBe('newer-secure-token');
-    expect(config.credentials.telegram.botToken).toBe('old-bot');
-    expect(fs.readFileSync(path.join(root, 'config.json'), 'utf8')).not.toContain('old-bot');
+    const legacy = JSON.stringify({ credentials: { linkedin: { accessToken: 'old-token' } } });
+    fs.writeFileSync(path.join(root, 'config.json'), legacy, {mode: 0o600});
+    expect(() => new ConfigManager(root, secrets).getConfig()).toThrow('conflict');
+    expect(fs.readFileSync(path.join(root, 'config.json'), 'utf8')).toBe(legacy);
 });
 
 it('fails closed and leaves the legacy file intact when OS storage is unavailable', () => {
     const legacy = JSON.stringify({ credentials: { linkedin: { accessToken: 'legacy-value' } } });
-    fs.writeFileSync(path.join(root, 'config.json'), legacy);
+    fs.writeFileSync(path.join(root, 'config.json'), legacy, {mode: 0o600});
     const locked = { get: () => undefined, set: () => { throw new Error('keyring locked'); } };
     expect(() => new ConfigManager(root, locked).getConfig()).toThrow('keyring locked');
     expect(fs.readFileSync(path.join(root, 'config.json'), 'utf8')).toBe(legacy);

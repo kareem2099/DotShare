@@ -754,6 +754,7 @@ function updateAegisStatus(platform: string, shouldRefreshSoon: boolean, expires
 
 document.addEventListener('DOMContentLoaded', () => {
     try {
+        getEl('btn-open-library')?.addEventListener('click', () => send({ command: 'openPublishingLibrary' }));
         initEventListeners();
         send({ command: 'loadConfiguration' });
         // Fetch profile to determine cloud auth state

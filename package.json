@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "Share code updates to LinkedIn, X, Bluesky, Mastodon, Telegram, Discord and Dev.to from VS Code. AI-written posts, threads, CodeSnap images, Gists and scheduling.",
-  "version": "3.5.3",
+  "version": "3.6.0",
   "publisher": "freerave",
   "funding": [
     {
@@ -55,6 +55,10 @@
         "icon": "$(home)"
       },
       {
+        "command": "dotshare.openLibrary",
+        "title": "DotShare: Open Publishing Library"
+      },
+      {
         "command": "dotshare.generatePost",
         "title": "DotShare: Generate Social Media Post with AI"
       },
@@ -82,7 +86,7 @@
       },
       {
         "command": "dotshare.logout",
-        "title": "DotShare: Logout / Clear Token 🧹",
+        "title": "DotShare: Logout / Clear Token",
         "category": "DotShare"
       },
       {
@@ -109,7 +113,7 @@
       },
       {
         "command": "dotshare.codeSnap",
-        "title": "DotShare: 📸 CodeSnap — Capture Code as Image",
+        "title": "DotShare: CodeSnap — Capture Code as Image",
         "category": "DotShare",
         "icon": "$(camera)"
       },
@@ -120,7 +124,7 @@
       },
       {
         "command": "dotshare.inspectReleaseContext",
-        "title": "DotShare: 🧠 Inspect AI Release Context",
+        "title": "DotShare: Inspect AI Release Context",
         "category": "DotShare",
         "icon": "$(sparkle)"
       }
@@ -177,6 +181,12 @@
           ],
           "default": "twitter",
           "description": "Default platform used to tailor hashtag suggestions when generating a post."
+        },
+        "dotshare.library.clientConfigPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional absolute path to the MCP client config.toml used by the Publishing Library. Empty uses CODEX_HOME/config.toml or ~/.codex/config.toml. Run dotshare-agent setup to configure the shared local installation."
         }
       }
     }
@@ -195,7 +205,14 @@
     "publish:vscode": "vsce publish",
     "prepublish:npm": "npm run vscode:prepublish && cp package.json package.vscode.backup.json && cp package.cli.json package.json",
     "publish:npm": "npm publish",
-    "postpublish:npm": "mv package.vscode.backup.json package.json"
+    "postpublish:npm": "mv package.vscode.backup.json package.json",
+    "mcp": "node bin/dotshare-mcp.js",
+    "agent": "node bin/dotshare-agent.js",
+    "package:cli": "node scripts/package-cli.cjs",
+    "test:agent:stdio": "npm run compile && node scripts/verify-agent.cjs",
+    "test:library:stdio": "npm run compile && node scripts/verify-library.cjs",
+    "preview:library": "npm run compile && node scripts/preview-library.cjs",
+    "test:security:runtime": "npm run compile && node scripts/verify-security.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -214,6 +231,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
     "@google/genai": "^2.32.0",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@modelcontextprotocol/server": "^2.4.0",
     "@types/dompurify": "^3.0.5",
     "@types/marked": "^5.0.2",
     "axios": "^1.21.0",
@@ -222,7 +241,9 @@
     "form-data": "^4.0.6",
     "marked": "^18.1.2",
     "open": "^11.0.4",
-    "openai": "^7.47.0"
+    "openai": "^7.47.0",
+    "smol-toml": "^1.9.1",
+    "zod": "^4.6.7"
   },
   "overrides": {
     "glob": "^14.0.3",

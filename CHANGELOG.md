@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-11-07 — MCP & Publishing Library
+
+### Added
+- VS Code Publishing Library connected to the configured local MCP installation and its existing draft/template store. Visual draft, thread, article and per-account editors, template discovery/filling/customization, saved previews and per-target publication receipts use the same tools as agents and the CLI.
+- Live library refresh with preservation of unsaved edits, revision-conflict handling, stable publication request IDs across webview reloads, read-only publication recovery and disabled-tool policy enforcement. Existing composer drafts remain available without silent migration or credential copying.
+- Versioned local publishing templates with five read-only starter recipes, custom create/replace/delete, inferred required variables, defaults, HTTPS URL fields and literal, bounded rendering. Missing values, stale revisions and invalid placeholders fail without creating a draft.
+- Template-to-draft creation with source revision metadata and platform/account variants. Account-version inspection, replacement and reset preserve other targets and invalidate publication previews; existing drafts remain independent when a recipe changes or is deleted.
+- Persisted agent drafts with create/get/list/update/preview/publish tools and matching `drafts` CLI commands. Content updates invalidate preview snapshots and require a new preview ID before publication.
+- Explicit Draft, Preview, Publishing, Published, NeedsReview and SavedRemotely states, per-target delivery receipts, revision conflict detection and operation-journal recovery after a restart.
+- Draft publishing revalidates the saved platform plan, account bindings and image fingerprints, then uploads private temporary copies of the previewed local image bytes. Repeated draft publications reuse the original operation and never resend completed/uncertain actions.
+- `setup` verifies the local MCP server and registers it in Codex with private backups, preserved unrelated settings/comments, idempotent updates, dry-run mode, explicit image directories and generic-client snippets.
+- `doctor` diagnoses runtime, build output, keyring binding, client settings, image directories and real MCP connectivity, with human-readable/JSON reports and optional read-only platform identity checks.
+- Local stdio MCP server with twenty-three tools for templates, account variants, saved drafts, account discovery, preview, publication, operation recovery, history and DotSuite cloud scheduling/cancellation.
+- Named OS-keyring accounts across all seven platforms, including multiple accounts per platform; hidden terminal setup and JSON stdin configuration.
+- Shared headless platform adapters, structured per-account results and per-thread-part publication receipts.
+- Validated images, per-account content overrides, explicit threads and automatic long-post splitting for X, Bluesky and Mastodon.
+- Durable atomic request claims to prevent duplicate publications on retries or reconnects; uncertain/partial operations retain receipts for manual review.
+- Dedicated `dotshare-agent` and `dotshare-mcp` binaries, agent integration documentation, real stdio verification and a staged CLI packaging command.
+
+### Fixed
+- Text-only account overrides inherit shared images when media is omitted; an explicit empty media array still removes images. Account-version views and publication planning use the same content resolver.
+- LinkedIn and Telegram publishing errors now propagate to callers instead of being presented as successful execution.
+- X accepts a supplied headless token and uploads static images using the v2 media endpoint; X and Bluesky abort if an attached image cannot be uploaded.
+- Discord uploads local attachments, returns a persisted message receipt and validates webhooks without posting a test message.
+- Mastodon rejects excess attachments instead of silently discarding them.
+- Telegram sends text literally and directs scheduling requests to DotSuite instead of sending unsupported scheduling parameters.
+- `accounts remove` deletes the credential from the OS keyring instead of overwriting it with an empty value.
+- Command titles no longer contain emoji.
+
+### Security
+- Require Linux Secret Service explicitly for every CLI/MCP keyring entry; refuse automatic backend fallback and verify new credential writes before advertising accounts.
+- Encrypt shared drafts, custom templates and operation journals using AES-256-GCM with a random OS-keyring master key, per-write nonce, fixed authentication tag, record-bound associated data and key confirmation. Missing/mismatched keys and tampering fail closed.
+- Add `security status`/`security protect`, private ownership/link checks, cross-process encrypted-write locks and verified in-place migration without plaintext backups. Doctor reports legacy/unreadable storage and optional master-key access checks.
+- Disable the legacy credential-forwarding CLI relay/login path. Reject credential redirects/insecure TLS settings and untrusted LinkedIn/Discord upload destinations; strengthen secret-safe logs/JSON errors and block known secrets in publication content.
+- Agent image access requires `DOTSHARE_MEDIA_ROOTS` with absolute directories. It previously defaulted to the server's working directory, so a client started from the home folder let the agent publish any image there. Unset or invalid values now disable local images; text posts still work.
+
+### CLI 3.0.0 upgrade
+- Replace legacy CLI relay and login scripts with `dotshare-agent accounts add` and direct publishing through named accounts.
+- Run `dotshare-agent security protect` to migrate an existing local library, then restart all DotShare MCP clients and VS Code windows. If the launcher path changed, run `dotshare-agent setup` before reconnecting.
+
 ## [3.5.3] - 2026-11-02 — "Mastodon"
 
 ### Added

@@ -17,6 +17,9 @@
     ════════════════════════════════════════════ -->
     <nav class="inner-sidebar">
       <div class="nav-top">
+        <button id="btn-open-library" data-open-library class="tab-btn" title="Publishing Library: drafts and templates shared with your agent" aria-label="Open Publishing Library">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v5H4zM4 12h7v8H4zM15 12h5M15 16h5M15 20h5" /></svg>
+        </button>
         <button class="tab-btn active" data-target="view-compose" title="Compose Post">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -348,8 +351,9 @@
       <div id="view-drafts" class="tab-view" style="display: none;">
         <header class="platform-header" style="margin-bottom: 20px;">
           <div class="platform-header-text">
-            <h1 class="platform-title">Saved Drafts</h1>
-            <p class="platform-subtitle">Manage drafts for {{PLATFORM_NAME}}</p>
+            <h1 class="platform-title">Earlier Platform Drafts</h1>
+            <p class="platform-subtitle">Your existing {{PLATFORM_NAME}} drafts stay here. Open Publishing Library for drafts shared with your AI agent.</p>
+            <button data-open-library class="btn btn-secondary">Open Publishing Library</button>
           </div>
         </header>
 

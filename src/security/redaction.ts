@@ -10,7 +10,7 @@ export function rememberSecret(value: string): void {
             if (Array.isArray(item)) item.forEach(visit);
             else if (item && typeof item === 'object') {
                 for (const [key, field] of Object.entries(item)) {
-                    if (/token|secret|password|api.?key|telegramBot|telegramChat|blueskyIdentifier|discordWebhook/i.test(key) && typeof field === 'string' && field) knownSecrets.add(field);
+                    if (/token|secret|password|api.?key|telegramBot|accessJwt|refreshJwt|webhook/i.test(key) && typeof field === 'string' && field) knownSecrets.add(field);
                     else if (field && typeof field === 'object') visit(field);
                 }
             }
@@ -23,16 +23,32 @@ export function rememberSecret(value: string): void {
 }
 
 export function redactSensitiveText(text: string): string {
-    for (const secret of [...knownSecrets].sort((a, b) => b.length - a.length)) {
-        text = text.split(secret).join('[REDACTED]');
-        const encoded = encodeURIComponent(secret);
-        if (encoded !== secret) text = text.split(encoded).join('[REDACTED]');
-    }
-    return text
+    text = text
         .replace(/\b(?:sk-(?:ant-)?|xai-|AIza|gh[pousr]_|github_pat_|ds_prod_)[A-Za-z0-9_-]{8,}/g, '[REDACTED]')
         .replace(/\bBearer\s+[^\s"',}]+/gi, 'Bearer [REDACTED]')
-        .replace(/([?&](?:token|access_token|refresh_token|api_key|key|code)=)[^\s&#"']+/gi, '$1[REDACTED]')
+        .replace(/([?&](?:token|access_token|refresh_token|client_secret|password|api_key|key|code)=)[^\s&#"']+/gi, '$1[REDACTED]')
+        .replace(/(https?:\/\/api\.telegram\.org\/bot)[^/\s"'?]+/gi, '$1[REDACTED]')
+        .replace(/(https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/api(?:\/v\d+)?\/webhooks\/\d+\/)[^/\s"'?#]+/gi, '$1[REDACTED]')
+        .replace(/(https?:\/\/)[^/\s:@]+:[^/\s@]+@/gi, '$1[REDACTED]@')
         .replace(/("(?:[^"\n]*(?:token|secret|password|api[-_]?key)|telegramBot|discordWebhook)"\s*:\s*")[^"\n]*(")/gi, '$1[REDACTED]$2');
+    for (const secret of [...knownSecrets].sort((a, b) => b.length - a.length)) {
+        text = text.split(secret).join('[REDACTED]');
+        try { const encoded = encodeURIComponent(secret); if (encoded !== secret) text = text.split(encoded).join('[REDACTED]'); } catch { /* Malformed Unicode must never break error handling. */ }
+    }
+    return text;
+}
+
+export function assertNoKnownSecrets(value: unknown): void {
+    const text = JSON.stringify(value);
+    for (const secret of knownSecrets) if (secret.length >= 8 && text.includes(secret)) throw new Error('Publication blocked: the content contains a known credential. Remove the secret and prepare a new preview.');
+}
+export function safeLogValue(value: unknown): string {
+    const seen = new WeakSet<object>();
+    try { return redactSensitiveText(JSON.stringify(value, (key, item: unknown) => {
+        if (/^(config|request|headers|credentials)$|token|secret|password|api.?key|accessJwt|refreshJwt|webhook/i.test(key)) return '[REDACTED]';
+        if (item && typeof item === 'object') { if (seen.has(item)) return '[Circular]'; seen.add(item); }
+        return item;
+    }) ?? ''); } catch { return '[Unserializable data]'; }
 }
 
 /** Register secrets before use so downstream errors cannot log their values. */

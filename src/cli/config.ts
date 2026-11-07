@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { DEFAULT_SERVER_URL } from '../constants';
 import { CliCredentialStore, OsCredentialStore } from './credential-store';
+import { privateDirectory, privateRead, privateWriteJson } from '../security/private-files';
 
 export interface DotShareConfig {
     serverUrl: string;
@@ -18,10 +19,10 @@ export class ConfigManager {
     private config: DotShareConfig | null = null;
 
     constructor(
-        configDir = path.join(os.homedir(), '.dotshare'),
+        configDir = process.env.DOTSHARE_HOME || path.join(os.homedir(), '.dotshare'),
         private secretStore: CliCredentialStore = new OsCredentialStore(),
     ) {
-        fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
+        privateDirectory(configDir);
         this.configPath = path.join(configDir, 'config.json');
     }
 
@@ -31,7 +32,7 @@ export class ConfigManager {
         let stored: Partial<DotShareConfig> = {};
         if (fs.existsSync(this.configPath)) {
             try {
-                stored = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+                stored = JSON.parse(privateRead(this.configPath, 1024 * 1024));
             } catch {
                 throw new Error('Cannot read CLI configuration. Repair config.json before retrying.');
             }
@@ -40,8 +41,11 @@ export class ConfigManager {
         // Transfer old credentials first; keep the file intact on keyring failure.
         for (const platform of ['telegram', 'linkedin'] as const) {
             const legacy = stored.credentials?.[platform];
-            if (legacy && !this.secretStore.get(platform)) {
-                this.secretStore.set(platform, JSON.stringify(legacy));
+            if (legacy) {
+                const encoded = JSON.stringify(legacy); const existing = this.secretStore.get(platform);
+                if (existing && existing !== encoded) throw new Error('Legacy credentials conflict with the OS keyring. Resolve them before removing plaintext data.');
+                if (!existing) this.secretStore.set(platform, encoded);
+                if (this.secretStore.get(platform) !== encoded) throw new Error('Secure credential migration could not be verified. Original configuration was kept.');
             }
         }
         this.config = {
@@ -61,10 +65,8 @@ export class ConfigManager {
     private saveConfig(): void {
         if (!this.config) return;
         const metadata = { serverUrl: this.config.serverUrl, defaultPlatforms: this.config.defaultPlatforms };
-        const temporary = `${this.configPath}.${process.pid}.tmp`;
         try {
-            fs.writeFileSync(temporary, JSON.stringify(metadata, null, 2), { mode: 0o600 });
-            fs.renameSync(temporary, this.configPath);
+            privateWriteJson(this.configPath, metadata);
         } catch {
             throw new Error('Could not save CLI configuration metadata.');
         }

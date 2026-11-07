@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import { getPlatformHost, PublicationObserver, PublicationReceipt } from './runtime';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,20 +7,22 @@ import { PostData } from '../types';
 import { Logger } from '../utils/Logger';
 
 // Check if we're running in VS Code environment
-const isVscodeEnvironment = typeof vscode !== 'undefined' && vscode.window;
+
 
 export async function shareToTelegram(post: PostData, botToken?: string, chatId?: string, callbacks?: {
     onSuccess?: (message: string) => void;
     onError?: (message: string) => void;
     onOpenLink?: (url: string) => void;
-}, scheduleDate?: Date) {
+}, scheduleDate?: Date, onPublished?: PublicationObserver): Promise<PublicationReceipt | undefined> {
+    const vscode = getPlatformHost();
+    let firstReceipt: PublicationReceipt | undefined;
 
     if (!botToken || !chatId) {
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '')}`;
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(vscode?.workspace.workspaceFolders?.[0]?.uri.fsPath || '')}`;
 
-        if (!isVscodeEnvironment && callbacks?.onOpenLink) {
+        if (!vscode && callbacks?.onOpenLink) {
             callbacks.onOpenLink(shareUrl);
-        } else if (isVscodeEnvironment) {
+        } else if (vscode) {
             vscode.env.openExternal(vscode.Uri.parse(shareUrl));
             vscode.window.showInformationMessage('Opened Telegram share. Copy the generated post: ' + post.text);
         }
@@ -32,6 +34,7 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
     }
 
     try {
+        if (scheduleDate) throw new Error('Use DotSuite cloud scheduling; Telegram bots cannot schedule messages directly.');
         Logger.info('[DotShare] Starting Telegram share...');
         Logger.info(`[DotShare] Chat ID: ${chatId}`);
         Logger.info(`[DotShare] Post text: ${post.text.substring(0, 50)}...`);
@@ -43,7 +46,7 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
             for (const mediaFile of post.media) {
                 if (!fs.existsSync(mediaFile)) {
                     Logger.warn(`[DotShare] Media file not found: ${mediaFile}`);
-                    continue;
+                    throw new Error(`Telegram media file not found: ${path.basename(mediaFile)}`);
                 }
 
                 const ext = path.extname(mediaFile).toLowerCase();
@@ -71,12 +74,9 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
                 if (post.text && post.media.indexOf(mediaFile) === 0) {
                     // Add caption to first media only
                     formData.append('caption', post.text);
-                    formData.append('parse_mode', 'HTML');
+
                 }
-                if (scheduleDate) {
-                    formData.append('schedule_date', Math.floor(scheduleDate.getTime() / 1000).toString());
-                    Logger.info(`[DotShare] Scheduling media for: ${scheduleDate.toISOString()}, Unix: ${Math.floor(scheduleDate.getTime() / 1000)}`);
-                }
+
 
                 const mediaResponse = await axios.post(mediaUrl, formData, {
                     headers: {
@@ -88,20 +88,25 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
                     throw new Error(`Telegram API error: ${mediaResponse.data.description}`);
                 }
 
+                const receipt = telegramReceipt(chatId, mediaResponse.data.result?.message_id);
+                firstReceipt ??= receipt;
+                onPublished?.(receipt);
                 Logger.info(`[DotShare] Media sent successfully: ${mediaResponse.data.result.message_id}`);
             }
         } else {
             // Text-only post
-            await sendTextMessage(botToken, chatId, post.text, scheduleDate);
+            firstReceipt = await sendTextMessage(botToken, chatId, post.text);
+            onPublished?.(firstReceipt);
         }
 
         const successMessage = 'Posted to Telegram successfully! 🦅🔥';
         Logger.info('[DotShare] Success: Post completed');
         if (callbacks?.onSuccess) {
             callbacks.onSuccess(successMessage);
-        } else if (isVscodeEnvironment) {
+        } else if (vscode) {
             vscode.window.showInformationMessage(successMessage);
         }
+        return firstReceipt;
     } catch (error: unknown) {
         let errorDetail = 'Unknown error';
 
@@ -115,37 +120,23 @@ export async function shareToTelegram(post: PostData, botToken?: string, chatId?
 
         const errorMessage = `Failed to post to Telegram: ${errorDetail}`;
         Logger.error('[DotShare] Error:', errorDetail);
-        Logger.error('[DotShare] Full error:', error);
 
         if (callbacks?.onError) {
             callbacks.onError(errorMessage);
-        } else if (isVscodeEnvironment) {
+        } else if (vscode) {
             vscode.window.showErrorMessage(errorMessage);
         }
+        throw new Error(errorMessage);
     }
 }
 
 // Helper function to send text messages
-async function sendTextMessage(botToken: string, chatId: string, text: string, scheduleDate?: Date): Promise<void> {
+async function sendTextMessage(botToken: string, chatId: string, text: string): Promise<PublicationReceipt> {
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
     Logger.info('[DotShare] Sending text message');
 
-    const payload: {
-        chat_id: string;
-        text: string;
-        parse_mode: string;
-        schedule_date?: number;
-    } = {
-        chat_id: chatId,
-        text: text,
-        parse_mode: 'HTML'
-    };
-
-    if (scheduleDate) {
-        payload.schedule_date = Math.floor(scheduleDate.getTime() / 1000);
-        Logger.info(`[DotShare] Scheduling for: ${scheduleDate.toISOString()}, Unix: ${payload.schedule_date}`);
-    }
+    const payload = { chat_id: chatId, text };
 
     const response = await axios.post(url, payload);
 
@@ -154,4 +145,13 @@ async function sendTextMessage(botToken: string, chatId: string, text: string, s
     }
 
     Logger.info(`[DotShare] Text sent successfully: ${response.data.result.message_id}`);
+    return telegramReceipt(chatId, response.data.result?.message_id);
+}
+
+function telegramReceipt(chatId: string, messageId: unknown): PublicationReceipt {
+    if (typeof messageId !== 'number' && typeof messageId !== 'string') throw new Error('Telegram returned no message ID; check the chat before retrying.');
+    const id = String(messageId);
+    const url = chatId.startsWith('@') ? `https://t.me/${chatId.slice(1)}/${id}`
+        : chatId.startsWith('-100') ? `https://t.me/c/${chatId.slice(4)}/${id}` : undefined;
+    return { id, ...(url && { url }) };
 }

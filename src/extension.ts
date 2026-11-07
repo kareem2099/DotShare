@@ -1,4 +1,5 @@
 import { protectSecretStorage } from './security/redaction';
+import { hardenHttp } from './security/http';
 import * as vscode from 'vscode';
 import { DotShareProvider } from './ui/DotShareProvider';
 import { DotShareWebView } from './ui/DotShareWebView';
@@ -15,6 +16,7 @@ import { ProjectContextService } from './services/ProjectContextService';
 import * as path from 'path';
 
 export async function activate(context: vscode.ExtensionContext) {
+    hardenHttp();
     context = protectSecretStorage(context);
     // ── Emergency Unban Recovery ──────────────────────────────────────────────
     context.subscriptions.push(
@@ -41,7 +43,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return; // Stop activation entirely — no commands, no UI registered
     }
 
-    Logger.init(context);
+    Logger.init(context, vscode);
     TokenManager.init(context);
     DotShareAuth.setContext(context);
     Logger.section('DotShare v3.0 Activating (Hybrid Mode)');
@@ -61,6 +63,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // ── 2. Command that opens the main WebView ────────────────
     context.subscriptions.push(
+        vscode.commands.registerCommand('dotshare.openLibrary', async () => {
+            const { PublishingLibraryPanel } = await import('./ui/PublishingLibraryPanel');
+            PublishingLibraryPanel.show(context);
+        }),
         vscode.commands.registerCommand('dotshare.openFullWebview', (_page?: string, options?: { platform?: string }) => {
             const platform = options?.platform;
             DotShareWebView.createPlatformPost(context, platform || 'linkedin');

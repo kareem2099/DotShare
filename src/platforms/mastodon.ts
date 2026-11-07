@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Logger } from '../utils/Logger';
+import { PublicationObserver } from './runtime';
 
 export interface MastodonPostData {
     text: string | string[];  // string[] = pre-split thread chunks from UI
@@ -106,13 +107,15 @@ function getApiError(error: unknown): string {
 }
 
 /** Limits vary per server. A failed lookup is not fatal: fall back to Mastodon's defaults. */
-async function fetchInstanceLimits(instance: string): Promise<InstanceLimits> {
+export async function fetchInstanceLimits(instance: string): Promise<InstanceLimits> {
     try {
-        const response = await axios.get(`${instance}/api/v2/instance`, { maxRedirects: 0 });
+        const response = await axios.get(`${instance}/api/v2/instance`, { maxRedirects: 0, timeout: 10000 });
         const statuses = response.data?.configuration?.statuses;
         return {
-            maxChars: statuses?.max_characters || DEFAULT_LIMITS.maxChars,
-            maxMedia: statuses?.max_media_attachments || DEFAULT_LIMITS.maxMedia,
+            maxChars: Number.isSafeInteger(statuses?.max_characters) && statuses.max_characters >= 32 && statuses.max_characters <= 100000
+                ? statuses.max_characters : DEFAULT_LIMITS.maxChars,
+            maxMedia: Number.isSafeInteger(statuses?.max_media_attachments) && statuses.max_media_attachments >= 0 && statuses.max_media_attachments <= 50
+                ? statuses.max_media_attachments : DEFAULT_LIMITS.maxMedia,
         };
     } catch (error: unknown) {
         Logger.warn('Mastodon: could not read instance limits, using defaults:', getApiError(error));
@@ -150,7 +153,7 @@ async function uploadMedia(instance: string, filePath: string, auth: AxiosReques
     return mediaId;
 }
 
-export async function shareToMastodon(instanceUrl: string, accessToken: string, postData: MastodonPostData): Promise<string> {
+export async function shareToMastodon(instanceUrl: string, accessToken: string, postData: MastodonPostData, onPublished?: PublicationObserver): Promise<string> {
     const instance = normalizeMastodonInstance(instanceUrl);
     // Redirects are refused so the token can only ever reach the configured host.
     const auth: AxiosRequestConfig = {
@@ -185,6 +188,7 @@ export async function shareToMastodon(instanceUrl: string, accessToken: string, 
             const currentPost = threadPosts[i];
 
             // A failed upload aborts the post rather than publishing it without its images.
+            if ((currentPost.media?.length || 0) > limits.maxMedia) throw new Error(`This instance accepts at most ${limits.maxMedia} attachments.`);
             const mediaIds: string[] = [];
             for (const filePath of (currentPost.media || []).slice(0, limits.maxMedia)) {
                 mediaIds.push(await uploadMedia(instance, filePath, auth));
@@ -196,9 +200,11 @@ export async function shareToMastodon(instanceUrl: string, accessToken: string, 
 
             const response = await axios.post(`${instance}/api/v1/statuses`, body, auth);
 
+            if (!response.data?.id) throw new Error('Mastodon returned no status ID; check your account before retrying.');
             parentId = String(response.data.id);
             if (i === 0) firstPostUrl = response.data.url || '';
             published++;
+            onPublished?.({ id: parentId, url: response.data.url || undefined });
 
             Logger.info(`Mastodon: post ${i + 1}/${threadPosts.length} posted successfully (id: ${parentId})`);
         }

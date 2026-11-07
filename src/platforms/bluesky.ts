@@ -2,6 +2,8 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Logger } from '../utils/Logger';
+import { PublicationObserver } from './runtime';
+import { rememberSecret } from '../security/redaction';
 
 export interface BlueSkyPostData {
     text: string | string[];  // string[] = pre-split thread chunks from UI
@@ -81,7 +83,8 @@ async function uploadBlobToBluesky(filePath: string, accessJwt: string): Promise
     return response.data.blob as BlobRef;
 }
 
-export async function shareToBlueSky(identifier: string, password: string, postData: BlueSkyPostData): Promise<string> {
+export async function shareToBlueSky(identifier: string, password: string, postData: BlueSkyPostData, onPublished?: PublicationObserver): Promise<string> {
+    let published = 0;
     try {
         const session = await authenticateBlueSky(identifier, password);
 
@@ -91,7 +94,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
         };
 
         // Handle both structured threads and single posts
-        const threadPosts = postData.posts || [];
+        const threadPosts = [...(postData.posts || [])];
         if (threadPosts.length === 0) {
             // Convert single post to thread structure for unified processing
             const texts = Array.isArray(postData.text)
@@ -116,13 +119,15 @@ export async function shareToBlueSky(identifier: string, password: string, postD
             // 1. Upload media for THIS post
             const imageBlobs: BlobRef[] = [];
             if (currentPost.media && currentPost.media.length > 0) {
-                const filesToUpload = currentPost.media.slice(0, 4).filter(f => fs.existsSync(f));
+                if (currentPost.media.length > 4) throw new Error('Bluesky supports at most 4 images per post.');
+                const filesToUpload = currentPost.media;
                 for (const filePath of filesToUpload) {
                     try {
                         const blob = await uploadBlobToBluesky(filePath, session.accessJwt);
                         imageBlobs.push(blob);
                     } catch (uploadErr) {
-                        Logger.error(`BlueSky: failed to upload blob for ${filePath}:`, uploadErr);
+                        Logger.error(`BlueSky: failed to upload blob for ${path.basename(filePath)}:`, uploadErr);
+                        throw new Error(`Bluesky media upload failed for ${path.basename(filePath)}`);
                     }
                 }
             }
@@ -160,6 +165,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
                 { headers }
             );
 
+            if (!response.data?.uri || !response.data?.cid) throw new Error('Bluesky returned no post reference; check your account before retrying.');
             const uri: string = response.data.uri;
             const cid: string = response.data.cid;
 
@@ -168,6 +174,8 @@ export async function shareToBlueSky(identifier: string, password: string, postD
                 rootPost = { uri, cid };
             }
             parentPost = { uri, cid };
+            published++;
+            onPublished?.({ id: uri, uri, url: `https://bsky.app/profile/${session.did}/post/${uri.split('/').pop()}` });
 
             Logger.info(`BlueSky: post ${i + 1}/${threadPosts.length} posted successfully (uri: ${uri})`);
         }
@@ -178,7 +186,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
         const axiosError = error as { response?: { data?: { message?: string } } };
         const apiMessage = axiosError.response?.data?.message;
         Logger.error('Error posting to BlueSky:', apiMessage || errorMessage);
-        throw new Error(apiMessage || 'Failed to post to BlueSky');
+        throw new Error(`${apiMessage || 'Failed to post to BlueSky'}${published ? ` (${published} thread post(s) already published)` : ''}`);
     }
 }
 
@@ -189,6 +197,8 @@ export async function authenticateBlueSky(identifier: string, password: string):
             password
         });
 
+        rememberSecret(response.data.accessJwt);
+        rememberSecret(response.data.refreshJwt);
         return {
             accessJwt: response.data.accessJwt,
             refreshJwt: response.data.refreshJwt,
@@ -220,6 +230,8 @@ export async function refreshBlueSkySession(refreshToken: string): Promise<{ acc
             }
         });
 
+        rememberSecret(response.data.accessJwt);
+        rememberSecret(response.data.refreshJwt);
         return {
             accessJwt: response.data.accessJwt,
             refreshJwt: response.data.refreshJwt,

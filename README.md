@@ -24,14 +24,61 @@
 
 ---
 
-## 🆕 What's New in 3.5.3 — Mastodon
+## 🆕 What's New in 3.6.0 — MCP & Publishing Library
 
-- **🐘 Mastodon support**: publish posts, threads and up to 4 images to **any Mastodon instance**. DotShare reads each server's character and media limits, and splits long posts into threads automatically.
-- **☁️ Mastodon cloud scheduling**: schedule Mastodon posts through DotSuite, with a separate consent prompt before your token is synced.
-- **🖼️ Thread image fix**: images attached to thread posts on X, Bluesky and Mastodon are now always published, or the post fails with a clear error instead of going out without them.
-- **🔐 Security updates**: patched dependency vulnerabilities and aligned plan limits with DotSuite.
+- **Local MCP server** for AI agents, with setup and diagnostics for Codex.
+- **Shared Publishing Library** for reviewing drafts, templates and per-account versions in VS Code.
+- **Saved previews and receipts** that record exactly which draft revision was published and where.
+- **Encrypted local records** with an OS-keyring master key and verified migration for existing libraries.
 
 👉 [Full changelog](https://github.com/kareem2099/DotShare/blob/master/CHANGELOG.md)
+
+---
+
+## 🤖 Publish through an AI agent
+
+DotShare now includes a local **MCP server** and an agent CLI. Connect Codex or another
+MCP client, then ask it to preview or publish posts, images and threads to named
+accounts on LinkedIn, X, Bluesky, Mastodon, Telegram, Discord and Dev.to. Per-account
+content, multiple accounts, durable retry protection and DotSuite cloud scheduling
+are available through structured tools.
+
+Install `dotshare-cli-3.0.0.tgz` from the [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
+with `npm install -g ./dotshare-cli-3.0.0.tgz`, or build this checkout with `npm run compile`.
+Run `dotshare-agent setup` to connect Codex, then `dotshare-agent doctor` to verify
+the connection. Connect accounts with `dotshare-agent accounts add`.
+`dotshare-agent doctor --check-accounts` checks platform identities without publishing.
+From a source checkout, replace `dotshare-agent` with `node bin/dotshare-agent.js`.
+
+Existing users should run `dotshare-agent security protect` and restart
+all MCP clients/VS Code windows. Shared library records are encrypted with an
+OS-keyring master key; Linux requires Secret Service without automatic fallback.
+See [the local security model and recovery requirements](SECURITY.md).
+
+Saved drafts have explicit **Draft → Preview → Published** states, with separate
+in-progress/uncertain results and publication URLs. Editing invalidates the preview;
+`publish_draft` sends the saved revision and verified local image bytes. Use
+`create_draft`, `update_draft`, `preview_draft` and `publish_draft` from your agent,
+or the CLI's `drafts` commands.
+
+Reusable local **templates** support literal `{{variables}}`, required/default values,
+HTTPS URL fields and platform/account variants. Start with five built-in recipes,
+save your own, then create an independent draft. Inspect each account's version with
+`get_draft_variants` and edit it with `set_draft_variant`; every edit requires a fresh
+publication preview. Rendering and draft creation never publish or call an AI provider.
+The same workflow is available through `templates` and `drafts` CLI commands.
+
+In VS Code, run **DotShare: Open Publishing Library** (or use the sidebar button)
+to work with those **same MCP drafts and templates** visually. Edit shared content
+and account versions, fill/customize templates, prepare a saved preview and publish
+it with per-account receipts. External edits refresh automatically; unsaved changes
+are preserved and stale saves are rejected. The library connects to your configured
+local MCP installation, without copying platform credentials. Earlier platform
+composer drafts remain in their existing screen; no automatic migration occurs.
+
+→ [Publishing Library guide](docs/PUBLISHING_LIBRARY.md)
+
+→ [Agent setup, Codex configuration, examples and supported limits](docs/AGENT_INTEGRATION.md)
 
 ---
 
@@ -61,7 +108,7 @@ Also available on the [Visual Studio Marketplace](https://marketplace.visualstud
 - Generate posts and full articles with **Google Gemini, OpenAI, Anthropic Claude, DeepSeek or xAI Grok**, using your own API key. Models are discovered live from each provider.
 - DotShare reads your **CHANGELOG, README, package manifest, Git commits and diffs** so posts describe what actually changed.
 - Five writing tones: Professional, Build in Public, Technical Deep-Dive, Quick TL;DR, and Full Markdown Article.
-- Writes in **English or Arabic**. Run **DotShare: 🧠 Inspect AI Release Context** to see exactly what the AI receives.
+- Writes in **English or Arabic**. Run **DotShare: Inspect AI Release Context** to see exactly what the AI receives.
 - Known secret patterns (API keys, tokens, private keys) are redacted from code excerpts before they reach an AI provider.
 
 ### 🧵 Thread composer
@@ -179,21 +226,23 @@ Generate a key under [Dev.to Settings → Extensions](https://dev.to/settings/ex
 
 ## ⌨️ DotShare CLI
 
-Post to Telegram and LinkedIn from your terminal or CI. Requires Node.js 22.12+.
+Use named local accounts from your terminal or CI. Requires Node.js 22.12+ and
+an unlocked OS credential store. Build/install this checkout for the current agent
+and security features; older published npm packages do not contain them.
 
 ```bash
-npm install -g dotshare-cli
-
-dotshare init
-dotshare login telegram
-dotshare login linkedin
-dotshare whoami
-
-dotshare "🚀 Just shipped v3.5.3!"
-dotshare "New UI 🎨" --media ./screenshot.png --platforms telegram,linkedin
+node bin/dotshare-agent.js security protect
+node bin/dotshare-agent.js accounts add personal-mastodon --platform mastodon
+node bin/dotshare-agent.js templates list
+node bin/dotshare-agent.js drafts create --input draft.json
+node bin/dotshare-agent.js drafts preview DRAFT_ID --revision 1
+node bin/dotshare-agent.js drafts publish DRAFT_ID --revision 1 --preview-id PREVIEW_ID --request-id release-1
 ```
 
-CLI credentials are kept in your operating system's credential store via `@napi-rs/keyring`; `~/.dotshare/config.json` holds preferences only.
+Credentials stay in the required OS keyring. Shared drafts, custom templates and
+journals are encrypted with a separate OS-keyring master key. The old `dotshare
+"message"` relay and legacy login are disabled; use the direct named-account tools.
+[Input formats and examples](docs/AGENT_INTEGRATION.md).
 
 ---
 

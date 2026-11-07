@@ -1,3 +1,4 @@
+import { secureFetch } from '../security/http';
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { TierInfo } from '../types';
@@ -160,7 +161,7 @@ export class DotShareAuth {
             const url = `${this.API_BASE_URL}/v1/ping`;
             Logger.info(`[DotShareAuth] Verifying token with backend at: ${url}`);
 
-            const response = await fetch(url, {
+            const response = await secureFetch(url, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -208,7 +209,7 @@ export class DotShareAuth {
         }
 
         try {
-            const response = await fetch(`${this.API_BASE_URL}/v1/billing/status`, {
+            const response = await secureFetch(`${this.API_BASE_URL}/v1/billing/status`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`

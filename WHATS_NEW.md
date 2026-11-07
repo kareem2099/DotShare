@@ -2,6 +2,17 @@
 
 ---
 
+## v3.6.0 — MCP & Publishing Library
+
+*November 7, 2026*
+
+- **DotShare for AI agents.** Connect Codex or another local MCP client to preview and publish through named accounts.
+- **A shared Publishing Library.** Start a draft in your agent, review the same draft in VS Code, and publish its saved preview. Reuse templates and customize the version for each account.
+- **Encrypted local records.** Drafts, custom templates and publication receipts use AES-256-GCM with a key stored in the OS credential store.
+- **CLI 3.0.0.** Switch legacy relay scripts to direct publishing with named accounts. Existing local libraries can be migrated with `dotshare-agent security protect`.
+
+---
+
 ## 🐘 v3.5.3 — "Mastodon"
 
 *Released: November 2, 2026*

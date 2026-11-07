@@ -1,3 +1,4 @@
+import { secureFetch } from '../security/http';
 import * as vscode from 'vscode';
 import { DotShareAuth } from './DotShareAuth';
 import { PostData, SocialPlatform, ScheduledPost } from '../types';
@@ -127,7 +128,7 @@ export class SchedulerClient {
 
             if (credToken) {
                 // Send it to the backend to encrypt and store
-                const req = fetch(`${this.getApiBaseUrl()}/v1/credentials`, {
+                const req = secureFetch(`${this.getApiBaseUrl()}/v1/credentials`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -169,7 +170,7 @@ export class SchedulerClient {
         }
 
         try {
-            const response = await fetch(`${this.getApiBaseUrl()}/v1/posts/schedule`, {
+            const response = await secureFetch(`${this.getApiBaseUrl()}/v1/posts/schedule`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -226,7 +227,7 @@ export class SchedulerClient {
         if (!token) return [];
 
         try {
-            const response = await fetch(`${this.getApiBaseUrl()}/v1/posts?status=pending`, {
+            const response = await secureFetch(`${this.getApiBaseUrl()}/v1/posts?status=pending`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -259,7 +260,7 @@ export class SchedulerClient {
         if (!token) return false;
 
         try {
-            const response = await fetch(`${this.getApiBaseUrl()}/v1/posts/${postId}`, {
+            const response = await secureFetch(`${this.getApiBaseUrl()}/v1/posts/${postId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -294,7 +295,7 @@ export class SchedulerClient {
         if (!token) return [];
 
         try {
-            const response = await fetch(`${this.getApiBaseUrl()}/v1/oauth/connections`, {
+            const response = await secureFetch(`${this.getApiBaseUrl()}/v1/oauth/connections`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

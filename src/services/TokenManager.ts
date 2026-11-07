@@ -1,5 +1,6 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import axios from 'axios';
+import { getPlatformHost } from '../platforms/runtime';
 import { Logger } from '../utils/Logger';
 
 // Auth server URL — same server that issued the token
@@ -169,7 +170,7 @@ export class TokenManager {
 
         // 5. Warnings (specifically X rotation failure)
         if (warning === 'refresh_token_missing_reauth_required') {
-            vscode.window.showWarningMessage(
+            getPlatformHost()?.window.showWarningMessage(
                 `DotShare: ${platform.toUpperCase()} session is valid but refresh token was lost. Please reconnect soon.`,
                 'Reconnect'
             );

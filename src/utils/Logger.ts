@@ -1,6 +1,7 @@
 // src/utils/Logger.ts
-import * as vscode from 'vscode';
-import { redactSensitiveText } from '../security/redaction';
+import type * as vscode from 'vscode';
+import { getPlatformHost, setPlatformHost } from '../platforms/runtime';
+import { redactSensitiveText, safeLogValue } from '../security/redaction';
 
 export enum LogLevel {
     DEBUG = 0,
@@ -18,11 +19,14 @@ const LEVEL_LABEL: Record<LogLevel, string> = {
 
 export class Logger {
     private static _instance: Logger;
-    private outputChannel: vscode.OutputChannel;
+    private outputChannel: Pick<vscode.OutputChannel, 'appendLine' | 'show'>;
     private minLevel: LogLevel = LogLevel.INFO;
 
     private constructor() {
-        this.outputChannel = vscode.window.createOutputChannel('DotShare');
+        this.outputChannel = getPlatformHost()?.window.createOutputChannel('DotShare') ?? {
+            appendLine: (line: string) => { process.stderr.write(`${line}\n`); },
+            show: () => undefined,
+        };
     }
 
     private static get instance(): Logger {
@@ -37,10 +41,14 @@ export class Logger {
      * Reads dotshare.logLevel from VS Code settings and watches for changes.
      * Safe to skip — defaults to INFO if not called.
      */
-    public static init(context?: vscode.ExtensionContext): void {
+    public static init(context?: vscode.ExtensionContext, host?: typeof vscode): void {
+        if (host) {
+            setPlatformHost(host);
+            if (Logger._instance) Logger._instance.outputChannel = host.window.createOutputChannel('DotShare');
+        }
         Logger.instance.refreshLevel();
 
-        vscode.workspace.onDidChangeConfiguration((e) => {
+        getPlatformHost()?.workspace.onDidChangeConfiguration((e) => {
             if (e.affectsConfiguration('dotshare.logLevel')) {
                 Logger.instance.refreshLevel();
             }
@@ -48,10 +56,10 @@ export class Logger {
     }
 
     private refreshLevel(): void {
-        const setting = vscode.workspace
+        const setting = getPlatformHost()?.workspace
             .getConfiguration('dotshare')
             .get<string>('logLevel', 'INFO')
-            .toUpperCase();
+            .toUpperCase() ?? 'INFO';
 
         switch (setting) {
             case 'DEBUG': this.minLevel = LogLevel.DEBUG; break;
@@ -70,7 +78,7 @@ export class Logger {
 
         if (data !== undefined) {
             try {
-                logMessage += `\nData: ${JSON.stringify(data, null, 2)}`;
+                logMessage += `\nData: ${safeLogValue(data)}`;
             } catch {
                 logMessage += `\nData: [Unstringifiable]`;
             }
@@ -99,7 +107,7 @@ export class Logger {
     public static error(message: string, error?: unknown): void {
         const detail = error instanceof Error
             ? (error.stack ?? error.message)
-            : error !== undefined ? JSON.stringify(error) : undefined;
+            : error !== undefined ? safeLogValue(error) : undefined;
         Logger.instance.logInstance(LogLevel.ERROR, message, detail);
     }
 

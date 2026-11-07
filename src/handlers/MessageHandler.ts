@@ -82,6 +82,9 @@ export class MessageHandler {
 
         try {
             switch (cmd) {
+                case 'openPublishingLibrary':
+                    await vscode.commands.executeCommand('dotshare.openLibrary');
+                    break;
                 case 'openArticlePreviewLink': {
                     const opened = await openArticlePreviewLink(message.url);
                     await this.view.webview.postMessage({ command: 'articlePreviewLinkResult', opened });

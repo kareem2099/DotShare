@@ -8,7 +8,7 @@
  */
 
 const { Command } = require('commander');
-const { setupInitCommand, setupLoginCommand, setupWhoamiCommand, setupDefaultCommand } = require('../out/cli/commands.js');
+const { setupInitCommand, setupLoginCommand, setupWhoamiCommand, setupDefaultCommand, setupAgentCommands } = require('../out/cli/commands.js');
 const { version } = require('../package.json');
 
 const program = new Command();
@@ -25,6 +25,7 @@ setupInitCommand(program);
 setupLoginCommand(program);
 setupWhoamiCommand(program);
 setupDefaultCommand(program);
+setupAgentCommands(program);
 
 // Add help examples
 program.addHelpText('after', `
@@ -33,9 +34,10 @@ Examples:
   $ dotshare login telegram          # Authenticate with Telegram
   $ dotshare login linkedin          # Authenticate with LinkedIn
   $ dotshare whoami                  # Show current configuration
-  $ dotshare "Hello World!"          # Post to all configured platforms
-  $ dotshare --media ./image.jpg     # Post media file
-  $ dotshare "Check this" --media ./video.mp4 --platforms telegram,linkedin
+  $ dotshare accounts list           # List local agent accounts
+  $ dotshare drafts list             # Read saved drafts
+  $ dotshare security protect        # Encrypt existing local records
+  $ dotshare publish --input post.json # Publish directly to named accounts
 
 For more information, visit: https://github.com/kareem2099/DotShare
 `);
@@ -46,4 +48,4 @@ if (process.argv.length === 2) {
 }
 
 // Parse arguments
-program.parse(process.argv);
+program.parseAsync(process.argv).catch(() => { process.exitCode = 1; });

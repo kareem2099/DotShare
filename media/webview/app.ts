@@ -49,6 +49,9 @@ function send(command: string, payload: Record<string, unknown> = {}): void {
     try { vscode.postMessage({ command, ...payload }); }
     catch (e) { console.error(`[DotShare] send '${command}' failed:`, e); }
 }
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-open-library]').forEach(button => button.addEventListener('click', () => send('openPublishingLibrary')));
+});
 
 function get<T extends HTMLElement = HTMLElement>(id: string): T | null {
     return document.getElementById(id) as T | null;

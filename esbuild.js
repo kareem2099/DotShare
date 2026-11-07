@@ -92,15 +92,39 @@ async function main() {
         plugins: [esbuildProblemMatcherPlugin],
     });
 
+    // 5. Headless publishing and MCP entrypoints (portable; no VS Code host).
+    const agentCtx = await esbuild.context({
+        entryPoints: ['src/agent/server.ts', 'src/agent/commands.ts'],
+        bundle: true,
+        format: 'cjs',
+        platform: 'node',
+        target: 'node22',
+        packages: 'external',
+        minify: production,
+        sourcemap: !production,
+        sourcesContent: false,
+        outdir: 'out/agent',
+        logLevel: 'silent',
+        plugins: [esbuildProblemMatcherPlugin],
+    });
+
+    const libraryCtx = await esbuild.context({
+        entryPoints: ['media/library/app.ts'], bundle: true, format: 'iife', platform: 'browser',
+        target: 'es2020', minify: production, sourcemap: !production, sourcesContent: false,
+        outfile: 'media/library/app.js', logLevel: 'silent', plugins: [esbuildProblemMatcherPlugin],
+    });
+
     if (watch) {
-        await Promise.all([extCtx.watch(), sidebarCtx.watch(), webviewCtx.watch(), cliCtx.watch()]);
+        await Promise.all([extCtx.watch(), sidebarCtx.watch(), webviewCtx.watch(), cliCtx.watch(), agentCtx.watch(), libraryCtx.watch()]);
         console.log('[watch] Watching Extension, Sidebar, Webview, and CLI for changes...');
     } else {
-        await Promise.all([extCtx.rebuild(), sidebarCtx.rebuild(), webviewCtx.rebuild(), cliCtx.rebuild()]);
+        await Promise.all([extCtx.rebuild(), sidebarCtx.rebuild(), webviewCtx.rebuild(), cliCtx.rebuild(), agentCtx.rebuild(), libraryCtx.rebuild()]);
         await extCtx.dispose();
         await sidebarCtx.dispose();
         await webviewCtx.dispose();
         await cliCtx.dispose();
+        await agentCtx.dispose();
+        await libraryCtx.dispose();
         console.log('[build] Build completed successfully.');
     }
 }

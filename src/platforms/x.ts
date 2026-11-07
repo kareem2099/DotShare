@@ -5,6 +5,7 @@ import FormData from 'form-data'; // Required for Node.js
 import { Logger } from '../utils/Logger';
 import { TokenManager } from '../services/TokenManager';
 import { AUTH_SERVER_URL } from '../services/TokenManager';
+import { PublicationObserver } from './runtime';
 
 export interface TweetData {
     text: string | string[];  // string[] = pre-split thread chunks from UI
@@ -68,6 +69,17 @@ async function uploadMediaToX(filePath: string, accessToken: string): Promise<st
     const fileBuffer = fs.readFileSync(filePath);
     const mime = getMimeType(filePath);
     const totalBytes = fileBuffer.length;
+    if (mime.startsWith('image/') && mime !== 'image/gif') {
+        const form = new FormData();
+        form.append('media', fileBuffer, { filename: path.basename(filePath), contentType: mime });
+        form.append('media_category', 'tweet_image');
+        const response = await axios.post('https://api.x.com/2/media/upload', form, {
+            headers: { Authorization: `Bearer ${accessToken}`, ...form.getHeaders() },
+        });
+        const id = response.data?.data?.id;
+        if (!id) throw new Error('X returned no uploaded media ID.');
+        return String(id);
+    }
 
     // INIT
     const initRes = await axios.post(
@@ -128,10 +140,11 @@ async function uploadMediaToX(filePath: string, accessToken: string): Promise<st
 export async function shareToX(
     _accessToken: string,
     _accessSecret: string,
-    tweetData: TweetData
+    tweetData: TweetData,
+    options?: { tokenProvider?: () => Promise<string>; onPublished?: PublicationObserver }
 ): Promise<string> {
     try {
-        const accessToken = await TokenManager.getValidToken('x');
+        const accessToken = await (options?.tokenProvider ? options.tokenProvider() : TokenManager.getValidToken('x'));
         if (!accessToken) throw new Error('X: not authenticated — connect your account in Settings.');
 
         const headers = {
@@ -140,7 +153,7 @@ export async function shareToX(
         };
 
         // Handle both structured threads and single posts
-        const threadPosts = tweetData.posts || [];
+        const threadPosts = [...(tweetData.posts || [])];
         if (threadPosts.length === 0) {
             // Convert single post to thread structure for unified processing
             const texts = Array.isArray(tweetData.text)
@@ -165,15 +178,19 @@ export async function shareToX(
             // 1. Upload media for THIS tweet
             const mediaIds: string[] = [];
             if (currentPost.media && currentPost.media.length > 0) {
-                const mediaToUpload = currentPost.media.slice(0, 4);
+                if (currentPost.media.length > 4) throw new Error('X supports at most 4 images per post.');
+                const mediaToUpload = currentPost.media;
                 for (const filePath of mediaToUpload) {
                     if (fs.existsSync(filePath)) {
                         try {
                             const mediaId = await uploadMediaToX(filePath, accessToken);
                             mediaIds.push(mediaId);
                         } catch (uploadErr) {
-                            Logger.error(`X: failed to upload media for ${filePath}:`, uploadErr);
+                            Logger.error(`X: failed to upload media for ${path.basename(filePath)}:`, uploadErr);
+                            throw new Error(`X media upload failed for ${path.basename(filePath)}`);
                         }
+                    } else {
+                        throw new Error(`X media file not found: ${path.basename(filePath)}`);
                     }
                 }
             }
@@ -200,7 +217,9 @@ export async function shareToX(
                 { headers }
             );
 
-            const tweetId: string = response.data.data.id;
+            const tweetId: string = response.data?.data?.id;
+            if (!tweetId) throw new Error('X returned no post ID; check your account before retrying.');
+            options?.onPublished?.({ id: tweetId, url: `https://x.com/i/status/${tweetId}` });
 
             if (i === 0) firstTweetId = tweetId;
             previousTweetId = tweetId;

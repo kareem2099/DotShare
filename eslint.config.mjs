@@ -12,6 +12,8 @@ const ignores = [
     'media/app.js',
     'media/webview/app.js',
     'media/webview/app.js.map',
+    'media/library/app.js',
+    'media/library/app.js.map',
     'media/webview/style.css',
     // Third-party vendor files (highlight.js, theme CSS) — generated, not our code
     'media/webview/vendor/**',
@@ -51,6 +53,7 @@ export default [
                 setInterval: 'readonly',
                 clearInterval: 'readonly',
                 global: 'writable',
+                NodeJS: 'readonly',
                 // Node 18+ built-ins (fetch API, etc.)
                 fetch: 'readonly',
                 Response: 'readonly',
@@ -80,7 +83,7 @@ export default [
 
     // ── media/webview/**/*.ts — Browser webview code ─────────
     {
-        files: ['media/webview/*.ts', 'media/*.ts'],
+        files: ['media/webview/*.ts', 'media/library/*.ts', 'media/*.ts'],
         languageOptions: {
             parser: tsParser,
             ecmaVersion: 'latest',
@@ -101,6 +104,9 @@ export default [
                 HTMLButtonElement: 'readonly',
                 HTMLInputElement: 'readonly',
                 HTMLTextAreaElement: 'readonly',
+                HTMLTemplateElement: 'readonly',
+                HTMLDetailsElement: 'readonly',
+                HTMLElementTagNameMap: 'readonly',
                 HTMLSelectElement: 'readonly',
                 Event: 'readonly',
                 MessageEvent: 'readonly',
@@ -116,6 +122,8 @@ export default [
                 FileList: 'readonly',
                 Blob: 'readonly',
                 Image: 'readonly',
+                HTMLTextAreaElement: 'readonly',
+                crypto: 'readonly',
                 URL: 'readonly',
                 URLSearchParams: 'readonly',
                 AbortSignal: 'readonly',
