@@ -24,14 +24,15 @@
 
 ---
 
-## 🆕 What's New in 3.6.0 — MCP & Publishing Library
+## 🆕 What's New in 3.6.1 — Field Fixes
 
-- **Local MCP server** for AI agents, with setup and diagnostics for Codex.
-- **Shared Publishing Library** for reviewing drafts, templates and per-account versions in VS Code.
-- **Saved previews and receipts** that record exactly which draft revision was published and where.
-- **Encrypted local records** with an OS-keyring master key and verified migration for existing libraries.
+- **Clickable Bluesky links and hashtags**, and hashtags that show up in Bluesky search.
+- **LinkedIn first comment:** agents can post the article link as the first comment instead of in the post body.
+- **No stuck locks:** a crash no longer blocks the MCP, and several MCP clients can share one library.
 
-[Download VS Code 3.6.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-3.6.0.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
+Builds on 3.6.0, which added the **local MCP server** for AI agents, the **shared Publishing Library** in VS Code, **saved previews and receipts**, and **encrypted local records**.
+
+[Download VS Code 3.6.1 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.6.1/dotshare-3.6.1.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.6.1)
 
 ---
 
@@ -103,7 +104,7 @@ composer drafts remain in their existing screen; no automatic migration occurs.
 code --install-extension freerave.dotshare
 ```
 
-**From GitHub:** download the `v3.6.0` VSIX above and run `code --install-extension ./dotshare-3.6.0.vsix`.
+**From GitHub:** download the `v3.6.1` VSIX above and run `code --install-extension ./dotshare-3.6.1.vsix`.
 For the shared Publishing Library, also complete the [MCP quick start](#quick-start-for-ai-agents).
 
 Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.
