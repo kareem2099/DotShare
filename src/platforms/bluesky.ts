@@ -52,6 +52,40 @@ interface BlobRef {
     size: number;
 }
 
+export interface Facet {
+    index: { byteStart: number; byteEnd: number };
+    features: Array<{ $type: 'app.bsky.richtext.facet#link'; uri: string } | { $type: 'app.bsky.richtext.facet#tag'; tag: string }>;
+}
+
+// Punctuation that ends a sentence rather than a URL, e.g. "see https://x.dev."
+const TRAILING_URL_PUNCTUATION = /[.,;:!?'")\]]+$/;
+const URL_PATTERN = /https?:\/\/[^\s]+/gu;
+// A tag starts after whitespace or at the start, and needs at least one non-digit.
+const TAG_PATTERN = /(^|\s)#([^\s#]*[^\d\s#][^\s#]*)/gu;
+const MAX_TAG_LENGTH = 64;
+
+/**
+ * Bluesky only links URLs and hashtags that the post marks as facets, with
+ * offsets in UTF-8 bytes. Without them both show as plain, unclickable text.
+ */
+export function detectFacets(text: string): Facet[] {
+    const bytes = (end: number): number => Buffer.byteLength(text.slice(0, end), 'utf8');
+    const facets: Facet[] = [];
+    for (const match of text.matchAll(URL_PATTERN)) {
+        const uri = match[0].replace(TRAILING_URL_PUNCTUATION, '');
+        try { new URL(uri); } catch { continue; }
+        const start = match.index!;
+        facets.push({ index: { byteStart: bytes(start), byteEnd: bytes(start + uri.length) }, features: [{ $type: 'app.bsky.richtext.facet#link', uri }] });
+    }
+    for (const match of text.matchAll(TAG_PATTERN)) {
+        const tag = match[2].replace(/\p{P}+$/u, '');
+        if (!tag || tag.length > MAX_TAG_LENGTH || /^\d+$/.test(tag)) continue;
+        const start = match.index! + match[1].length;
+        facets.push({ index: { byteStart: bytes(start), byteEnd: bytes(start + 1 + tag.length) }, features: [{ $type: 'app.bsky.richtext.facet#tag', tag }] });
+    }
+    return facets.sort((a, b) => a.index.byteStart - b.index.byteStart);
+}
+
 function getMimeType(filePath: string): string {
     const ext = path.extname(filePath).toLowerCase();
     switch (ext) {
@@ -138,6 +172,8 @@ export async function shareToBlueSky(identifier: string, password: string, postD
                 createdAt: new Date().toISOString(),
                 $type: 'app.bsky.feed.post'
             };
+            const facets = detectFacets(currentPost.text);
+            if (facets.length > 0) record.facets = facets;
 
             // 3. Attach embeds if media exists
             if (imageBlobs.length > 0) {
