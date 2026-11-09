@@ -31,7 +31,7 @@
 - **Saved previews and receipts** that record exactly which draft revision was published and where.
 - **Encrypted local records** with an OS-keyring master key and verified migration for existing libraries.
 
-[Download VS Code 3.6.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-3.6.0.vsix) · [Download CLI/MCP 3.0.0 (.tgz)](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-cli-3.0.0.tgz) · [Release notes](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
+[Download VS Code 3.6.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-3.6.0.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
 
 ---
 
@@ -43,11 +43,11 @@ accounts on LinkedIn, X, Bluesky, Mastodon, Telegram, Discord and Dev.to. Per-ac
 content, multiple accounts, durable retry protection and DotSuite cloud scheduling
 are available through structured tools.
 
-Download `dotshare-cli-3.0.0.tgz` above. With Node.js 22.12+ and an unlocked OS
-credential store, run these commands from the download directory:
+Use Node.js 22.12+ and an unlocked OS credential store. Install the CLI and MCP
+server from npm, then connect Codex and a publishing account.
 
 ```sh
-npm install -g ./dotshare-cli-3.0.0.tgz
+npm install -g dotshare-cli
 dotshare-agent setup
 dotshare-agent accounts add personal-mastodon --platform mastodon
 dotshare-agent doctor --account personal-mastodon
@@ -241,7 +241,7 @@ Generate a key under [Dev.to Settings → Extensions](https://dev.to/settings/ex
 ## ⌨️ DotShare CLI
 
 Use named local accounts from your terminal or CI. Requires Node.js 22.12+ and
-an unlocked OS credential store. Install the `3.0.0` tarball from the [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0).
+an unlocked OS credential store. Install the CLI with `npm install -g dotshare-cli`.
 With an account already connected, save and preview a draft from the terminal:
 
 ```bash

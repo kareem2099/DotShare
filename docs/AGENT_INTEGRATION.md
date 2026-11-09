@@ -10,10 +10,10 @@ The local MCP server uses stdio and does not require a separate model/API key.
 Requires Node.js 22.12+ and an unlocked OS credential store. On Linux, a working
 Secret Service/keyring session is required. There is no plaintext secret fallback.
 
-Download the [CLI/MCP 3.0.0 tarball](https://github.com/kareem2099/DotShare/releases/download/v3.6.0/dotshare-cli-3.0.0.tgz). For an existing library, follow the [upgrade steps](#local-storage-protection) before resuming publication.
+Install the CLI and MCP server from npm. For an existing library, follow the [upgrade steps](#local-storage-protection) before resuming publication.
 
 ```sh
-npm install -g ./dotshare-cli-3.0.0.tgz
+npm install -g dotshare-cli
 dotshare-agent setup
 dotshare-agent accounts add personal-mastodon --platform mastodon --name "Personal Mastodon"
 dotshare-agent doctor --account personal-mastodon
@@ -22,6 +22,8 @@ dotshare-agent doctor --account personal-mastodon
 Restart or reconnect Codex after setup. In Codex, ask DotShare to list your local
 accounts, save a draft for one of them and prepare its preview. To review that draft
 in VS Code, follow the [Publishing Library guide](PUBLISHING_LIBRARY.md).
+
+You can also download the tarball and install it with `npm install -g ./dotshare-cli-3.0.0.tgz`. [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
 
 To build and configure from source instead:
 
@@ -74,9 +76,10 @@ The master key is generated randomly and stored in the OS keyring only; a locked
 missing or mismatched key fails closed. Restore the original OS key and security.json
 instead of generating a replacement key for existing ciphertext.
 
-To upgrade an existing installation, stop active publications and install CLI 3.0.0, then run:
+To upgrade an existing installation, stop active publications and run these commands.
 
 ```sh
+npm install -g dotshare-cli
 dotshare-agent security status
 dotshare-agent security protect
 ```
