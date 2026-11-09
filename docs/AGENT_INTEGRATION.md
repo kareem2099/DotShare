@@ -192,7 +192,8 @@ in the OS keyring are shared between home directories; account IDs should be uni
 if using several directories. `DOTSHARE_MEDIA_ROOTS` contains allowed image directories
 separated by the OS path delimiter (`:` on Linux/macOS, `;` on Windows). Each entry
 must be an absolute path. When it is unset or invalid, local images are disabled and
-text-only posts still work. Real paths are checked, including symlink targets.
+text-only posts still work. A relative image path such as `launch.png` is looked up
+inside each root in order. Real paths are checked, including symlink targets.
 The server never downloads arbitrary social-media URLs or reads credentials from
 tool arguments. Diagnostics go to stderr; stdout is reserved for MCP JSON.
 

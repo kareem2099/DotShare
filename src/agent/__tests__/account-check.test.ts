@@ -69,3 +69,11 @@ it('redacts an echoed credential even in a successful identity field', async () 
     expect(JSON.stringify(result)).not.toContain('private-x-accessToken');
     expect(result.identity).toBe('[REDACTED]');
 });
+it('names the missing Mastodon profile scope when identity lookup is forbidden', async () => {
+    add('mastodon');
+    jest.mocked(axios.get).mockRejectedValue({ isAxiosError: true, response: { status: 403 } });
+    const result = await checkAccount(store, store.get('mastodon'));
+    expect(result.status).toBe('warn');
+    expect(result.fix).toContain('profile scope');
+    expect(result.message).toContain('may still work');
+});

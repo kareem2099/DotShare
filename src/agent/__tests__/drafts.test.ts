@@ -236,3 +236,29 @@ it('leaves a cancelled preflight editable and creates no publication operation',
     expect(drafts.get(draft.id).status).toBe('Draft'); expect(publisher.journal.list()).toEqual([]); expect(adapter).not.toHaveBeenCalled();
     expect(drafts.update({ draftId: draft.id, expectedRevision: 1, patch: { text: 'Editable again' } }).revision).toBe(2);
 });
+it('lists readable drafts when one draft file is damaged', () => {
+    const good = create();
+    const bad = create({ text: 'Will be damaged' });
+    fs.writeFileSync(path.join(home, 'drafts', `${bad.id}.json`), '{"truncated"');
+    const listed = drafts.list().drafts;
+    expect(listed).toHaveLength(2);
+    expect(listed[0]).toMatchObject({ id: good.id, status: 'Draft' });
+    expect(listed[1]).toMatchObject({ id: bad.id, unreadable: true });
+    expect(drafts.list({ status: 'Draft' }).drafts.map(draft => draft.id)).toEqual([good.id]);
+});
+it('edits a draft whose lock was left behind by a crashed process', () => {
+    const draft = create();
+    const crashed = require('child_process').spawnSync(process.execPath, ['-e', '']).pid;
+    fs.writeFileSync(path.join(home, 'drafts', `${draft.id}.json.lock`), JSON.stringify({ pid: crashed, host: os.hostname(), createdAt: Date.now() }));
+    const updated = drafts.update({ draftId: draft.id, expectedRevision: draft.revision, title: 'Recovered' });
+    expect(updated.title).toBe('Recovered');
+});
+it('saves, previews and clears a LinkedIn first comment on a draft', async () => {
+    accounts.add({ id: 'work', name: 'Work LinkedIn', platform: 'linkedin', credentials: { accessToken: 'private-linkedin-access-token' } });
+    const draft = drafts.create({ title: 'LinkedIn', content: { accountIds: ['work'], text: 'New article out', firstComment: 'Read it: https://dev.to/example' } });
+    const previewed = await drafts.preview({ draftId: draft.id, expectedRevision: draft.revision });
+    expect(previewed.status).toBe('Preview');
+    expect(previewed.preview!.plan.targets[0].firstComment).toBe('Read it: https://dev.to/example');
+    const cleared = drafts.update({ draftId: draft.id, expectedRevision: previewed.revision, patch: { firstComment: null } });
+    expect(cleared.content).not.toHaveProperty('firstComment');
+});

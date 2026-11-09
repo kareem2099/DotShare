@@ -28,11 +28,29 @@ interface LinkedInPostBody {
     visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': string };
 }
 
+/** Post `text` as a comment on the member's own post, e.g. to keep a link out of the post body. */
+async function addFirstComment(postUrn: string, personUrn: string, text: string, accessToken: string): Promise<string> {
+    const response = await axios.post(`https://api.linkedin.com/v2/socialActions/${encodeURIComponent(postUrn)}/comments`, {
+        actor: personUrn,
+        object: postUrn,
+        message: { text },
+    }, {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'X-Restli-Protocol-Version': '2.0.0'
+        }
+    });
+    const id = String(response.headers?.['x-restli-id'] || response.data?.$URN || response.data?.id || '');
+    if (!id) throw new Error('LinkedIn returned no comment ID.');
+    return id;
+}
+
 export async function shareToLinkedIn(post: PostData, accessToken?: string, callbacks?: {
     onSuccess?: (message: string) => void;
     onError?: (message: string) => void;
     onOpenLink?: (url: string) => void;
-}, onPublished?: PublicationObserver): Promise<PublicationReceipt | undefined> {
+}, onPublished?: PublicationObserver, options?: { firstComment?: string }): Promise<PublicationReceipt | undefined> {
     const vscode = getPlatformHost();
     if (!accessToken) {
         // Fallback for manual sharing if no token is provided
@@ -51,6 +69,8 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         return;
     }
 
+    // Once the post is public, a failure must not read as "post failed": retrying would duplicate it.
+    let published = false;
     try {
         // 1. Get User URN (Profile ID) using OpenID endpoint
         const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
@@ -149,7 +169,13 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         const id = String(response.headers?.['x-restli-id'] || response.data?.id || '');
         if (!id) throw new Error('LinkedIn returned no post ID; check the account before retrying.');
         const receipt = { id, url: `https://www.linkedin.com/feed/update/${encodeURIComponent(id)}/` };
+        published = true;
         onPublished?.(receipt);
+
+        if (options?.firstComment) {
+            const commentId = await addFirstComment(id, personUrn, options.firstComment, accessToken);
+            onPublished?.({ id: commentId, url: receipt.url });
+        }
         // 4. Handle Success
         const successMessage = 'Posted to LinkedIn successfully!';
         if (callbacks?.onSuccess) {
@@ -161,7 +187,10 @@ export async function shareToLinkedIn(post: PostData, accessToken?: string, call
         return receipt;
     } catch (error: unknown) {
         // Handle Errors elegantly
-        let errorMessage = 'Failed to post to LinkedIn';
+        let errorMessage = published ? 'The LinkedIn post was published, but its first comment failed' : 'Failed to post to LinkedIn';
+        if (published && axios.isAxiosError(error) && error.response?.status === 403) {
+            errorMessage += ': the token may lack permission to comment. Add the comment manually; do not republish';
+        }
         const axiosErr = axios.isAxiosError(error) ? error : null;
         if (axiosErr?.response?.data?.message || axiosErr?.response?.data?.error?.message) {
             errorMessage += `: ${axiosErr.response?.data?.message || axiosErr.response?.data?.error?.message}`;

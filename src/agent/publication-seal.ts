@@ -4,7 +4,7 @@ import * as path from 'path';
 import { createHash } from 'crypto';
 import { PlannedTarget } from './preview';
 import { AccountStore } from './accounts';
-import { fingerprint } from './journal';
+import { fingerprint, matchesFingerprint } from './journal';
 
 export interface AssetSeal { path: string; sha256: string; }
 export interface AccountSeal { accountId: string; fingerprint: string; }
@@ -38,6 +38,9 @@ export function sealAssets(targets: PlannedTarget[]): AssetSeal[] {
 }
 export function accountFingerprint(store: AccountStore, id: string, credentials: Record<string, string>): string {
     return fingerprint({ accountId: id, platform: store.get(id).platform, credentials });
+}
+export function accountMatches(store: AccountStore, id: string, credentials: Record<string, string>, expected: string): boolean {
+    return matchesFingerprint(expected, { accountId: id, platform: store.get(id).platform, credentials });
 }
 export function sealAccounts(store: AccountStore, targets: Pick<PlannedTarget, 'accountId'>[]): AccountSeal[] {
     return targets.map(target => ({ accountId: target.accountId, fingerprint: accountFingerprint(store, target.accountId, store.credentials(target.accountId)) }));

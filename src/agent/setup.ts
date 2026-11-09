@@ -5,6 +5,7 @@ import { parse, stringify } from 'smol-toml';
 import { randomUUID } from 'crypto';
 import { defaultAgentHome } from './accounts';
 import { McpLaunch, ProbeMcp, probeMcp } from './mcp-probe';
+import { withFileLock } from '../security/locks';
 
 export type SetupClient = 'codex' | 'generic';
 export interface Installation { root: string; server: string; node: string; }
@@ -125,23 +126,20 @@ export function replaceCodexEntry(config: ClientConfig, entry: Record<string, un
 
 function writeConfig(config: ClientConfig, next: string): string {
     fs.mkdirSync(path.dirname(config.file), { recursive: true, mode: 0o700 });
-    const lock = `${config.file}.dotshare-setup.lock`;
-    let fd: number;
-    try { fd = fs.openSync(lock, 'wx', 0o600); }
-    catch { throw new Error('Cannot lock the client config. Check directory permissions or another setup process; remove a stale .dotshare-setup.lock only after verifying setup is not running.'); }
     const temporary = `${config.file}.${randomUUID()}.tmp`;
-    try {
-        const current = fs.existsSync(config.file) ? fs.readFileSync(config.file, 'utf8') : '';
-        if (current !== config.original) throw new Error('Client settings changed during setup. Run setup again to preserve the newer settings.');
-        const backup = `${config.file}.before-dotshare-${randomUUID()}`;
-        if (fs.existsSync(config.file)) fs.writeFileSync(backup, config.original, { flag: 'wx', mode: 0o600 });
-        fs.writeFileSync(temporary, next, { flag: 'wx', mode: 0o600 });
-        fs.renameSync(temporary, config.file);
-        return fs.existsSync(backup) ? backup : '';
-    } finally {
-        fs.closeSync(fd); fs.unlinkSync(lock);
-        if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
-    }
+    return withFileLock(`${config.file}.dotshare-setup.lock`, () => {
+        try {
+            const current = fs.existsSync(config.file) ? fs.readFileSync(config.file, 'utf8') : '';
+            if (current !== config.original) throw new Error('Client settings changed during setup. Run setup again to preserve the newer settings.');
+            const backup = `${config.file}.before-dotshare-${randomUUID()}`;
+            if (fs.existsSync(config.file)) fs.writeFileSync(backup, config.original, { flag: 'wx', mode: 0o600 });
+            fs.writeFileSync(temporary, next, { flag: 'wx', mode: 0o600 });
+            fs.renameSync(temporary, config.file);
+            return fs.existsSync(backup) ? backup : '';
+        } finally {
+            if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+        }
+    }, { busy: () => new Error('Cannot lock the client config. Check directory permissions, or wait for the other setup process to finish.') });
 }
 
 export async function runSetup(options: SetupOptions = {}, context: SetupContext = {}): Promise<SetupResult> {

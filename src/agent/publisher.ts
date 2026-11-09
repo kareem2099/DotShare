@@ -1,5 +1,5 @@
 import { AccountStore } from './accounts';
-import { OperationJournal, fingerprint, Operation } from './journal';
+import { OperationJournal, fingerprint, fingerprints, Fingerprints, Operation } from './journal';
 import { PostPlanner, PlannedTarget } from './preview';
 import { PublishInput, publishSchema } from './schema';
 import { PublicationObserver } from '../platforms/runtime';
@@ -11,7 +11,7 @@ import { shareToMastodon } from '../platforms/mastodon';
 import { shareToDiscord } from '../platforms/discord';
 import { shareToDevTo } from '../platforms/devto';
 import { redactSensitiveText, assertNoKnownSecrets } from '../security/redaction';
-import { PublicationSeal, accountFingerprint, stageAssets } from './publication-seal';
+import { PublicationSeal, accountMatches, stageAssets } from './publication-seal';
 
 export type PublishClaim = { operation: Operation; replayed: boolean };
 export type ClaimGuard = (begin: () => PublishClaim) => PublishClaim;
@@ -29,7 +29,7 @@ export const publishTarget: PublishAdapter = async (target, credentials, input, 
         case 'x':
             await shareToX(credentials.accessToken, '', thread, { tokenProvider: async () => credentials.accessToken, onPublished: report }); return;
         case 'linkedin':
-            await shareToLinkedIn(first, credentials.accessToken, undefined, report); return;
+            await shareToLinkedIn(first, credentials.accessToken, undefined, report, { firstComment: target.firstComment }); return;
         case 'telegram':
             await shareToTelegram(first, credentials.botToken, credentials.chatId, undefined, undefined, report); return;
         case 'discord':
@@ -58,7 +58,7 @@ export class AgentPublisher {
 
     async publish(value: unknown, signal?: AbortSignal): Promise<{ operation: Operation; replayed: boolean }> {
         const input = publishSchema.parse(value);
-        const hash = fingerprint(input);
+        const hash = fingerprints(input);
         if (this.journal.get(input.requestId)) return this.journal.begin(input.requestId, hash, 'publish');
         if (signal?.aborted) throw new Error('Cancelled before publishing.');
         const content = { ...input } as Partial<PublishInput>;
@@ -76,7 +76,7 @@ export class AgentPublisher {
     /** Revalidate a saved preview, then send its exact parts and image bytes. */
     async publishPrepared(value: unknown, seal: PublicationSeal, guard: ClaimGuard, signal?: AbortSignal): Promise<PublishClaim> {
         const input = publishSchema.parse(value);
-        const hash = fingerprint({ input, seal });
+        const hash = fingerprints({ input, seal });
         const existing = this.journal.get(input.requestId);
         if (existing) return this.journal.begin(input.requestId, hash, 'publish');
         if (signal?.aborted) throw new Error('Cancelled before publishing.');
@@ -87,7 +87,7 @@ export class AgentPublisher {
         const credentials = new Map(seal.targets.map(target => {
             const value = this.accounts.credentials(target.accountId);
             const expected = seal.accounts.find(account => account.accountId === target.accountId)?.fingerprint;
-            if (accountFingerprint(this.accounts, target.accountId, value) !== expected) throw new Error('An account or its credentials changed after preview. Preview the draft again before publishing.');
+            if (!expected || !accountMatches(this.accounts, target.accountId, value, expected)) throw new Error('An account or its credentials changed after preview. Preview the draft again before publishing.');
             return [target.accountId, value];
         }));
         assertNoKnownSecrets({ targets: seal.targets, article: input.article });
@@ -98,7 +98,7 @@ export class AgentPublisher {
         } finally { staged.dispose(); }
     }
 
-    private async execute(input: PublishInput, targets: PlannedTarget[], credentials: Map<string, Record<string, string>>, hash: string, signal?: AbortSignal, source?: Operation['draft'], guard?: ClaimGuard): Promise<PublishClaim> {
+    private async execute(input: PublishInput, targets: PlannedTarget[], credentials: Map<string, Record<string, string>>, hash: Fingerprints, signal?: AbortSignal, source?: Operation['draft'], guard?: ClaimGuard): Promise<PublishClaim> {
         const begin = (): PublishClaim => this.journal.begin(input.requestId, hash, 'publish', targets.map(target => ({ accountId: target.accountId, platform: target.platform, status: 'pending', receipts: [] })), source);
         const claim = guard ? guard(begin) : begin();
         if (claim.replayed) return claim;

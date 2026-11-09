@@ -5,7 +5,7 @@ import { setImmediate } from 'timers';
 import { AccountStore } from '../accounts';
 import { AgentPublisher } from '../publisher';
 import { characterCount, splitThread } from '../preview';
-import { OperationJournal, fingerprint } from '../journal';
+import { OperationJournal, fingerprint, fingerprints, matchesFingerprint } from '../journal';
 import { CREDENTIAL_FIELDS, Platform } from '../schema';
 import { fetchInstanceLimits } from '../../platforms/mastodon';
 
@@ -258,4 +258,59 @@ it('canonicalizes JSON key order, rejects conflicting IDs and fails closed on co
     fs.writeFileSync(path.join(home, 'operations', 'one.json'), '');
     expect(() => journal.get('one')).toThrow('unreadable');
     expect(() => journal.begin('one', 'hash', 'publish')).toThrow('unreadable');
+});
+it('lists readable operations when one record is damaged', () => {
+    const journal = new OperationJournal(home, accounts.files);
+    journal.begin('good', 'hash-good', 'publish');
+    journal.begin('bad', 'hash-bad', 'publish');
+    fs.writeFileSync(path.join(home, 'operations', 'bad.json'), '{"truncated"');
+    const listed = journal.list();
+    expect(listed).toHaveLength(2);
+    expect(listed[0]).toMatchObject({ requestId: 'good', fingerprint: 'hash-good' });
+    expect(listed[1]).toMatchObject({ requestId: 'bad', unreadable: true });
+});
+it('orders fingerprint keys by code point and still accepts records hashed with localeCompare', () => {
+    // localeCompare puts "personal" before "Work"; code-point order puts "Work" first.
+    const value = { overrides: { Work: { text: 'a' }, personal: { text: 'b' } } };
+    const { current, legacy } = fingerprints(value);
+    expect(current).toBe(fingerprint({ overrides: { personal: { text: 'b' }, Work: { text: 'a' } } }));
+    expect(current).not.toBe(legacy);
+    expect(matchesFingerprint(legacy, value)).toBe(true);
+    expect(matchesFingerprint(fingerprint({ other: true }), value)).toBe(false);
+
+    const journal = new OperationJournal(home, accounts.files);
+    journal.begin('legacy', legacy, 'publish');
+    expect(journal.begin('legacy', fingerprints(value), 'publish').replayed).toBe(true);
+    expect(() => journal.begin('legacy', fingerprints({ changed: true }), 'publish')).toThrow('different content');
+});
+it('looks up relative image paths inside the media roots, not the working directory', async () => {
+    add('bluesky');
+    png();
+    const preview = await publisher().planner.preview({ accountIds: ['bluesky'], text: 'Media', media: ['image.png'] });
+    expect(preview.valid).toBe(true);
+    expect(preview.targets[0].posts[0].media[0]).toBe(fs.realpathSync(path.join(media, 'image.png')));
+    const missing = await publisher().planner.preview({ accountIds: ['bluesky'], text: 'Media', media: ['missing.png'] });
+    expect(missing.errors.join()).toContain('not found in DOTSHARE_MEDIA_ROOTS');
+    fs.writeFileSync(path.join(home, 'outside.png'), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]));
+    const escape = await publisher().planner.preview({ accountIds: ['bluesky'], text: 'Media', media: ['../outside.png'] });
+    expect(escape.errors.join()).toContain('outside DOTSHARE_MEDIA_ROOTS');
+});
+it('carries a LinkedIn first comment into the plan and ignores it elsewhere', async () => {
+    add('linkedin'); add('x');
+    const preview = await publisher().planner.preview({ accountIds: ['linkedin', 'x'], text: 'New article out', firstComment: 'Read it: https://dev.to/example' });
+    expect(preview.valid).toBe(true);
+    expect(preview.targets.find(target => target.platform === 'linkedin')?.firstComment).toBe('Read it: https://dev.to/example');
+    expect(preview.targets.find(target => target.platform === 'x')).not.toHaveProperty('firstComment');
+    expect(preview.warnings.join()).toContain('x: firstComment is only posted on LinkedIn');
+
+    const perAccount = await publisher().planner.preview({ accountIds: ['linkedin'], text: 'Post', firstComment: 'Shared', overrides: { linkedin: { firstComment: 'Account specific' } } });
+    expect(perAccount.targets[0].firstComment).toBe('Account specific');
+    expect(() => publisher().planner.preview({ accountIds: ['linkedin'], text: 'Post', firstComment: 'x'.repeat(1251) })).rejects.toThrow();
+});
+it('publishes the first comment through the LinkedIn adapter', async () => {
+    add('linkedin');
+    const adapter = jest.fn(async (target, _credentials, _input, report) => { report({ id: 'post' }); if (target.firstComment) report({ id: 'comment' }); });
+    const result = await publisher(adapter).publish({ requestId: 'linkedin-first-comment', accountIds: ['linkedin'], text: 'Post', firstComment: 'Link here' });
+    expect(adapter.mock.calls[0][0].firstComment).toBe('Link here');
+    expect(result.operation.results[0].receipts.map(receipt => receipt.id)).toEqual(['post', 'comment']);
 });

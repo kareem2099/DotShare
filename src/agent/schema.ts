@@ -8,10 +8,15 @@ export const requestIdSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99
 const mediaArraySchema = z.array(z.string().min(1).max(4096)).max(10);
 const mediaSchema = mediaArraySchema.default([]);
 const partSchema = z.object({ text: z.string().max(100000), media: mediaSchema }).strict();
+/** LinkedIn's comment length limit. */
+export const FIRST_COMMENT_MAX = 1250;
+const firstCommentSchema = z.string().trim().min(1).max(FIRST_COMMENT_MAX)
+    .describe('LinkedIn only: posted as the first comment right after the post, e.g. the article link. Ignored on other platforms.');
 export const overrideSchema = z.object({
     text: z.string().max(100000).optional(),
     media: mediaArraySchema.optional(),
     posts: z.array(partSchema).min(1).max(100).optional(),
+    firstComment: firstCommentSchema.optional(),
 }).strict();
 export const postSchema = z.object({
     accountIds: z.array(accountIdSchema).min(1).max(20),
@@ -20,6 +25,7 @@ export const postSchema = z.object({
     posts: z.array(partSchema).min(1).max(100).optional().describe('Explicit thread parts. Supported by X, Bluesky and Mastodon.'),
     autoSplit: z.boolean().default(false).describe('Split long text into numbered threads on supported platforms. Preview shows exact parts.'),
     overrides: z.record(accountIdSchema, overrideSchema).default({}).describe('Optional content override per account ID.'),
+    firstComment: firstCommentSchema.optional(),
     article: z.object({
         title: z.string().min(1).max(128),
         tags: z.array(z.string().regex(/^[a-z0-9]{1,30}$/)).max(4).default([]),

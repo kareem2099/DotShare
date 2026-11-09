@@ -3,6 +3,7 @@ import * as path from 'path';
 import { z } from 'zod';
 import { AccountStore } from './accounts';
 import { StorageSecurityError } from '../security/private-files';
+import { withFileLock } from '../security/locks';
 import { AgentDrafts, draftContentSchema } from './drafts';
 import { AgentPublisher } from './publisher';
 import { accountIdSchema, platformSchema, overrideSchema } from './schema';
@@ -118,11 +119,9 @@ export class AgentTemplates {
     }
     private locked<T>(id: string, action: () => T): T {
         this.accounts.files.directory('templates');
-        const lock = `${this.file(id)}.lock`;
-        let fd: number;
-        try { fd = fs.openSync(lock, 'wx', 0o600); }
-        catch { throw new Error('Template is busy or locked. Retry after the other edit finishes; inspect a stale lock before removing it.'); }
-        try { return action(); } finally { fs.closeSync(fd); fs.unlinkSync(lock); }
+        return withFileLock(`${this.file(id)}.lock`, action, {
+            busy: () => new Error('Template is busy or locked by another edit. Retry after it finishes.'),
+        });
     }
     get(id: string): TemplateView {
         templateIdSchema.parse(id);

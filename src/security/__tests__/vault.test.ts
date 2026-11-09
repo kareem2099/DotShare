@@ -126,3 +126,11 @@ it('never prints malformed storage contents through JSON parse errors', () => {
     try { vault.read(record()); throw new Error('must reject'); } catch (error) { expect((error as Error).message).not.toContain('a-very-private'); }
     expect(() => privateRead(record(), 1)).toThrow();
 });
+it('writes after a crashed process left the store write lock behind', () => {
+    vault.write(record(), { text: 'first' });
+    const crashed = require('child_process').spawnSync(process.execPath, ['-e', '']).pid;
+    fs.writeFileSync(path.join(home, 'security.write.lock'), JSON.stringify({ pid: crashed, host: os.hostname(), createdAt: Date.now() }));
+    vault.write(record(), { text: 'second' });
+    expect(vault.read(record())).toEqual({ text: 'second' });
+    expect(fs.existsSync(path.join(home, 'security.write.lock'))).toBe(false);
+});

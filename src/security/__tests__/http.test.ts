@@ -43,3 +43,17 @@ it('blocks known platform credentials in actual publication plans before any ada
         expect(adapter).not.toHaveBeenCalled(); expect(publisher.journal.list()).toEqual([]);
     } finally { fs.rmSync(home, { recursive: true, force: true }); }
 });
+it('lets the extension activate with TLS verification disabled but refuses each request', async () => {
+    const previous = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    const use = jest.spyOn(axios.interceptors.request, 'use');
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    try {
+        expect(() => hardenHttp()).not.toThrow();
+        const intercept = (axios.interceptors.request as unknown as { handlers: { fulfilled: (config: unknown) => unknown }[] }).handlers.at(-1)!.fulfilled;
+        await expect(async () => intercept({ headers: {} })).rejects.toThrow('TLS certificate verification must remain enabled');
+        expect(() => secureFetch('https://example.com/api')).toThrow('TLS certificate verification');
+    } finally {
+        if (previous === undefined) delete process.env.NODE_TLS_REJECT_UNAUTHORIZED; else process.env.NODE_TLS_REJECT_UNAUTHORIZED = previous;
+        use.mockRestore();
+    }
+});

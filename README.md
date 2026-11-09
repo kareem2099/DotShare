@@ -190,7 +190,7 @@ See current plans on the [DotShare page on DotSuite](https://dotsuite.dev/en/pro
 <summary><b>🐘 Mastodon</b></summary>
 
 1. On your Mastodon server, open **Preferences → Development → New application** (for example `https://mastodon.social/settings/applications/new`).
-2. Enter any name, keep the redirect URI as `urn:ietf:wg:oauth:2.0:oob`, and enable only **`write:statuses`** and **`write:media`**.
+2. Enter any name, keep the redirect URI as `urn:ietf:wg:oauth:2.0:oob`, and enable only **`write:statuses`**, **`write:media`** and **`profile`** (`profile` lets `dotshare-agent doctor` verify the account).
 3. Save, open the application, and copy **Your access token**.
 4. In DotShare's Mastodon card, enter your instance URL (such as `https://mastodon.social`) and the token.
 

@@ -3,8 +3,9 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { AgentPublisher, safeError } from './publisher';
-import { fingerprint, Operation } from './journal';
+import { compareText, fingerprint, matchesFingerprint, Operation } from './journal';
 import { StorageSecurityError } from '../security/private-files';
+import { withFileLock } from '../security/locks';
 import { accountIdSchema, platformSchema, postSchema, requestIdSchema, overrideSchema } from './schema';
 import { PublicationSeal, sealAssets, sealAccounts } from './publication-seal';
 import { Preview, resolveAccountContent, characterCount } from './preview';
@@ -19,6 +20,7 @@ const patchSchema = z.object({
     media: z.array(z.string().min(1).max(4096)).max(10).optional(), autoSplit: z.boolean().optional(),
     posts: postSchema.shape.posts.nullable(), overrides: postSchema.shape.overrides.unwrap().nullable().optional(),
     article: postSchema.shape.article.nullable(),
+    firstComment: postSchema.shape.firstComment.unwrap().nullable().optional(),
 }).strict();
 export const createDraftSchema = z.object({ title: z.string().trim().min(1).max(200).default('Untitled draft'), content: draftContentSchema }).strict();
 export const getDraftSchema = z.object({ draftId: draftIdSchema }).strict();
@@ -33,6 +35,7 @@ const sourceTemplateSchema = z.object({ id: z.string().regex(/^[a-z][a-z0-9-]{0,
 const targetSchema = z.object({
     accountId: accountIdSchema, platform: platformSchema, characterLimit: z.number().positive(), maxMedia: z.number().nonnegative(),
     posts: z.array(z.object({ text: z.string(), media: z.array(z.string()), characters: z.number().nonnegative() }).strict()).min(1).max(100),
+    firstComment: z.string().optional(),
 }).strict();
 const previewSchema = z.object({ valid: z.boolean(), targets: z.array(targetSchema), errors: z.array(z.string()), warnings: z.array(z.string()) }).strict();
 const hashSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -67,7 +70,7 @@ export class AgentDrafts {
         try {
             const record = recordSchema.parse(this.publisher.accounts.files.read(file));
             if (record.id !== id) throw new Error();
-            if (record.preview && (record.preview.revision !== record.revision || record.preview.contentHash !== fingerprint(record.content) || !record.preview.plan.valid)) throw new Error();
+            if (record.preview && (record.preview.revision !== record.revision || !matchesFingerprint(record.preview.contentHash, record.content) || !record.preview.plan.valid)) throw new Error();
             if (record.status !== 'Draft' && !record.preview) throw new Error();
             if (record.publication && (!record.preview || record.publication.revision !== record.revision || record.publication.previewId !== record.preview.id)) throw new Error();
             if (['Publishing', 'Published', 'NeedsReview', 'SavedRemotely'].includes(record.status) && !record.publication) throw new Error();
@@ -80,11 +83,9 @@ export class AgentDrafts {
     }
     private locked<T>(id: string, action: () => T): T {
         this.publisher.accounts.files.directory('drafts');
-        const lock = `${this.file(id)}.lock`;
-        let fd: number;
-        try { fd = fs.openSync(lock, 'wx', 0o600); }
-        catch { throw new Error('Draft is busy or locked. Retry after the other edit finishes; inspect a stale lock before removing it.'); }
-        try { return action(); } finally { fs.closeSync(fd); fs.unlinkSync(lock); }
+        return withFileLock(`${this.file(id)}.lock`, action, {
+            busy: () => new Error('Draft is busy or locked by another edit. Retry after it finishes.'),
+        });
     }
     private save(record: DraftRecord): void { record.updatedAt = new Date().toISOString(); this.publisher.accounts.files.write(this.file(record.id), record); }
     private operation(record: DraftRecord): Operation | undefined {
@@ -116,13 +117,24 @@ export class AgentDrafts {
     list(value: unknown = {}): { drafts: Record<string, unknown>[] } {
         const input = listDraftsSchema.parse(value);
         if (!fs.existsSync(this.directory)) return { drafts: [] };
-        const records = fs.readdirSync(this.directory).filter(name => /^[a-f0-9-]+\.json$/i.test(name)).map(name => {
-            const record = this.get(name.slice(0, -5));
-            return { id: record.id, title: record.title, revision: record.revision, status: record.status, published: record.published,
-                accountIds: record.content.accountIds, createdAt: record.createdAt, updatedAt: record.updatedAt,
-                ...(record.publication && { requestId: record.publication.requestId, deliveries: record.publication.deliveries, receipts: record.publication.operation?.results.flatMap(target => target.receipts) || [] }) };
-        }).filter(record => !input.status || record.status === input.status).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, input.limit);
-        return { drafts: records };
+        const names = fs.readdirSync(this.directory).filter(name => /^[a-f0-9-]+\.json$/i.test(name));
+        // A missing or wrong vault key affects every draft, so report it once.
+        if (names.length) this.publisher.accounts.files.verifyKey();
+        const records = []; const unreadable = [];
+        for (const name of names) {
+            const id = name.slice(0, -5);
+            try {
+                const record = this.get(id);
+                records.push({ id: record.id, title: record.title, revision: record.revision, status: record.status, published: record.published,
+                    accountIds: record.content.accountIds, createdAt: record.createdAt, updatedAt: record.updatedAt,
+                    ...(record.publication && { requestId: record.publication.requestId, deliveries: record.publication.deliveries, receipts: record.publication.operation?.results.flatMap(target => target.receipts) || [] }) });
+            } catch (error) {
+                // A damaged draft is listed as unreadable instead of hiding the rest.
+                unreadable.push({ id, unreadable: true, error: error instanceof Error ? error.message : 'Unreadable draft.' });
+            }
+        }
+        const matching = records.filter(record => !input.status || record.status === input.status).sort((a, b) => compareText(b.updatedAt, a.updatedAt));
+        return { drafts: [...matching, ...(input.status ? [] : unreadable)].slice(0, input.limit) };
     }
     create(value: unknown, sourceTemplate?: z.infer<typeof sourceTemplateSchema>): DraftView {
         const input = createDraftSchema.parse(value);
@@ -175,6 +187,7 @@ export class AgentDrafts {
             const content = { ...record.content, ...input.patch };
             if (content.posts === null) delete content.posts;
             if (content.article === null) delete content.article;
+            if (content.firstComment === null) delete content.firstComment;
             if (content.overrides === null) content.overrides = {};
             record.content = draftContentSchema.parse(content); this.contentSize(record.content);
             if (input.title !== undefined) record.title = input.title;

@@ -2,15 +2,17 @@ import axios from 'axios';
 import { rememberSecret } from './redaction';
 
 let installed = false;
-/** API credentials must never be replayed to a redirect destination. */
+/**
+ * API credentials must never be replayed to a redirect destination. Disabled TLS
+ * verification is refused per request, not here, so the extension still activates.
+ */
 export function hardenHttp(): void {
-    if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw new Error('Refusing credential operations while TLS certificate verification is disabled.');
     axios.defaults.maxRedirects = 0;
     axios.defaults.timeout = 30000;
     if (installed) return;
     installed = true;
     axios.interceptors.request.use(config => {
-        if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' || config.httpsAgent?.options?.rejectUnauthorized === false) throw new Error('TLS certificate verification must remain enabled.');
+        if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' || config.httpsAgent?.options?.rejectUnauthorized === false) throw new Error('TLS certificate verification must remain enabled. Unset NODE_TLS_REJECT_UNAUTHORIZED=0 to send credentials.');
         config.maxRedirects = 0; if (!config.timeout) config.timeout = 30000; return config;
     });
 }

@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID, 
 import { z } from 'zod';
 import { CliCredentialStore, OsCredentialStore } from '../cli/credential-store';
 import { privateDirectory, privateRead, privateWriteJson, checkPrivateFile, StorageSecurityError } from './private-files';
+import { withFileLock } from './locks';
 
 const manifestSchema = z.object({ format: z.literal('dotshare-vault'), version: z.literal(1), keyId: z.uuid(), keyCheck: z.string() }).strict();
 const envelopeSchema = z.object({ format: z.literal('dotshare-encrypted'), version: z.literal(1), algorithm: z.literal('aes-256-gcm'), keyId: z.uuid(),
@@ -41,10 +42,7 @@ export class LocalVault {
             catch { throw new StorageSecurityError('Vault metadata is unreadable. Restore the matching vault metadata and OS key; do not reset the key.'); }
         }
         if (!create) throw new StorageSecurityError('The encrypted store has no vault metadata. Restore security.json and its OS key.');
-        const lock = path.join(this.home, 'security.init.lock');
-        let fd: number;
-        try { fd = fs.openSync(lock, 'wx', 0o600); } catch { throw new StorageSecurityError('Vault initialization is busy or locked. Inspect a stale lock before removing it.'); }
-        try {
+        return withFileLock(path.join(this.home, 'security.init.lock'), () => {
             if (fs.existsSync(file)) return this.manifest();
             const files = this.records();
             if (files.some(file => this.encrypted(json(privateRead(file))))) throw new StorageSecurityError('Encrypted records exist without vault metadata. Restore the original security.json; a replacement key cannot recover them.');
@@ -62,7 +60,7 @@ export class LocalVault {
                 throw new StorageSecurityError('Could not initialize the encrypted store in the OS keyring. No plaintext fallback or file key was created.');
             } finally { key.fill(0); }
             return manifest;
-        } finally { fs.closeSync(fd); fs.unlinkSync(lock); }
+        }, { busy: () => new StorageSecurityError('Vault initialization is busy. Retry after the other DotShare process finishes.') });
     }
     private key(manifest: z.infer<typeof manifestSchema>): Buffer {
         let key: Buffer | undefined;
@@ -106,11 +104,10 @@ export class LocalVault {
     private writeLock<T>(action: () => T): T {
         if (this.writing) return action();
         privateDirectory(this.home);
-        const file = path.join(this.home, 'security.write.lock');
-        let fd: number;
-        try { fd = fs.openSync(file, 'wx', 0o600); } catch { throw new StorageSecurityError('Encrypted storage is busy or locked. Retry the same action after the other writer finishes; inspect stale locks before removing them.'); }
-        this.writing = true;
-        try { return action(); } finally { this.writing = false; fs.closeSync(fd); fs.unlinkSync(file); }
+        return withFileLock(path.join(this.home, 'security.write.lock'), () => {
+            this.writing = true;
+            try { return action(); } finally { this.writing = false; }
+        }, { busy: () => new StorageSecurityError('Encrypted storage is busy. Retry the same action after the other writer finishes.') });
     }
     write(file: string, value: unknown, exclusive = false): void { this.writeLock(() => privateWriteJson(file, this.seal(file, value), exclusive)); }
     records(): string[] {

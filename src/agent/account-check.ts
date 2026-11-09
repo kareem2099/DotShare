@@ -63,6 +63,7 @@ export const checkAccount: CheckAccount = async (store, account) => {
     } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined;
         // Never return raw request URLs, response bodies, or library errors.
+        if (status === 403 && account.platform === 'mastodon') return { ...base, status: 'warn', message: 'The token cannot read its own profile, so its identity was not verified. Posting with write:statuses and write:media may still work.', fix: 'Recreate the Mastodon application token with the profile scope (or read:accounts) in addition to write:statuses and write:media.' };
         if (status === 403) return { ...base, status: 'warn', message: 'The platform denied the identity lookup. Read permissions or API-plan access may be missing; posting may still work.', fix: 'Check the platform token scopes and API access plan.' };
         return { ...base, status: 'fail', message: status === 401 ? 'The platform rejected authentication. The credential may be invalid or expired.'
             : status === 429 ? 'The platform rate-limited this check. Wait before trying doctor again.'

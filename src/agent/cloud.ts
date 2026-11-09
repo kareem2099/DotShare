@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import * as os from 'os';
 import { AccountStore } from './accounts';
 import { DOTSUITE_CORE_API_URL } from '../constants';
-import { fingerprint, OperationJournal, Operation } from './journal';
+import { fingerprints, OperationJournal, Operation } from './journal';
 import { characterCount } from './preview';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 import { scheduleSchema, requestIdSchema } from './schema';
@@ -35,7 +35,7 @@ export class AgentCloud {
     }
     async schedule(value: unknown): Promise<{ operation: Operation; replayed: boolean }> {
         const input = scheduleSchema.parse(value);
-        const hash = fingerprint(input);
+        const hash = fingerprints(input);
         if (this.journal.get(input.requestId)) return this.journal.begin(input.requestId, hash, 'schedule');
         if (Date.parse(input.scheduledAt) <= Date.now() + 60000) throw new Error('Schedule at least one minute in the future, including a timezone.');
         if (new Set(input.platforms).size !== input.platforms.length) throw new Error('Platforms must be unique.');
@@ -68,7 +68,7 @@ export class AgentCloud {
     async cancel(requestId: string, postId: string): Promise<{ operation: Operation; replayed: boolean }> {
         requestIdSchema.parse(requestId);
         if (!/^[a-zA-Z0-9_-]{1,100}$/.test(postId)) throw new Error('Invalid scheduled post ID.');
-        const hash = fingerprint({ requestId, postId });
+        const hash = fingerprints({ requestId, postId });
         if (this.journal.get(requestId)) return this.journal.begin(requestId, hash, 'cancel');
         const auth = this.auth();
         const claim = this.journal.begin(requestId, hash, 'cancel');

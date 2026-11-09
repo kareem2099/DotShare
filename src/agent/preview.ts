@@ -6,16 +6,17 @@ import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 import { fetchInstanceLimits } from '../platforms/mastodon';
 
 export interface PlannedPart { text: string; media: string[]; characters: number; }
-export interface PlannedTarget { accountId: string; platform: Platform; posts: PlannedPart[]; characterLimit: number; maxMedia: number; }
+export interface PlannedTarget { accountId: string; platform: Platform; posts: PlannedPart[]; characterLimit: number; maxMedia: number; firstComment?: string; }
 export interface Preview { valid: boolean; targets: PlannedTarget[]; errors: string[]; warnings: string[]; }
 
 /** One resolver for planning, template rendering and the editable variants view. */
-export function resolveAccountContent(input: PostInput, accountId: string): { text: string; media: string[]; posts?: PostInput['posts'] } {
+export function resolveAccountContent(input: PostInput, accountId: string): { text: string; media: string[]; posts?: PostInput['posts']; firstComment?: string } {
     const override = Object.prototype.hasOwnProperty.call(input.overrides, accountId) ? input.overrides[accountId] : {};
     return {
         text: override.text ?? (override.posts ? '' : input.text),
         media: override.media ?? (override.posts ? [] : input.media),
         posts: override.posts ?? (override.text === undefined ? input.posts : undefined),
+        ...((override.firstComment ?? input.firstComment) !== undefined && { firstComment: override.firstComment ?? input.firstComment }),
     };
 }
 
@@ -78,6 +79,16 @@ export class PostPlanner {
         }
     }
 
+    /** Absolute paths are used as given; relative ones are looked up inside each media root, in order. */
+    private locate(ref: string): string {
+        if (path.isAbsolute(ref)) return fs.realpathSync(ref);
+        for (const root of this.roots) {
+            const candidate = path.join(root, ref);
+            if (fs.existsSync(candidate)) return fs.realpathSync(candidate);
+        }
+        throw new Error(`Image "${ref}" was not found in DOTSHARE_MEDIA_ROOTS.`);
+    }
+
     private media(ref: string, platform: Platform): string {
         if (platform === 'devto') {
             const url = new URL(ref);
@@ -87,7 +98,7 @@ export class PostPlanner {
         if (/^[a-z][a-z0-9+.-]*:\/\//i.test(ref)) throw new Error('Use a local image path for social posts; only Dev.to accepts image URLs.');
         if (this.rootsError) throw new Error(`${this.rootsError} Local images are disabled until it is fixed.`);
         if (!this.roots.length) throw new Error('Local images are disabled. Set DOTSHARE_MEDIA_ROOTS to the image directories the agent may publish from.');
-        const file = fs.realpathSync(path.resolve(ref));
+        const file = this.locate(ref);
         if (!this.roots.some(root => { const rel = path.relative(root, file); return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel)); })) {
             throw new Error('Image is outside DOTSHARE_MEDIA_ROOTS.');
         }
@@ -114,7 +125,8 @@ export class PostPlanner {
             try {
                 const account = this.accounts.get(id);
                 const config = PLATFORM_CONFIGS[account.platform];
-                const { text, media, posts: explicit } = resolveAccountContent(input, id);
+                const { text, media, posts: explicit, firstComment } = resolveAccountContent(input, id);
+                if (firstComment !== undefined && account.platform !== 'linkedin') result.warnings.push(`${id}: firstComment is only posted on LinkedIn, so it is ignored for ${account.platform}.`);
                 let limit = config.maxChars;
                 let maxMedia = config.maxMediaCount;
                 if (account.platform === 'mastodon') {
@@ -142,7 +154,8 @@ export class PostPlanner {
                     if (account.platform === 'bluesky' && !part.text.trim()) throw new Error('Bluesky posts require text.');
                     return { text: part.text, media: part.media.map(ref => this.media(ref, account.platform)), characters };
                 });
-                result.targets.push({ accountId: id, platform: account.platform, posts, characterLimit: limit, maxMedia });
+                result.targets.push({ accountId: id, platform: account.platform, posts, characterLimit: limit, maxMedia,
+                    ...(firstComment !== undefined && account.platform === 'linkedin' && { firstComment }) });
             } catch (error) {
                 result.errors.push(`${id}: ${error instanceof Error ? error.message : 'Preview failed.'}`);
             }
