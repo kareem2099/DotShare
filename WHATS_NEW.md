@@ -2,6 +2,17 @@
 
 ---
 
+## v3.6.1 — Field Fixes
+
+*November 9, 2026*
+
+- **Bluesky links and hashtags are clickable.** Before, both showed as plain text and hashtags didn't appear in Bluesky search.
+- **LinkedIn first comment.** Agents can post a link as the first comment instead of in the post body.
+- **No more stuck locks.** A crash or power cut no longer leaves the MCP unable to save drafts or publish, and several MCP clients can share one library.
+- **More forgiving setup.** Relative image paths resolve inside your media folders, `doctor` names the Mastodon `profile` scope it needs, and the extension activates even with `NODE_TLS_REJECT_UNAUTHORIZED=0` (credential requests are still refused).
+
+---
+
 ## v3.6.0 — MCP & Publishing Library
 
 *November 7, 2026*

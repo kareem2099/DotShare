@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.1] - 2026-11-09 — "Field Fixes"
+
+VS Code extension 3.6.1 and `dotshare-cli` 3.0.1. Found while publishing the first DotShare article through the MCP to Bluesky and LinkedIn.
+
+### Added
+- **LinkedIn first comment.** Agents can pass `firstComment`, for the whole post or per account, and DotShare posts it as the first comment right after the LinkedIn post, so a link can stay out of the post body. If the post goes out but the comment fails, the error says the post is already public so it isn't republished. Other platforms ignore it with a preview warning.
+
+### Fixed
+- **Bluesky links and hashtags are clickable.** Posts now mark URLs and hashtags as rich-text facets with UTF-8 byte offsets; before, both showed as plain text and hashtags didn't appear in Bluesky search.
+- **Locks left by a crash no longer block the MCP.** Draft, template, encrypted-store and setup locks record their owner. A lock whose process has exited, or that is older than any real commit, is removed automatically; previously a crash or power cut left `security.write.lock` behind and every later write failed until it was deleted by hand.
+- **Several MCP clients can share one library.** Writers now wait up to 10 seconds for a lock instead of failing at once, so a second client saving a draft no longer interrupts another client's publication mid-thread.
+- **`doctor` explains the Mastodon `profile` scope.** A token without it can't read its own identity; doctor now names the missing scope. The README and extension card list `profile` alongside `write:statuses` and `write:media`.
+- **The extension activates with `NODE_TLS_REJECT_UNAUTHORIZED=0`.** Disabled TLS verification is still refused for every credential request, but no longer stops the whole extension from loading.
+- **A damaged record no longer hides the others.** `list_history` and `list_drafts` show it as unreadable and list the rest; a missing vault key is still reported once.
+- **Fingerprints no longer depend on the process locale.** Request, preview and account fingerprints sort keys by code point. Records written by earlier versions still match.
+- **Relative image paths resolve inside `DOTSHARE_MEDIA_ROOTS`** instead of the server's install directory, so an agent can send `launch.png`.
+
 ## [3.6.0] - 2026-11-07 — MCP & Publishing Library
 
 The VS Code extension and CLI have separate version numbers. The [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0) contains `dotshare-3.6.0.vsix` for VS Code and `dotshare-cli-3.0.0.tgz` for the CLI and MCP server. See the [MCP quick start](README.md#quick-start-for-ai-agents) and [Publishing Library guide](docs/PUBLISHING_LIBRARY.md).
