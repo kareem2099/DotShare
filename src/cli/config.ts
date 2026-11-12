@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { DEFAULT_SERVER_URL } from '../constants';
+import { DEFAULT_SERVER_URL, LEGACY_SERVER_HOST } from '../constants';
 import { CliCredentialStore, OsCredentialStore } from './credential-store';
 import { privateDirectory, privateRead, privateWriteJson } from '../security/private-files';
 
@@ -12,6 +12,16 @@ export interface DotShareConfig {
         linkedin?: { accessToken: string };
     };
     defaultPlatforms: ('telegram' | 'linkedin')[];
+}
+
+/** The retired Vercel sign-in server is replaced by dotsuite.dev; custom URLs are kept. */
+function migrateServerUrl(url: string | undefined): string | undefined {
+    if (!url) return undefined;
+    try {
+        return new URL(url).hostname === LEGACY_SERVER_HOST ? DEFAULT_SERVER_URL : url;
+    } catch {
+        return url;
+    }
 }
 
 export class ConfigManager {
@@ -49,7 +59,7 @@ export class ConfigManager {
             }
         }
         this.config = {
-            serverUrl: stored.serverUrl || defaults.serverUrl,
+            serverUrl: migrateServerUrl(stored.serverUrl) || defaults.serverUrl,
             defaultPlatforms: stored.defaultPlatforms || [],
             credentials: {},
         };

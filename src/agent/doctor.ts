@@ -4,7 +4,7 @@ import { AccountStore, defaultAgentHome } from './accounts';
 import { loadKeyringBinding } from '../cli/credential-store';
 import { checkAccount, CheckAccount, AccountCheck } from './account-check';
 import { ProbeMcp, probeMcp } from './mcp-probe';
-import { SetupClient, Installation, installation, configPath, readClientConfig, mediaRoots, object, sameServer, supportedNode, launchEnvironment, configTimeout, forwardedVariables } from './setup';
+import { SetupClient, SETUP_CLIENTS, Installation, installation, configPath, cursorConfigPath, readClientConfig, readJsonClientConfig, mediaRoots, object, sameServer, supportedNode, launchEnvironment, configTimeout, forwardedVariables } from './setup';
 
 export interface Diagnostic { id: string; status: 'pass' | 'warn' | 'fail'; message: string; fix?: string; }
 export interface DoctorOptions { client?: SetupClient; config?: string; checkAccounts?: boolean; account?: string; skipMcp?: boolean; }
@@ -19,8 +19,8 @@ export interface DoctorResult {
 
 export async function runDoctor(options: DoctorOptions = {}, context: DoctorContext = {}): Promise<DoctorResult> {
     const client = options.client || 'codex';
-    if (!['codex', 'generic'].includes(client)) throw new Error('client must be codex or generic.');
-    if (client === 'generic' && options.config) throw new Error('--config is only used with --client codex.');
+    if (!SETUP_CLIENTS.includes(client)) throw new Error(`client must be one of: ${SETUP_CLIENTS.join(', ')}.`);
+    if ((client === 'generic' || client === 'claude') && options.config) throw new Error('--config is only used with --client codex or cursor.');
     const current = context.installation || installation();
     const environment = context.environment || process.env;
     const checks: Diagnostic[] = [];
@@ -34,7 +34,7 @@ export async function runDoctor(options: DoctorOptions = {}, context: DoctorCont
     try { (context.keyringBinding || loadKeyringBinding)(); add('keyring-binding', 'pass', 'Native keyring binding loads. Secret access is checked only with --check-accounts.'); }
     catch { add('keyring-binding', 'fail', 'Native keyring binding could not load.', 'Reinstall dependencies for this OS/architecture using a supported Node version.'); }
     let extra: Record<string, unknown> = {};
-    let configReady = client === 'generic';
+    let configReady = client === 'generic' || client === 'claude';
     if (client === 'codex') {
         try {
             const config = readClientConfig(configPath(options.config, environment));
@@ -55,7 +55,20 @@ export async function runDoctor(options: DoctorOptions = {}, context: DoctorCont
                 }
             }
         } catch { add('client-config', 'fail', 'Codex configuration is unreadable or invalid. Its contents were not displayed.', 'Repair config.toml and run setup again.'); }
-    } else add('client-config', 'warn', 'Generic MCP client configuration is not inspected. This checks the standalone server only.');
+    } else if (client === 'cursor') {
+        try {
+            const config = readJsonClientConfig(cursorConfigPath(options.config));
+            if (!config.entry) add('client-config', 'fail', 'Cursor has no dotshare MCP entry.', 'Run dotshare-agent setup --client cursor, then reload Cursor.');
+            else if (!sameServer(config.entry, current)) add('client-config', 'fail', 'Cursor points at another DotShare installation.', 'Run setup --client cursor --replace to select this installation.');
+            else if (config.entry.command !== current.node) add('client-config', 'fail', 'Cursor uses a different Node command from this verified runtime.', 'Run setup --client cursor using the Node runtime you want Cursor to use.');
+            else {
+                extra = object(config.entry.env) || {};
+                if (config.entry.env !== undefined && !object(config.entry.env)) throw new Error();
+                configReady = true; add('client-config', 'pass', 'Cursor points to this DotShare installation. Reload Cursor after configuration changes.');
+            }
+        } catch { add('client-config', 'fail', 'Cursor configuration is unreadable or invalid. Its contents were not displayed.', 'Repair ~/.cursor/mcp.json and run setup --client cursor again.'); }
+    } else if (client === 'claude') add('client-config', 'warn', 'Claude Code configuration is not inspected. Check it with: claude mcp get dotshare');
+    else add('client-config', 'warn', 'Generic MCP client configuration is not inspected. This checks the standalone server only.');
     let effective: Record<string, string> = {};
     try { effective = launchEnvironment(environment, extra); }
     catch { add('environment', 'fail', 'A configured MCP environment value is not a string.', 'Repair the DotShare env table in the client configuration.'); }
@@ -100,7 +113,7 @@ export async function runDoctor(options: DoctorOptions = {}, context: DoctorCont
         success: !checks.some(check => check.status === 'fail') && !accounts.some(account => account.status === 'fail'),
         mcpReady: options.skipMcp ? null : handshake && configReady,
         client, checks, accounts, accountChecksPerformed,
-        notes: ['Doctor never publishes, uploads, schedules, refreshes tokens, syncs credentials or changes client settings.',
+        notes: ['Doctor never publishes, uploads, schedules, syncs credentials or changes client settings. With --check-accounts, an X sign-in about to expire is refreshed.',
             'Passing identity checks does not prove posting permissions, encrypted-at-rest storage, or that the running MCP client has reloaded its configuration.'],
     };
 }

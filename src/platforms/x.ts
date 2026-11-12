@@ -4,7 +4,7 @@ import * as path from 'path';
 import FormData from 'form-data'; // Required for Node.js
 import { Logger } from '../utils/Logger';
 import { TokenManager } from '../services/TokenManager';
-import { AUTH_SERVER_URL } from '../services/TokenManager';
+import { DOTSUITE_CONNECT_URL } from '../constants';
 import { PublicationObserver } from './runtime';
 
 export interface TweetData {
@@ -23,6 +23,7 @@ function getMimeType(filePath: string): string {
         case '.png': return 'image/png';
         case '.gif': return 'image/gif';
         case '.mp4': return 'video/mp4';
+        case '.mov': return 'video/quicktime';
         default: return 'application/octet-stream';
     }
 }
@@ -63,12 +64,11 @@ function createThreadChunks(text: string, maxLength = 270): string[] {
 }
 
 /**
- * Upload a single media file to Twitter v1.1 media upload endpoint.
+ * Upload one media file: images in a single request, videos and GIFs in chunks.
  */
 async function uploadMediaToX(filePath: string, accessToken: string): Promise<string> {
     const fileBuffer = fs.readFileSync(filePath);
     const mime = getMimeType(filePath);
-    const totalBytes = fileBuffer.length;
     if (mime.startsWith('image/') && mime !== 'image/gif') {
         const form = new FormData();
         form.append('media', fileBuffer, { filename: path.basename(filePath), contentType: mime });
@@ -81,58 +81,48 @@ async function uploadMediaToX(filePath: string, accessToken: string): Promise<st
         return String(id);
     }
 
-    // INIT
-    const initRes = await axios.post(
-        'https://upload.twitter.com/1.1/media/upload.json',
-        new URLSearchParams({
-            command: 'INIT',
-            total_bytes: totalBytes.toString(),
-            media_type: mime,
-        }).toString(),
-        {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }
-    );
+    return uploadChunkedToX(fileBuffer, filePath, mime, accessToken);
+}
 
-    const mediaId: string = initRes.data.media_id_string;
+const X_UPLOAD = 'https://api.x.com/2/media/upload';
+// X asks for segments of at most 5 MB.
+const X_CHUNK_BYTES = 4 * 1024 * 1024;
+const X_PROCESSING_TIMEOUT_MS = 10 * 60 * 1000;
 
-    // APPEND (Node.js FormData fix)
-    const formData = new FormData();
-    formData.append('command', 'APPEND');
-    formData.append('media_id', mediaId);
-    formData.append('segment_index', '0');
-    // Send the Buffer directly with file name and type defined
-    formData.append('media', fileBuffer, {
-        filename: path.basename(filePath),
-        contentType: mime
-    });
+/**
+ * Videos and GIFs use X's v2 chunked upload (initialize → append → finalize),
+ * then wait until X finishes processing before the media can be attached.
+ */
+async function uploadChunkedToX(bytes: Buffer, filePath: string, mime: string, accessToken: string): Promise<string> {
+    const auth = { Authorization: `Bearer ${accessToken}` };
+    const category = mime === 'image/gif' ? 'tweet_gif' : 'tweet_video';
+    const init = await axios.post(`${X_UPLOAD}/initialize`, { media_type: mime, total_bytes: bytes.length, media_category: category },
+        { headers: { ...auth, 'Content-Type': 'application/json' } });
+    const mediaId = init.data?.data?.id;
+    if (!mediaId) throw new Error('X returned no media ID for the upload.');
+    const id = String(mediaId);
 
-    await axios.post('https://upload.twitter.com/1.1/media/upload.json', formData, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            ...formData.getHeaders() // Required for Form boundaries
-        },
-    });
+    for (let offset = 0, segment = 0; offset < bytes.length; offset += X_CHUNK_BYTES, segment++) {
+        const form = new FormData();
+        form.append('segment_index', String(segment));
+        form.append('media', bytes.subarray(offset, offset + X_CHUNK_BYTES), { filename: path.basename(filePath), contentType: mime });
+        await axios.post(`${X_UPLOAD}/${encodeURIComponent(id)}/append`, form, {
+            headers: { ...auth, ...form.getHeaders() }, maxBodyLength: Infinity, maxContentLength: Infinity,
+        });
+    }
 
-    // FINALIZE
-    await axios.post(
-        'https://upload.twitter.com/1.1/media/upload.json',
-        new URLSearchParams({
-            command: 'FINALIZE',
-            media_id: mediaId,
-        }).toString(),
-        {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        }
-    );
-
-    return mediaId;
+    const finalized = await axios.post(`${X_UPLOAD}/${encodeURIComponent(id)}/finalize`, undefined, { headers: auth });
+    let processing = finalized.data?.data?.processing_info as { state?: string; check_after_secs?: number } | undefined;
+    const deadline = Date.now() + X_PROCESSING_TIMEOUT_MS;
+    while (processing && processing.state !== 'succeeded') {
+        if (processing.state === 'failed') throw new Error(`X could not process ${path.basename(filePath)}. Check its format, length and size.`);
+        if (Date.now() > deadline) throw new Error('Timed out waiting for X to process the video.');
+        const wait = Math.min(Math.max(Number(processing.check_after_secs) || 2, 1), 30);
+        await new Promise(resolve => setTimeout(resolve, wait * 1000));
+        const status = await axios.get(X_UPLOAD, { params: { command: 'STATUS', media_id: id }, headers: auth });
+        processing = status.data?.data?.processing_info;
+    }
+    return id;
 }
 
 // ── Main exports ──────────────────────────────────────────────────────────────
@@ -179,6 +169,8 @@ export async function shareToX(
             const mediaIds: string[] = [];
             if (currentPost.media && currentPost.media.length > 0) {
                 if (currentPost.media.length > 4) throw new Error('X supports at most 4 images per post.');
+                const moving = currentPost.media.filter(file => ['.mp4', '.mov', '.gif'].includes(path.extname(file).toLowerCase()));
+                if (moving.length && currentPost.media.length > 1) throw new Error('An X post can have one video or GIF, or up to 4 images, not both.');
                 const mediaToUpload = currentPost.media;
                 for (const filePath of mediaToUpload) {
                     if (fs.existsSync(filePath)) {
@@ -253,7 +245,7 @@ export async function validateXCredentials(accessToken: string): Promise<boolean
 
 export async function refreshXToken(refreshToken: string): Promise<{ access_token: string, refresh_token?: string, expires_in?: number }> {
     try {
-        const response = await axios.post(`${AUTH_SERVER_URL}/api/auth/x/refresh`, {
+        const response = await axios.post(`${DOTSUITE_CONNECT_URL}/refresh/x`, {
             refreshToken
         });
         return response.data;

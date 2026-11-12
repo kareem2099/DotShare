@@ -44,7 +44,7 @@ function request(method, params = {}) {
         assert.equal(initialized.result.serverInfo.name, 'dotshare');
         child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
         const tools = await request('tools/list');
-        assert.equal(tools.result.tools.length, 23);
+        assert.equal(tools.result.tools.length, 25);
         for (const name of ['save_template', 'get_template', 'list_templates', 'delete_template', 'render_template', 'create_draft_from_template', 'get_draft_variants', 'set_draft_variant']) {
             assert(tools.result.tools.some(tool => tool.name === name), name);
         }
@@ -126,7 +126,7 @@ function request(method, params = {}) {
         assert.equal(diagnosed.accountChecksPerformed, false);
         const skipped = run(['doctor', '--config', config, '--skip-mcp']);
         assert.equal(skipped.mcpReady, null);
-        console.log('Verified: real MCP transport and 23 tools; templates, literal rendering, independent drafts and account variants across MCP/CLI; saved-draft status guards; setup and doctor. No posts published.');
+        console.log('Verified: real MCP transport and 25 tools; templates, literal rendering, independent drafts and account variants across MCP/CLI; saved-draft status guards; setup and doctor. No posts published.');
     } finally {
         child.kill('SIGTERM');
         const metadata = path.join(home, 'security.json');

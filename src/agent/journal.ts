@@ -9,7 +9,7 @@ import { PublicationReceipt } from '../platforms/runtime';
 export interface TargetResult {
     accountId: string;
     platform: string;
-    status: 'pending' | 'publishing' | 'published' | 'uncertain' | 'cancelled';
+    status: 'pending' | 'publishing' | 'published' | 'scheduled' | 'uncertain' | 'cancelled';
     receipts: PublicationReceipt[];
     error?: string;
 }

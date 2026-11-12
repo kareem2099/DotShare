@@ -7,7 +7,8 @@ import { AgentPublisher, safeError } from './publisher';
 import { AgentCloud } from './cloud';
 import { postSchema, publishSchema, scheduleSchema, requestIdSchema } from './schema';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
-import { AgentDrafts, DraftView, createDraftSchema, getDraftSchema, listDraftsSchema, updateDraftSchema, previewDraftSchema, publishDraftSchema, setDraftVariantSchema } from './drafts';
+import { AgentDrafts, DraftView, createDraftSchema, getDraftSchema, listDraftsSchema, updateDraftSchema, previewDraftSchema, publishDraftSchema, scheduleDraftSchema, setDraftVariantSchema } from './drafts';
+import { AgentStats, postStatsSchema } from './stats';
 import { AgentTemplates, saveTemplateSchema, getTemplateSchema, listTemplatesSchema, deleteTemplateSchema, renderTemplateSchema, createDraftFromTemplateSchema } from './templates';
 
 const outputSchema = z.object({ success: z.boolean(), data: z.unknown().optional(), error: z.string().optional() });
@@ -21,9 +22,11 @@ DotShare publishes user-authorized content to named accounts.
 3. publish_post requires an explicit user instruction to publish to the selected accounts. Use one stable requestId for that action.
 4. On timeout, reconnect and reuse the SAME requestId or call get_operation. Never issue a new ID to bypass a running/uncertain/needs_review result. Inspect destination accounts first. Results preserve receipts for already published thread parts.
 5. A requestId is retained on disk without automatic expiry. Repeating an identical action intentionally needs a new user-authorized requestId.
-6. Local accounts and DotSuite cloud connections are separate. schedule_post uses the accounts connected in the DotSuite dashboard, selected by platform. It does not upload local credentials. Cloud scheduling accepts one text post with public HTTPS media URLs; no threads or per-account overrides.
+6. Local accounts and DotSuite cloud connections are separate. Scheduling uses the accounts connected in the DotSuite dashboard, selected by platform, and never uploads local credentials. Prefer schedule_draft for a previewed draft: one post per platform with its own text, local images uploaded to DotSuite. schedule_post sends one text to several platforms with public HTTPS image URLs. Cloud posts can't be threads or carry a LinkedIn first comment.
 7. Use timezone-qualified future timestamps for scheduling. list_scheduled_posts returns IDs for cancel_scheduled_post.
-Images: local PNG/JPEG files inside configured DOTSHARE_MEDIA_ROOTS (relative paths are looked up inside those roots); WebP on Bluesky/Mastodon/Discord. Videos and GIFs are not supported by the agent interface. Dev.to requires article metadata and public HTTPS image URLs.
+Media: local files inside configured DOTSHARE_MEDIA_ROOTS (relative paths are looked up inside those roots). Images PNG/JPEG everywhere, WebP on Bluesky/Mastodon/Discord. MP4/MOV videos on X, LinkedIn, Mastodon, Telegram and Discord (WebM on Mastodon/Discord); GIFs on X, Mastodon, Telegram and Discord. Bluesky takes images only. On X and Mastodon a video or GIF must be the post's only media. preview_post reports each platform's size limit. Dev.to requires article metadata and public HTTPS image URLs.
+Bluesky: links, #hashtags and @handle.domain mentions become clickable; a mention whose handle doesn't resolve stays plain text.
+Stats: get_post_stats reads current engagement for a published requestId or draftId (read-only).
 LinkedIn: firstComment (top level or per account) is posted as the first comment right after the post, e.g. to put the article link there instead of the post body; other platforms ignore it with a preview warning.
 Report every platform's outcome and available post URLs. A running operation after a process crash requires review; it is never automatically resent.
 Draft/template/operation records are encrypted locally with AES-256-GCM and an OS-keyring master key; unlocked OS credential storage is required. Legacy plaintext must be migrated using the CLI security protect command, never by asking for keys in chat. Draft tools persist post bodies with private file permissions. create/update do not contact platforms. get_draft and list_drafts recover saved status after a restart. Publish a saved draft only through publish_draft with its current expectedRevision, previewId and one stable requestId. Changed images, accounts, credentials, limits or content require a fresh preview. Published/NeedsReview/Publishing drafts cannot be edited or retried with a fresh requestId. A new draft represents a separate user-authorized action.`;
@@ -101,6 +104,10 @@ export function createAgentServer(publisher = new AgentPublisher(), cloud = new 
         title: 'Publish the saved preview', description: 'Use only for user-authorized publication. Publish exactly the saved preview identified by draftId, expectedRevision and previewId. Content/images/accounts/limits are revalidated; edits require a new preview. Preserve requestId on every retry. Published includes receipts; partial/uncertain results become NeedsReview. Never bypass this with publish_post.',
         inputSchema: publishDraftSchema, outputSchema, annotations: write,
     }, async (input, context) => guarded(() => drafts.publish(input, context.mcpReq.signal), data => ['Published', 'SavedRemotely'].includes((data as { draft: DraftView }).draft.status)));
+    server.registerTool('schedule_draft', {
+        title: 'Schedule the saved preview', description: 'Use only when the user explicitly asks to schedule this previewed draft. Sends one DotSuite cloud post per platform with that platform\'s own text and images (local images are uploaded to DotSuite), using the accounts connected in the DotSuite dashboard. Single posts only: no threads, LinkedIn first comments, Discord or Dev.to, and one text per platform. Same revision/previewId rules and stable requestId as publish_draft. Scheduled is not yet public.',
+        inputSchema: scheduleDraftSchema, outputSchema, annotations: write,
+    }, async input => guarded(() => drafts.schedule(input, cloud), data => (data as { draft: DraftView }).draft.status === 'Scheduled'));
     server.registerTool('list_accounts', {
         title: 'List DotShare accounts', description: 'List configured local publishing accounts and supported features, without reading or returning credentials.',
         inputSchema: z.object({}).strict(), outputSchema, annotations: readOnly,
@@ -126,6 +133,11 @@ export function createAgentServer(publisher = new AgentPublisher(), cloud = new 
         if (!operation) throw new Error('Operation not found.');
         return { operation };
     }));
+    const stats = new AgentStats(publisher.accounts, undefined, id => drafts.get(id).publication?.requestId);
+    server.registerTool('get_post_stats', {
+        title: 'Read post engagement', description: 'Read current likes, reposts, replies, quotes, impressions (X), views/reactions/comments (Dev.to) for a published operation or draft, per account and thread part. Read-only; Telegram and Discord have no metrics, LinkedIn needs read access the app may lack, and X depends on the API plan. Numbers change over time.',
+        inputSchema: postStatsSchema, outputSchema, annotations: { ...readOnly, openWorldHint: true, idempotentHint: false },
+    }, async input => guarded(() => stats.get(input)));
     server.registerTool('list_history', {
         title: 'List recent publishing results', description: 'Read recent durable operations and publication receipts. Does not include credentials or full post bodies.',
         inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(20) }).strict(), outputSchema, annotations: readOnly,

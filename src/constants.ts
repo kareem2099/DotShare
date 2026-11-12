@@ -1,6 +1,14 @@
 export const APP_NAME = 'DotShare';
 
-export const DEFAULT_SERVER_URL = 'https://dotshare-auth-server.vercel.app/';
+// ── Social sign-in (LinkedIn, X) ────────────────────────────────────────────
+// Hosted on dotsuite.dev in every build: the providers only return to the
+// callbacks registered there, so this never points at localhost.
+export const DOTSUITE_CONNECT_URL = 'https://dotsuite.dev/api/connect';
+
+export const DEFAULT_SERVER_URL = 'https://dotsuite.dev';
+
+/** Earlier releases used this server; saved CLI configs move off it automatically. */
+export const LEGACY_SERVER_HOST = 'dotshare-auth-server.vercel.app';
 
 // ── DotSuite Core (Rust Backend) ────────────────────────────────────────────
 // To point to a local server during development, override with the

@@ -54,7 +54,7 @@ interface BlobRef {
 
 export interface Facet {
     index: { byteStart: number; byteEnd: number };
-    features: Array<{ $type: 'app.bsky.richtext.facet#link'; uri: string } | { $type: 'app.bsky.richtext.facet#tag'; tag: string }>;
+    features: Array<{ $type: 'app.bsky.richtext.facet#link'; uri: string } | { $type: 'app.bsky.richtext.facet#tag'; tag: string } | { $type: 'app.bsky.richtext.facet#mention'; did: string }>;
 }
 
 // Punctuation that ends a sentence rather than a URL, e.g. "see https://x.dev."
@@ -82,6 +82,46 @@ export function detectFacets(text: string): Facet[] {
         if (!tag || tag.length > MAX_TAG_LENGTH || /^\d+$/.test(tag)) continue;
         const start = match.index! + match[1].length;
         facets.push({ index: { byteStart: bytes(start), byteEnd: bytes(start + 1 + tag.length) }, features: [{ $type: 'app.bsky.richtext.facet#tag', tag }] });
+    }
+    return facets.sort((a, b) => a.index.byteStart - b.index.byteStart);
+}
+
+// A mention starts after whitespace, "(" or the start, like the Bluesky app's parser.
+const MENTION_PATTERN = /(^|[\s(])@([a-zA-Z0-9.-]+)/gu;
+const HANDLE = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+
+export interface MentionCandidate { start: number; end: number; handle: string; }
+/** @handle.domain mentions in `text`, as UTF-16 offsets around the "@handle". */
+export function detectMentions(text: string): MentionCandidate[] {
+    const mentions: MentionCandidate[] = [];
+    for (const match of text.matchAll(MENTION_PATTERN)) {
+        const handle = match[2].replace(/[.-]+$/, '');
+        if (handle.length > 253 || !HANDLE.test(handle)) continue;
+        const start = match.index! + match[1].length;
+        mentions.push({ start, end: start + 1 + handle.length, handle: handle.toLowerCase() });
+    }
+    return mentions;
+}
+
+export type HandleResolver = (handle: string) => Promise<string | undefined>;
+/** Public handle lookup; unknown handles stay plain text, as in the Bluesky app. */
+export const resolveHandle: HandleResolver = async handle => {
+    try {
+        const { data } = await axios.get('https://bsky.social/xrpc/com.atproto.identity.resolveHandle', { params: { handle }, timeout: 5000, maxRedirects: 0 });
+        return typeof data?.did === 'string' && /^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(data.did) ? data.did : undefined;
+    } catch { return undefined; }
+};
+
+/** Link, tag and mention facets; each distinct handle is looked up once. */
+export async function buildFacets(text: string, resolve: HandleResolver = resolveHandle, cache = new Map<string, Promise<string | undefined>>()): Promise<Facet[]> {
+    const facets = detectFacets(text);
+    const bytes = (end: number): number => Buffer.byteLength(text.slice(0, end), 'utf8');
+    for (const mention of detectMentions(text)) {
+        const byteStart = bytes(mention.start); const byteEnd = bytes(mention.end);
+        if (facets.some(facet => byteStart < facet.index.byteEnd && facet.index.byteStart < byteEnd)) continue;
+        if (!cache.has(mention.handle)) cache.set(mention.handle, resolve(mention.handle));
+        const did = await cache.get(mention.handle);
+        if (did) facets.push({ index: { byteStart, byteEnd }, features: [{ $type: 'app.bsky.richtext.facet#mention', did }] });
     }
     return facets.sort((a, b) => a.index.byteStart - b.index.byteStart);
 }
@@ -147,6 +187,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
         let rootPost:   { uri: string; cid: string } | null = null;
         let parentPost: { uri: string; cid: string } | null = null;
 
+        const handles = new Map<string, Promise<string | undefined>>();
         for (let i = 0; i < threadPosts.length; i++) {
             const currentPost = threadPosts[i];
             
@@ -172,7 +213,7 @@ export async function shareToBlueSky(identifier: string, password: string, postD
                 createdAt: new Date().toISOString(),
                 $type: 'app.bsky.feed.post'
             };
-            const facets = detectFacets(currentPost.text);
+            const facets = await buildFacets(currentPost.text, resolveHandle, handles);
             if (facets.length > 0) record.facets = facets;
 
             // 3. Attach embeds if media exists

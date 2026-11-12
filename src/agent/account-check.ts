@@ -12,12 +12,13 @@ export interface AccountCheck {
 }
 export type CheckAccount = (store: AccountStore, account: Account) => Promise<AccountCheck>;
 
-/** Identity checks only: no posts, uploads, scheduling, credential sync or refresh. */
+/** Identity checks only: no posts, uploads, scheduling or credential sync. An expiring X sign-in is refreshed first. */
 export const checkAccount: CheckAccount = async (store, account) => {
     const base = { id: account.id, platform: account.platform };
-    const fix = `Reconnect in your terminal: dotshare-agent accounts add ${account.id} --platform ${account.platform}`;
+    const browser = account.platform === 'linkedin' || account.platform === 'x';
+    const fix = `Reconnect in your terminal: dotshare-agent accounts ${browser ? 'connect' : 'add'} ${account.id} --platform ${account.platform}`;
     try {
-        const credentials = store.credentials(account.id);
+        const credentials = await store.freshCredentials(account.id);
         const options = { timeout: 10000, maxRedirects: 0 };
         const bearer = { ...options, headers: { Authorization: `Bearer ${credentials.accessToken}` } };
         let identity: unknown;
@@ -59,6 +60,11 @@ export const checkAccount: CheckAccount = async (store, account) => {
             }
         }
         if (typeof identity !== 'string' || !identity.trim() || identity.length > 256) throw new Error('Platform returned no usable identity.');
+        const expiresAt = Number(credentials.expiresAt || 0) * 1000;
+        if (expiresAt && !credentials.refreshToken && expiresAt - Date.now() < 7 * 24 * 60 * 60 * 1000) {
+            const days = Math.max(0, Math.floor((expiresAt - Date.now()) / 86400000));
+            return { ...base, status: 'warn', identity: cleanIdentity(identity), message: `Account identity verified, but the sign-in expires in ${days} day(s).`, fix };
+        }
         return { ...base, status: 'pass', identity: cleanIdentity(identity), message: 'Account identity verified. Posting permissions were not exercised.' };
     } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined;

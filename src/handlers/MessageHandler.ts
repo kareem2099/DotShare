@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DOTSUITE_WEB_URL } from '../constants';
+import { DOTSUITE_CONNECT_URL, DOTSUITE_WEB_URL } from '../constants';
 import * as path from 'path';
 import * as fs from 'fs';
 import { HistoryService } from '../services/HistoryService';
@@ -10,7 +10,7 @@ import { ConfigHandler } from './ConfigHandler';
 import { PostHandler } from './PostHandler';
 import { GistHandler } from './GistHandler';
 import { Logger } from '../utils/Logger';
-import { TokenManager, AUTH_SERVER_URL } from '../services/TokenManager';
+import { TokenManager } from '../services/TokenManager';
 import { DraftsService } from '../services/DraftsService';
 import { DotShareAuth } from '../services/DotShareAuth';
 import { SchedulerClient } from '../services/SchedulerClient';
@@ -105,7 +105,7 @@ export class MessageHandler {
                         return;
                     }
                     const scheme = vscode.env.uriScheme;
-                    const authUrl = `${AUTH_SERVER_URL}/auth/${platform}?scheme=${scheme}`;
+                    const authUrl = `${DOTSUITE_CONNECT_URL}/${platform}?scheme=${encodeURIComponent(scheme)}`;
                     Logger.info(`[MessageHandler] DotShare: Opening OAuth for ${platform} → ${authUrl}`);
                     vscode.env.openExternal(vscode.Uri.parse(authUrl));
                     break;

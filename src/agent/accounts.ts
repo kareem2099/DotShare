@@ -6,7 +6,8 @@ import { rememberSecret } from '../security/redaction';
 import { LocalVault } from '../security/vault';
 import { privateDirectory, privateRead, privateWriteJson } from '../security/private-files';
 import { normalizeMastodonInstance } from '../platforms/mastodon';
-import { AccountInput, accountInputSchema, accountIdSchema, CREDENTIAL_FIELDS, Platform } from './schema';
+import { AccountInput, accountInputSchema, accountIdSchema, CREDENTIAL_FIELDS, OPTIONAL_CREDENTIAL_FIELDS, Platform } from './schema';
+import { refreshXToken, XRefresher } from './token-refresh';
 
 export interface Account { id: string; name: string; platform: Platform; }
 export const defaultAgentHome = (): string => process.env.DOTSHARE_HOME || path.join(os.homedir(), '.dotshare');
@@ -18,6 +19,8 @@ export function privateWrite(file: string, value: unknown): void {
 export class AccountStore {
     readonly home: string;
     readonly files: LocalVault;
+    /** Swaps an X refresh token through dotsuite.dev; replaceable in tests. */
+    xRefresher: XRefresher = refreshXToken;
     constructor(home = defaultAgentHome(), private readonly secrets: CliCredentialStore = new OsCredentialStore()) {
         this.home = path.resolve(home); this.files = new LocalVault(this.home, secrets);
     }
@@ -53,8 +56,10 @@ export class AccountStore {
 
     private validate(input: AccountInput): void {
         const fields = CREDENTIAL_FIELDS[input.platform];
+        const allowed = [...fields, ...(OPTIONAL_CREDENTIAL_FIELDS[input.platform] || [])];
         if (fields.some(key => !input.credentials[key]?.trim())) throw new Error(`Required credentials: ${fields.join(', ')}.`);
-        if (Object.keys(input.credentials).some(key => !fields.includes(key))) throw new Error(`Allowed credentials: ${fields.join(', ')}.`);
+        if (Object.keys(input.credentials).some(key => !allowed.includes(key))) throw new Error(`Allowed credentials: ${allowed.join(', ')}.`);
+        if (input.credentials.expiresAt !== undefined && !/^[0-9]{1,12}$/.test(input.credentials.expiresAt)) throw new Error('expiresAt must be Unix seconds.');
         if (input.platform === 'mastodon') input.credentials.instance = normalizeMastodonInstance(input.credentials.instance);
         if (input.platform === 'telegram' && !/^[0-9]+:[A-Za-z0-9_-]+$/.test(input.credentials.botToken)) throw new Error('Invalid Telegram bot token format.');
         if (input.platform === 'discord') {
@@ -79,6 +84,33 @@ export class AccountStore {
         if (this.secrets.get(`agent:${input.id}`) !== JSON.stringify(credentials)) throw new Error('Credential storage could not be verified. The account was not advertised.');
         privateWrite(path.join(this.home, 'accounts.json'), [...accounts.filter(a => a.id !== input.id), metadata]);
         return metadata;
+    }
+
+    /**
+     * Credentials ready to use now. An X account connected in the browser gets a
+     * new access token when the current one has under five minutes left. X rotates
+     * refresh tokens, so the new pair is saved before it is used; if another
+     * process refreshed first, its saved pair is used instead.
+     */
+    async freshCredentials(id: string, now = Date.now()): Promise<Record<string, string>> {
+        const credentials = this.credentials(id);
+        const account = this.get(id);
+        const expiresAt = Number(credentials.expiresAt || 0) * 1000;
+        if (account.platform !== 'x' || !credentials.refreshToken || !expiresAt || expiresAt - now > 5 * 60 * 1000) return credentials;
+        let token;
+        try { token = await this.xRefresher(credentials.refreshToken); }
+        catch (error) {
+            const stored = this.credentials(id);
+            if (stored.refreshToken !== credentials.refreshToken) return stored;
+            throw error;
+        }
+        const stored = this.credentials(id);
+        if (stored.refreshToken !== credentials.refreshToken) return stored;
+        const next: Record<string, string> = { ...credentials, accessToken: token.accessToken, expiresAt: String(token.expiresAt) };
+        if (token.refreshToken) next.refreshToken = token.refreshToken;
+        else delete next.refreshToken;
+        this.add({ ...account, credentials: next });
+        return next;
     }
 
     remove(id: string): void {

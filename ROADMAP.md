@@ -1,226 +1,155 @@
-# 🗺️ DotShare Roadmap — The 3.x Era (SaaS, Cloud Native & AI)
+# 🗺️ DotShare Roadmap
 
-> **Codename:** *The Publishing Suite & AI Copilot*\
-> **Philosophy:** Cloud-first scheduling, secure centralized credentials, lightweight extension, and automated codebase release intelligence.\
-> **Current Version:** `v3.5.2` (Active Production)\
-> **Next Milestone:** `v3.6.0` (Omni-Platform Release Hub)\
-> **Companion Document:** [AI_RELEASE_COPILOT_ROADMAP.md](file:///home/kareem/StudioProjects/DotShare/AI_RELEASE_COPILOT_ROADMAP.md)
+> **Current release:** VS Code extension `v3.6.1` · `dotshare-cli` `v3.0.1` (MCP server and CLI)\
+> **Next milestone:** `v3.6.2` — Reliability\
+> **Principle:** Everything that runs on the user's machine with their own accounts stays free and open source. Paid DotSuite plans cover what runs on DotSuite servers.\
+> **Companion:** [AI Release Copilot roadmap](AI_RELEASE_COPILOT_ROADMAP.md)
 
 ---
 
-## 🧭 Milestone Overview & Status
+## 🧭 Overview
 
 ```
-v3.0.x  ████████████████████  Foundation (WebView Shell, Router, Bridge, Theming) ✅ Completed
-v3.1.x  ████████████████████  Polish (Toasts, Error Boundaries, Keyboard Shortcuts) ✅ Completed
-v3.2.x  ████████████████████  Cloud Scheduling & R2 Storage (Rail Nav, R2 Media Upload) ✅ Completed
-v3.3.x  ████████████████████  SaaS Architecture (Purge Local Engine, DotShareAuth, Gists) ✅ Completed
-v3.4.x  ████████████████████  CodeSnap & Modernization (CodeSnap Bridge, Deprecations) ✅ Completed
-v3.5.0  ████████████████████  DotShare AI Core (Context Engine, 5 Tones, Bilingual) ✅ Completed
-v3.5.1  ████████████████████  Smart CTA Hub & Dynamic AI (Live Discovery, SDK Migration) ✅ Completed
-v3.5.2  ████████████████████  Blog Pilot (Dev.to Pure Markdown, Frontmatter Auto-fill) ✅ Completed
-─────────────────────────────────────────────────────────────────────────────────────────────
-v3.6.0  ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  Omni-Platform Hub & Full UI Wizard ⏳ UP NEXT
-v3.6.1  ░░░░░░░░░░░░░░░░░░░░  Pro Workflows, CodeSnap Release Bridge & Cloud Scheduler 🔵 Planned
-v3.7.0  ░░░░░░░░░░░░░░░░░░░░  Multi-Account & Workspace Profiles 🔵 Backlog
-v3.8.0  ░░░░░░░░░░░░░░░░░░░░  Community Plugin & Extension System 🔵 Backlog
-v3.9.0  ░░░░░░░░░░░░░░░░░░░░  LTS Hardening & Stability Audit 🔵 Backlog
+v3.0 – v3.4  ████████████████████  WebView shell, cloud scheduling, SaaS auth, CodeSnap        ✅ Done
+v3.5.x       ████████████████████  AI release copilot, Smart CTA hub, Dev.to articles, Mastodon ✅ Done
+v3.6.0       ████████████████████  Local MCP server & shared Publishing Library                ✅ Done
+v3.6.1       ████████████████████  Field fixes: Bluesky facets, LinkedIn first comment, locks  ✅ Done
+──────────────────────────────────────────────────────────────────────────────────────────────────────
+v3.6.2       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  Reliability: CI, token lifecycle, release automation        ⏳ Next
+v3.7.0       ░░░░░░░░░░░░░░░░░░░░  One domain: auth on dotsuite.dev, verified publishing        🔵 Planned
+v3.8.0       ░░░░░░░░░░░░░░░░░░░░  Multi-account cloud & remote MCP (paid plans)              🔵 Planned
+v3.9.0       ░░░░░░░░░░░░░░░░░░░░  Trust & teams: provenance view, approvals, analytics       🔵 Backlog
 ```
 
----
-
-## ✅ Completed Milestones
-
-### 🏗️ v3.0 — Foundation Strike
-> **Status:** ✅ Completed\
-- [x] **`WEBVIEW_SHELL`**: Created `DotShareWebView.ts` panel launcher.
-- [x] **`WEBVIEW_ROUTER`**: Client-side tab navigation (Social, Blog, Analytics, Settings).
-- [x] **`WEBVIEW_BRIDGE`**: Typed bidirectional `postMessage` protocol between host and WebView.
-- [x] **`WEBVIEW_THEME`**: Native VS Code theme token integration (Light, Dark, High Contrast).
-- [x] **`PAGE_POST` & `PAGE_PUBLISH`**: Dedicated social composer and long-form markdown publisher.
-- [x] **`PLATFORM_ADAPTERS`**: Decoupled social adapters from blogging publishers.
-
-### ✨ v3.1 — Polish & Native DX
-> **Status:** ✅ Completed\
-- [x] **`ERROR_BOUNDARIES`**: Consistent error banners and friendly recovery hints.
-- [x] **`TOAST_SYSTEM`**: Native in-WebView toast notifications (Success, Info, Warning, Error).
-- [x] **`KEYBOARD_SHORTCUTS`**: `Ctrl+Enter` to publish/share, `Ctrl+Shift+D` for drafts.
-- [x] **`RESPONSIVE_WEBVIEW`**: Responsive flex layout accommodating split-editor panes.
-
-### ⏰ v3.2 — Cloud Scheduling & Media Pipeline
-> **Status:** ✅ Completed\
-- [x] **`RAIL_NAVIGATION`**: Modern vertical rail navigation for intuitive switching.
-- [x] **`CLOUD_ANCHOR`**: Direct media uploads backed by Cloudflare R2 (`MediaService.ts`).
-- [x] **`OAUTH_UX`**: Seamless OAuth redirection flow via `dotshare-auth-server`.
-
-### 🏛️ v3.3 — SaaS Architecture Master Plan
-> **Status:** ✅ Completed\
-- [x] **The Purge (Banish Local Scheduling)**: Completely removed `src/core/scheduler.ts`, `scheduled-posts.ts`, and legacy `bin/` directory.
-- [x] **Auth & Billing Bridge**: Built [`DotShareAuth.ts`](file:///home/kareem/StudioProjects/DotShare/src/services/DotShareAuth.ts) with `vscode.secrets` token persistence.
-- [x] **Scheduler Client**: Built [`SchedulerClient.ts`](file:///home/kareem/StudioProjects/DotShare/src/services/SchedulerClient.ts) communicating directly with `dotsuite-core` Rust backend.
-- [x] **Unified Cloud Auth UI**: Integrated login, token validation, and account status in Settings.
-- [x] **GitHub Gists**: Added full GitHub Gists publishing and sharing support.
-
-### 📸 v3.4 — CodeSnap & Platform Modernization
-> **Status:** ✅ Completed\
-- [x] **`CODESNAP_INTEGRATION`**: Integrated [`CodeSnapService.ts`](file:///home/kareem/StudioProjects/DotShare/src/services/CodeSnapService.ts) and [`CodeSnapPanel.ts`](file:///home/kareem/StudioProjects/DotShare/src/ui/CodeSnapPanel.ts) to snap highlighted code into beautiful images and attach them to posts.
-- [x] **`CVE_CLEANUP`**: Eliminated obsolete platforms (`snoowrap`, deprecated Reddit dependencies) and resolved 3 upstream CVEs.
-- [x] **`POST_HANDLER_REFACTOR`**: Modularized platform handlers for zero-regression isolation.
-
-### 🧠 v3.5.0 — DotShare AI Context Engine
-> **Status:** ✅ Completed\
-- [x] **`PROJECT_CONTEXT_SERVICE`**: Parallel extraction of workspace release context via [`ProjectContextService.ts`](file:///home/kareem/StudioProjects/DotShare/src/services/ProjectContextService.ts) (`CHANGELOG.md`, `README.md`, `package.json`, and `git diff --stat HEAD~1 HEAD`).
-- [x] **`MULTI_TONE_PROMPTS`**: 5 tailored writing styles implemented in [`ReleasePromptBuilder.ts`](file:///home/kareem/StudioProjects/DotShare/src/ai/prompts/ReleasePromptBuilder.ts):
-  - 👔 Professional & Formal (LinkedIn)
-  - 🚀 Build in Public / Casual (𝕏 / BlueSky)
-  - 🧠 Technical Deep-Dive (Architecture / Code)
-  - ⚡ Quick TL;DR (Scannable highlights)
-  - 📝 Full Markdown Article (Blogs)
-- [x] **`BILINGUAL_PROMPTS`**: First-class support for fluent technical English and Arabic.
-- [x] **`DYNAMIC_TOKENS`**: Tone-aware token budgets (up to 4,000 tokens for long-form articles).
-
-### 🔗 v3.5.1 — Smart CTA Hub & Dynamic AI Discovery
-> **Status:** ✅ Completed (Current Active Release)\
-- [x] **`SMART_CTA_HUB`**:
-  - Saved personal/community links (`UserCtaLink`) managed in `globalState` with live multi-panel sync.
-  - Automatic detection and toggling of Workspace Git Repository URL.
-  - Strict zero-hallucination URL prompt rules guaranteeing verbatim fidelity.
-- [x] **`PURE_DYNAMIC_AI_DISCOVERY`**:
-  - 100% dynamic live model fetching from provider APIs with zero hardcoded model fallbacks.
-  - **Google Gemini**: Migrated to official `@google/genai` SDK with `pageSize=1000`.
-  - **OpenAI**: Migrated generation engine to the modern `Responses API`.
-  - **xAI Grok**: Integrated `/v1/language-models` endpoint with text modality filtering.
-  - **DeepSeek**: Integrated live discovery and `thinking: { type: 'disabled' }`.
-  - **Anthropic Claude**: Integrated live discovery via `client.models.list()`.
-- [x] **`SECRETS_AUTO_FETCH`**: SecretStorage background auto-fetching for keys and status badges.
-- [x] **`STRICT_MODEL_VERIFICATION`**: Enforced `GenerateContentOptions.model: string` across adapters.
+Each milestone lists its CLI version where the MCP server or CLI changes. Plans: **Free** / **Pro** / **Max**.
 
 ---
 
-### 📝 v3.5.2 — Blog Pilot (Dev.to Pure Markdown)
-> **Status:** ✅ Completed\
-- [x] **`DEVTO_ARTICLE_GENERATOR`**:
-  - Connected `Full Technical Article` tone directly to Dev.to publisher workspace.
-  - Strictly enforce GitHub Flavored Markdown (code fences with language identifiers, structured sections).
-- [x] **`YAML_FRONTMATTER_BUILDER`**:
-  - Auto-extract and populate metadata from project context and AI generation.
-  - Auto-fill `blog-title`, `blog-tags` (max 4, sanitized lowercase), and `blog-canonical-url` in the WebView composer.
-- [x] **`MARKDOWN_LIVE_PREVIEW`**:
-  - Segmented toggle (`✏️ Raw Markdown` / `👁️ Live Preview`) with real-time rendered HTML and syntax-highlighted code blocks via `marked`.
-  - Added live reading time and metadata stats (word count, char count).
-  - 1-click "Publish Live" or "Save as Draft" directly to Dev.to.
+## 🚨 Now — Auth server security fixes (`dotshare-auth-server`)
+
+> **Why:** Two flaws in the live OAuth server. Fix and redeploy before anything else; the merge below replaces this server later.
+
+- [ ] **`SCHEME_ALLOWLIST`** — The callback page sends the new tokens to `${scheme}://freerave.dotshare/auth?...`, taking `scheme` unchecked from the sign-in link. A link with `scheme=https://attacker.example/?` makes a victim's own LinkedIn or X sign-in deliver their access and refresh tokens to the attacker. Accept only known editor schemes (`vscode`, `vscode-insiders`, `vscodium`, `cursor`, `windsurf`) and fall back to `vscode`.
+- [ ] **`NO_CLIENT_USER_ID`** — `/api/auth/{linkedin,x}` takes `userId` from the request body and saves the token to that DotSuite account through `/internal/oauth/save`. Anyone with their own authorization code could attach their account to someone else's DotSuite user. Nothing in DotShare or the site sends `userId` today, so remove the field; after the merge the user comes from the signed-in session.
 
 ---
 
-## 🎯 Active & Upcoming Milestones
+## ⏳ v3.6.2 — Reliability
 
-### 🌐 v3.6.0 — Omni-Platform Release Hub
-> **Status:** ⏳ In Progress / Up Next\
-> **Focus:** Full Release Control Center wizard generating content for all platforms simultaneously.
+> **Why:** Every real post during the 3.6 launch found a bug the tests missed, and the release took several manual steps. This milestone makes breakage visible before users see it.\
+> **CLI:** `3.0.2`
 
-- [ ] **`MULTI_PLATFORM_ADAPTERS`**:
-  - **🦋 BlueSky**: 300-grapheme limits, link facets, and thread creation.
-  - **💬 Discord**: Rich webhook embeds with release highlights and color bands.
-  - **📱 Telegram**: Telegram Markdown V2 / HTML formatted broadcasts.
-- [ ] **`RELEASE_WIZARD_MODAL`**:
-  - Unified 4-step wizard:
-    1. Select context sources (`CHANGELOG`, `Git`, `README`).
-    2. Select target platforms (Multi-select: X, LinkedIn, BlueSky, Dev.to, Discord, Telegram).
-    3. Choose tone and language.
-    4. **Multi-Tab Live Preview**: Switch tabs to review/edit platform variants before sending.
-- [ ] **`ONE_CLICK_BROADCAST`**: "Publish to All Selected Platforms" action with atomic status tracking.
+- [ ] **`CI_PIPELINE`** — GitHub Actions on every push and pull request: type-check, lint, all Jest suites, `verify-agent`, `verify-security`, `verify-library`, and building the VSIX and CLI tarball. The repository has no workflows today.
+- [ ] **`X_TOKEN_REFRESH`** — The agent stores only an X access token, and X OAuth 2.0 tokens expire after about two hours, so MCP posting to X stops working soon after an account is added. Store the refresh token and rotate it, as the extension already does through the auth server.
+- [ ] **`TOKEN_EXPIRY`** — Record when each token expires (LinkedIn: 60 days). `doctor` lists expiry dates and warns a week ahead; `publish_post` and `preview_post` return a warning for expiring accounts.
+- [ ] **`ACCOUNTS_CONNECT`** — `dotshare-agent accounts connect linkedin` (and `x`): the browser sign-in flow built into the CLI, so nobody needs LinkedIn's token generator, which failed with a "state parameter" error during launch.
+- [ ] **`RELEASE_SCRIPT`** — `npm run release <version>`: one source of truth for the extension, CLI and in-code client versions; create the CHANGELOG and What's New sections; build both artifacts and verify their contents; print the exact publish commands (`npm publish ./artifacts/…`, not `artifacts/…`).
+- [ ] **`LEGACY_SECRET_CLEANUP`** — Clear All Credentials also removes secrets from removed platforms (Reddit).
 
 ---
 
-### 🚀 v3.6.1 — Pro Workflows & CodeSnap Bridge
-> **Status:** 🔵 Planned\
-> **Focus:** CodeSnap integration for releases, cloud scheduling, and smart tagging.
+## 🔵 v3.7.0 — One Domain & Verified Publishing
 
-- [ ] **`CODESNAP_RELEASE_BRIDGE`**: Auto-detect key code changes in git diff and suggest generating a snapshot image to attach to the release post.
-- [ ] **`CLOUD_RELEASE_SCHEDULER`**: Schedule release announcements across platforms via DotSuite Rust backend (`SchedulerClient`).
-- [ ] **`SMART_HASHTAG_EXTRACTOR`**: Automatically infer platform-tailored tags from `package.json` and `README.md` tech stack.
+> **Why:** DotShare spans `core.dotsuite.dev`, `dotsuite.dev` and `dotshare-auth-server.vercel.app`. Merging auth into the DotSuite site puts every service under one name users can trust and one sign-in, and verified publishing confirms that what DotShare posted looks right.\
+> **CLI:** `3.1.0`
 
----
+### 🌐 Merge the auth server into `dotsuite.dev`
+The auth server (`dotshare-auth-server`, v1.4.2) is a small Next.js app: PKCE sign-in pages, a callback page, LinkedIn and X token exchange, X token refresh, Upstash rate limits and a sync to `dotsuite-core`. The `dotsuite` site is Next.js 16 too, so the code moves in rather than being rebuilt.
+- [ ] **`MOVE_ROUTES`** — Bring `src/lib/{pkce,platforms,tokenUtils}.ts`, the two hooks and the pages and API routes into `dotsuite`. Use new paths, because `dotsuite` already serves NextAuth and account routes under `/api/auth/*`: pages at `/connect/{linkedin,x}` and `/connect/{platform}/callback`, APIs at `/api/connect/{platform}` and `/api/connect/x/refresh`. Keep the pages outside the `[locale]` routing in `dotsuite/src/proxy.ts`.
+- [ ] **`SESSION_USER`** — Take the DotSuite user from the NextAuth session when syncing tokens to `dotsuite-core`, never from the request.
+- [ ] **`ENV_AND_LIMITS`** — Move `LINKEDIN_CLIENT_ID`/`SECRET`, `X_CLIENT_ID`, `INTERNAL_SECRET`, `DOTSUITE_CORE_URL` and the Upstash variables to the `dotsuite` deployment, with the same rate limits.
+- [ ] **`OAUTH_REDIRECTS`** — Add `https://dotsuite.dev/connect/linkedin/callback` and `https://dotsuite.dev/connect/x/callback` to the LinkedIn and X apps, keeping the Vercel callbacks during the transition.
+- [ ] **`ONE_URL_CONSTANT`** — The auth URL is hard-coded in `src/constants.ts`, `src/services/TokenManager.ts` and `media/main.ts`. Replace them with one constant pointing at `dotsuite.dev`, with a development override like `DOTSUITE_API_URL`, and update the paths.
+- [ ] **`CLI_CONFIG_MIGRATION`** — The CLI saves `serverUrl` in `~/.dotshare/config.json`; rewrite the old Vercel address on load.
+- [ ] **`RETIRE_VERCEL`** — Keep the old server running, not redirecting, until older extensions age out: 3.6.x refuses HTTP redirects, so a redirect would break X token refresh for those users. Then shut it down.
 
-## 🔮 Future Backlog (v3.7 — v3.9)
+### ✅ Verified publishing
+- [ ] **`POST_PUBLISH_CHECK`** — After publishing, read the post back from the platform and record in the receipt whether images, links, hashtags and the first comment are present. This would have caught the thread images that went out without media.
+- [ ] **`LINK_CARDS`** — Rich previews for links: an external embed on Bluesky and an `ARTICLE` share on LinkedIn.
+- [ ] **`LIVE_SMOKE_TESTS`** — A pre-release script that posts a text post, a thread and an image post to test accounts on each platform, verifies them, then deletes them.
+- [ ] **`EXTENSION_PARITY`** — The VS Code composer gets the LinkedIn first-comment field and a NeedsReview view in the Publishing Library, matching the MCP.
 
-### 👥 v3.7 — Multi-Account & Workspace Profiles
-- [ ] **`MULTI_ACCOUNT_STORE`**: Support multiple accounts per platform (e.g., Personal X + Corporate X).
-- [ ] **`WORKSPACE_PROFILES`**: Bind active social accounts to specific VS Code workspaces (`.dotshare.json`).
-- [ ] **`TEAM_CONFIG`**: Exportable team profile configurations without credentials.
-
-### 🧩 v3.8 — Extension & Plugin System
-- [ ] **`PLATFORM_PLUGIN_API`**: Public interface (`IDotSharePlatform`) allowing community-authored platform plugins.
-- [ ] **`POST_TEMPLATES`**: Reusable templates with dynamic variables (`{{version}}`, `{{repo}}`, `{{highlights}}`).
-- [ ] **`WEBHOOK_TRIGGERS`**: Outbound webhooks on successful publish events.
-
-### 🛡️ v3.9 — Stability, LTS & Public API
-- [ ] **`FULL_E2E_SUITE`**: End-to-end testing using VS Code Extension Testing API.
-- [ ] **`PERFORMANCE_BUDGETS`**: Profile and optimize WebView message roundtrips and memory footprint.
-- [ ] **`DOCS_PORTAL`**: Dedicated documentation portal with quickstarts, tutorials, and developer guides.
-
----
-
-## 📁 Current Repository Architecture
-
-```
-src/
-├── ai/                         # DotShare AI Engine
-│   ├── prompts/
-│   │   └── ReleasePromptBuilder.ts   # 5-tone bilingual release prompt system
-│   ├── claude.ts               # Anthropic SDK (dynamic discovery)
-│   ├── deepseek.ts             # DeepSeek API (thinking: disabled)
-│   ├── gemini.ts               # @google/genai SDK (pageSize=1000)
-│   ├── openai.ts               # OpenAI Responses API
-│   └── xai.ts                  # xAI Grok language-models API
-├── handlers/                   # IPC Message Routing
-│   ├── ConfigHandler.ts
-│   ├── GistHandler.ts
-│   ├── MessageHandler.ts
-│   └── PostHandler.ts          # Core post and AI generation dispatcher
-├── platforms/                  # Publishing Adapters
-│   ├── bluesky.ts
-│   ├── devto.ts
-│   ├── discord.ts
-│   ├── linkedin.ts
-│   ├── platform-config.ts
-│   ├── telegram.ts
-│   └── x.ts
-├── services/                   # Business Services
-│   ├── AnalyticsService.ts
-│   ├── CodeSnapService.ts      # Code screenshot capture
-│   ├── DotShareAuth.ts         # DotSuite cloud authentication & secret storage
-│   ├── DraftsService.ts
-│   ├── GistService.ts
-│   ├── HashtagService.ts
-│   ├── HistoryService.ts
-│   ├── MediaService.ts         # Cloudflare R2 media upload
-│   ├── ProjectContextService.ts # Context engine (CHANGELOG, Git, README)
-│   ├── SchedulerClient.ts      # dotsuite-core Rust backend scheduler client
-│   └── TokenManager.ts
-├── storage/                    # Secure Storage Layer
-│   ├── credential-provider.ts
-│   └── storage-manager.ts
-├── ui/                         # VS Code Panels
-│   ├── AnalyticsPanel.ts
-│   ├── CodeSnapPanel.ts
-│   ├── DotShareProvider.ts
-│   ├── DotShareWebView.ts      # Primary tab-based WebView container
-│   └── WhatsNewProvider.ts
-├── utils/                      # Helper Utilities
-│   ├── blog-validator.ts
-│   ├── contextBuilder.ts
-│   ├── frontmatter-parser.ts
-│   ├── Logger.ts
-│   └── projectDetector.ts
-├── types/                      # TypeScript Definitions
-│   ├── dotshare-ai.ts          # Release copilot & CTA contracts
-│   └── index.ts
-├── constants.ts
-├── extension.ts                # Main extension entrypoint
-└── types.ts
-```
+### ☁️ Cloud scheduling checks (`dotsuite-core`)
+- [ ] **`SCHEDULED_E2E`** — Verified scheduled posts on the live server for Mastodon and Bluesky (not yet tested since the SSRF and Bluesky fixes).
+- [ ] **`FAILED_POST_ALERTS`** — Notify the user when a scheduled post fails; today it fails silently.
+- [ ] **`DAILY_LIMITS`** — Optional per-account daily caps, starting with X, to protect accounts from automated over-posting.
 
 ---
 
-*Last updated: October 2026 · DotShare by [@dotshare-dev](https://github.com/kareem2099/DotShare)*
+## 🔵 v3.8.0 — Multi-Account Cloud & Remote MCP
+
+> **Why:** Local multi-account publishing is free and already works in the MCP. Running it on DotSuite servers is what paid plans pay for.\
+> **CLI:** `3.2.0`
+
+- [ ] **`CLOUD_MULTI_ACCOUNT`** — `dotsuite-core` stores one credential per user and platform (`ds_credentials_user_platform`). Key credentials by account instead. Accounts per platform: Free 1, Pro 3, Max unlimited.
+- [ ] **`EXTENSION_MULTI_ACCOUNT`** — Named accounts in the VS Code composer, shared with the MCP library.
+- [ ] **`REMOTE_MCP`** — A hosted MCP endpoint on DotSuite with OAuth sign-in, so ChatGPT and Claude.ai can draft and schedule without installing anything. Available on every plan within its scheduling quota.
+- [ ] **`RELEASE_CAMPAIGNS`** — Schedule one release across several platforms and accounts as a single campaign. Free: one per month; Pro and Max: unlimited.
+- [ ] **`SYNCED_DRAFTS`** — Drafts and the approval queue synced across devices (Pro and Max).
+- [ ] **`PRICING_PAGE`** — Update the DotSuite pricing page, README and `products.ts` together whenever plan features change.
+
+---
+
+## 🔵 v3.9.0 — Trust & Teams
+
+> **Why:** A review step only helps if the reviewer can see what changed and where each claim came from (suggested by a reader on the Part 1 article).
+
+- [ ] **`PROVENANCE_VIEW`** — Compare draft revisions, and show the sources (commits, changelog lines, links) next to the AI-written claims they support.
+- [ ] **`TEAM_APPROVALS`** — Shared libraries with reviewer roles and approvals bound to a revision (Max).
+- [ ] **`HOSTED_AI`** — AI generation without a personal key, as a monthly credit allowance on Pro and Max.
+- [ ] **`ANALYTICS_AND_COMMENTS`** — Engagement metrics and replies from supported platforms.
+- [ ] **`CODESNAP_RELEASE_BRIDGE`** — Suggest a CodeSnap image from the key changes in a release diff.
+
+---
+
+## 🧱 Maintenance (ongoing)
+
+- [ ] **`WORKSPACES_LAYOUT`** — Split the repository into npm workspaces (`packages/core`, `packages/extension`, `packages/cli`) so the CLI no longer publishes by copying `package.cli.json` over `package.json`.
+- [ ] **`DEPENDENCY_HYGIENE`** — Keep Dependabot alerts at zero; record dismissals with a reason (like the dev-only `deepmerge` alert, which has no fixed version).
+- [ ] **`TOOLING`** — Keep `@vscode/vsce` current (4.x).
+
+---
+
+## ✅ Completed
+
+### v3.6.1 — Field Fixes (November 2026)
+- [x] Clickable Bluesky links and hashtags (rich-text facets with UTF-8 byte offsets).
+- [x] LinkedIn `firstComment`, posted right after the post; a failed comment never republishes the post.
+- [x] Locks recover after crashes and wait for other writers; several MCP clients can share one library.
+- [x] Damaged records no longer hide the rest of the history or drafts; locale-independent fingerprints; relative image paths inside `DOTSHARE_MEDIA_ROOTS`; Mastodon `profile` scope documented; activation no longer blocked by `NODE_TLS_REJECT_UNAUTHORIZED=0`.
+
+### v3.6.0 — MCP & Publishing Library (November 2026)
+- [x] Local MCP server (`dotshare-cli` 3.0.0) with 23 tools: accounts, drafts, templates, previews, publishing, history and cloud scheduling.
+- [x] Shared Publishing Library in VS Code, saved previews bound to a revision, and per-account receipts.
+- [x] Encrypted local records (AES-256-GCM, master key in the OS keyring), `setup` and `doctor`.
+
+### v3.5.x — AI Release Copilot & Mastodon
+- [x] **3.5.3:** Mastodon publishing to any instance; Mastodon cloud scheduling; thread images fixed; plan alignment.
+- [x] **3.5.2:** Dev.to article generator, frontmatter builder, live Markdown preview, release-evidence engine.
+- [x] **3.5.1:** Smart CTA hub, live model discovery for Gemini, OpenAI, Claude, DeepSeek and Grok.
+- [x] **3.5.0:** Project context engine, five writing tones, English and Arabic generation.
+
+### v3.0 – v3.4 — Foundation
+- [x] WebView shell, router and theming; toasts and shortcuts.
+- [x] Cloud scheduling with Cloudflare R2 media; OAuth through the auth server.
+- [x] DotSuite accounts and billing, GitHub Gists, and removal of the local scheduler.
+- [x] CodeSnap, and removal of Facebook, Reddit and Medium.
+
+---
+
+## 🧩 Where things live
+
+| Piece | Location |
+|---|---|
+| VS Code extension | `src/` (`extension.ts`, `handlers/`, `ui/`, `media/`) |
+| Platform adapters (shared by extension, CLI and MCP) | `src/platforms/` |
+| MCP server, CLI agent commands, drafts, templates | `src/agent/`, `bin/dotshare-mcp.js`, `bin/dotshare-agent.js` |
+| Publishing Library bridge | `src/library/` |
+| Encryption, locks, redaction, HTTP hardening | `src/security/` |
+| Scheduler, billing, media API | `dotsuite-core`, private repository (`core.dotsuite.dev`) |
+| Website, dashboard, pricing | `dotsuite` (`dotsuite.dev`) |
+| OAuth for LinkedIn and X | `dotshare-auth-server` (`dotshare-auth-server.vercel.app`), merging into `dotsuite.dev` in v3.7.0 |
+
+---
+
+*Last updated: November 2026*

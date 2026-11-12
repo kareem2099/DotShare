@@ -59,3 +59,14 @@ export const CREDENTIAL_FIELDS: Record<Platform, readonly string[]> = {
     discord: ['webhookUrl'], bluesky: ['identifier', 'password'],
     mastodon: ['instance', 'accessToken'], devto: ['apiKey'],
 };
+/**
+ * Saved by `accounts connect` (browser sign-in). `connectionId` identifies one
+ * sign-in, so refreshing an X token doesn't invalidate a saved preview, while
+ * connecting a different login does. `expiresAt` is Unix seconds.
+ */
+export const OPTIONAL_CREDENTIAL_FIELDS: Partial<Record<Platform, readonly string[]>> = {
+    linkedin: ['expiresAt', 'connectionId'],
+    x: ['refreshToken', 'expiresAt', 'connectionId'],
+};
+/** Fields that change on every refresh and are left out of account fingerprints. */
+export const ROTATING_CREDENTIAL_FIELDS: readonly string[] = ['accessToken', 'refreshToken', 'expiresAt'];

@@ -236,7 +236,7 @@ function renderDraft(): void {
     byId('recover-draft').addEventListener('click', () => void action(() => openItem(current.id)));
     if (current.publication) {
         byId('draft-locked').hidden = false;
-        byId('draft-locked').textContent = current.status === 'Published' ? 'This saved version was published. Its content is kept with the receipts.' : 'This draft has a publication attempt. Inspect its saved outcome and destination accounts before taking further action. It will not be resent automatically.';
+        byId('draft-locked').textContent = current.status === 'Published' ? 'This saved version was published. Its content is kept with the receipts.' : current.status === 'Scheduled' ? 'This saved version is scheduled on DotSuite. Cancel it from the DotSuite dashboard or with cancel_scheduled_post.' : 'This draft has a publication attempt. Inspect its saved outcome and destination accounts before taking further action. It will not be resent automatically.';
         shared.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('input,textarea,button').forEach(input => { input.disabled = true; });
     }
     renderVariants(); renderReview(); syncDraftActions();

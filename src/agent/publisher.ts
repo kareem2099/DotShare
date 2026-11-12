@@ -67,7 +67,7 @@ export class AgentPublisher {
         if (!preview.valid) throw new Error(preview.errors.join('\n'));
         // Resolve every credential before publishing anywhere: a locked keyring
         // or missing account must not cause a partial cross-platform release.
-        const credentials = new Map(preview.targets.map(target => [target.accountId, this.accounts.credentials(target.accountId)]));
+        const credentials = await this.resolveCredentials(preview.targets.map(target => target.accountId));
         assertNoKnownSecrets({ targets: preview.targets, article: input.article });
         if (signal?.aborted) throw new Error('Cancelled before publishing.');
         return this.execute(input, preview.targets, credentials, hash, signal);
@@ -84,18 +84,24 @@ export class AgentPublisher {
         const current = await this.planner.preview(content);
         if (!current.valid) throw new Error(current.errors.join('\n'));
         if (fingerprint(current.targets) !== fingerprint(seal.targets)) throw new Error('The platform plan or limits changed after preview. Preview the draft again before publishing.');
-        const credentials = new Map(seal.targets.map(target => {
-            const value = this.accounts.credentials(target.accountId);
+        const credentials = await this.resolveCredentials(seal.targets.map(target => target.accountId));
+        for (const target of seal.targets) {
             const expected = seal.accounts.find(account => account.accountId === target.accountId)?.fingerprint;
-            if (!expected || !accountMatches(this.accounts, target.accountId, value, expected)) throw new Error('An account or its credentials changed after preview. Preview the draft again before publishing.');
-            return [target.accountId, value];
-        }));
+            if (!expected || !accountMatches(this.accounts, target.accountId, credentials.get(target.accountId)!, expected)) throw new Error('An account or its credentials changed after preview. Preview the draft again before publishing.');
+        }
         assertNoKnownSecrets({ targets: seal.targets, article: input.article });
         const staged = stageAssets(seal);
         try {
             if (signal?.aborted) throw new Error('Cancelled before publishing.');
             return await this.execute(input, staged.targets, credentials, hash, signal, seal.source, guard);
         } finally { staged.dispose(); }
+    }
+
+    /** Every account's usable credentials (refreshing X sign-ins) before anything is sent. */
+    private async resolveCredentials(ids: string[]): Promise<Map<string, Record<string, string>>> {
+        const credentials = new Map<string, Record<string, string>>();
+        for (const id of ids) if (!credentials.has(id)) credentials.set(id, await this.accounts.freshCredentials(id));
+        return credentials;
     }
 
     private async execute(input: PublishInput, targets: PlannedTarget[], credentials: Map<string, Record<string, string>>, hash: Fingerprints, signal?: AbortSignal, source?: Operation['draft'], guard?: ClaimGuard): Promise<PublishClaim> {

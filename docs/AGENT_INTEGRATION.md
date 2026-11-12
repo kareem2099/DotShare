@@ -14,12 +14,13 @@ Install the CLI and MCP server from npm. For an existing library, follow the [up
 
 ```sh
 npm install -g dotshare-cli
-dotshare-agent setup
+dotshare-agent setup                     # Codex; or --client claude / --client cursor
+dotshare-agent accounts connect work-x --platform x          # LinkedIn and X: browser sign-in
 dotshare-agent accounts add personal-mastodon --platform mastodon --name "Personal Mastodon"
 dotshare-agent doctor --account personal-mastodon
 ```
 
-Restart or reconnect Codex after setup. In Codex, ask DotShare to list your local
+Restart or reconnect your MCP client after setup. In Codex, ask DotShare to list your local
 accounts, save a draft for one of them and prepare its preview. To review that draft
 in VS Code, follow the [Publishing Library guide](PUBLISHING_LIBRARY.md).
 
@@ -43,8 +44,25 @@ Multiple accounts on one platform use
 different IDs. To replace an account's credentials, run `accounts add` with its ID.
 `accounts remove <id>` removes the local account and deletes its credential from the OS keyring.
 It does not revoke the token on the platform. Expired/revoked platform tokens must
-be replaced using `accounts add`; the local agent does not run browser OAuth or
-automatically refresh user-supplied OAuth tokens.
+be replaced using `accounts add`, or `accounts connect` for LinkedIn and X.
+
+### Browser sign-in for LinkedIn and X
+
+`dotshare-agent accounts connect <id> --platform linkedin|x [--name ...] [--no-open]`
+opens dotsuite.dev in your browser, where you approve DotShare on LinkedIn or X.
+There is no token to copy. The CLI listens on `127.0.0.1` for the result, which
+dotsuite.dev encrypts to a key that exists only in that CLI process (X25519 + HKDF +
+AES-256-GCM). Tokens never appear readable in a URL or in browser history. A nonce
+inside the ciphertext ties the result to this sign-in; anything else sent to the port
+is ignored. The wait ends after 5 minutes (`--timeout` changes it).
+
+X access tokens last two hours. For accounts connected this way, DotShare swaps the
+refresh token through dotsuite.dev when an X token has under five minutes left,
+before publishing or checking the account. The rotated pair is saved to the keyring
+first. Refreshing doesn't invalidate saved previews, because a connected account is
+identified by its sign-in, not its current token. LinkedIn sign-ins last 60 days;
+`doctor --check-accounts` warns a week before they expire. Tokens pasted with
+`accounts add` are used as they are and never refreshed.
 
 After packaging/installing the CLI, the same commands are available through
 `dotshare`, `dotshare-agent`, and the dedicated `dotshare-mcp` server entrypoint.
@@ -132,13 +150,18 @@ allowed. Existing allowed directories are retained when setup runs again:
 dotshare-agent setup --media-root /absolute/path/to/images
 dotshare-agent setup --text-only
 dotshare-agent setup --dry-run
+dotshare-agent setup --client claude
+dotshare-agent setup --client cursor
 dotshare-agent setup --client generic
 dotshare-agent setup --config /absolute/path/to/config.toml --json
 ```
 
 `--dry-run` checks the server and prints a configuration preview without writing
-settings. `--client generic` prints an `mcpServers` JSON snippet for manual import;
-adapt the wrapper key to your client's format. A different existing DotShare server
+settings. `--client claude` adds DotShare to Claude Code's user scope by running
+`claude mcp add-json` (with `--dry-run` it prints that command instead).
+`--client cursor` merges a `dotshare` entry into `~/.cursor/mcp.json` (or `--config`),
+keeping other servers and settings and saving a backup. `--client generic` prints an
+`mcpServers` JSON snippet for manual import; adapt the wrapper key to your client's format. A different existing DotShare server
 is preserved unless `--replace` is explicitly supplied. Existing inline/dotted-key
 DotShare TOML entries must be converted to `[mcp_servers.dotshare]` before automatic
 updates; malformed config files are never overwritten. `CODEX_HOME` is honored.
@@ -208,10 +231,10 @@ Example requests after connecting:
 The server exposes `list_accounts`, `preview_post`, `publish_post`, `get_operation`,
 `list_history`, `list_cloud_connections`, `schedule_post`, `list_scheduled_posts`, and
 `cancel_scheduled_post`, plus `create_draft`, `get_draft`, `list_drafts`,
-`update_draft`, `preview_draft`, and `publish_draft`, plus `list_templates`,
+`update_draft`, `preview_draft`, `publish_draft` and `schedule_draft`, plus `list_templates`,
 `get_template`, `save_template`, `delete_template`, `render_template`,
-`create_draft_from_template`, `get_draft_variants` and `set_draft_variant`
-(23 tools total).
+`create_draft_from_template`, `get_draft_variants`, `set_draft_variant` and `get_post_stats`
+(25 tools total).
 `dotshare://guide` describes the workflow, and the
 `release-announcement` prompt helps prepare drafts from release notes.
 
@@ -479,9 +502,26 @@ is published to. Character counts for combined emoji on X/Bluesky are conservati
 | Local images | PNG/JPEG; WebP also on Bluesky, Mastodon and Discord |
 | Size | 1,000,000 bytes/image on Bluesky; 8 MiB/image otherwise, subject to platform limits |
 | Images/post | X/Bluesky/Mastodon up to 4 (Mastodon also checks instance limits); LinkedIn 1; Telegram/Discord 10 |
-| Telegram | Caption limited to 1,024 characters; multiple images are sent as separate messages, caption on first |
+| Video (MP4/MOV) | X 512 MB, LinkedIn 200 MB, Mastodon 99 MB (WebM too), Telegram 50 MB, Discord 10 MB (WebM too); not Bluesky |
+| GIF | X 15 MB, Mastodon 16 MB, Telegram 50 MB, Discord 10 MB; not LinkedIn or Bluesky |
+| Mixing | On X and Mastodon a video or GIF must be the post's only media |
+| Telegram | Caption limited to 1,024 characters; multiple files are sent as separate messages, caption on first |
 | Dev.to | Public HTTPS image URLs; local files are rejected |
-| Video/GIF | Not supported by this initial agent interface |
+
+Files are identified by their first bytes and extension. X videos and GIFs use the v2
+chunked upload and wait for X to finish processing before posting; Mastodon waits
+for its own processing. Bluesky turns `@handle.domain` into a mention when the handle
+resolves; other handles stay plain text.
+
+## Post stats
+
+`get_post_stats` (CLI: `dotshare-agent stats --request-id ID` or `--draft DRAFT_ID`)
+reads current engagement for a published operation: likes, reposts, replies and
+quotes, plus impressions on X and views, reactions and comments on Dev.to, per
+account and thread part. It is read-only. Bluesky uses the public AppView;
+Mastodon, X, LinkedIn and Dev.to use the account's saved credentials. Telegram and
+Discord offer no metrics. LinkedIn returns them only to apps with read access, and
+X depends on the API plan; when a platform refuses, the result says why.
 
 Dev.to requires `article: {"title":"Release notes","tags":["opensource"],"published":true}`.
 Optional article fields include `canonicalUrl`, `coverImage`, `description`, and
@@ -534,9 +574,21 @@ Backend plan limits, permissions and available connections still apply.
 }
 ```
 
-Scheduling requires a timezone and at least one minute of lead time. It supports one
-post with public HTTPS image URLs, without local file uploads, threads or account
-overrides. Discord cloud scheduling is unavailable. `DOTSUITE_API_URL` optionally
+### Scheduling a saved draft
+
+`schedule_draft` (CLI: `drafts schedule ID --revision N --preview-id P --request-id R --at TIME`)
+schedules a previewed draft through DotSuite with the same revision/preview checks as
+`publish_draft`. It makes one cloud post per platform with that platform's own
+variant. Local images and GIFs are uploaded to DotSuite first (5 MB each), so a
+failed upload schedules nothing. Each platform's scheduled post ID is kept as its
+receipt, and the draft becomes `Scheduled`. Cloud posts are single posts: thread
+parts, LinkedIn first comments, videos, Discord and Dev.to are refused with a clear
+reason. Every account on a platform must share one text, because DotSuite has one
+connection per platform. Retrying needs the same `requestId` and time.
+
+Scheduling requires a timezone and at least one minute of lead time. `schedule_post`
+supports one post with public HTTPS image URLs, without local file uploads, threads or
+account overrides. Discord cloud scheduling is unavailable. `DOTSUITE_API_URL` optionally
 selects a compatible HTTPS backend. It cannot contain credentials/query parameters.
 
 ## Build and validate

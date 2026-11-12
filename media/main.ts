@@ -1,3 +1,4 @@
+import { DOTSUITE_CONNECT_URL } from '../src/constants';
 /**
  * DotShare Sidebar — Activity Bar WebView (Platforms/Settings only)
  * Entry point for media/index.html → compiled to media/app.js
@@ -318,8 +319,7 @@ let authServerHealthy = true;
 
 async function checkAuthServerHealth(): Promise<void> {
     try {
-        const authServerUrl = 'https://dotshare-auth-server.vercel.app';
-        const response = await fetch(`${authServerUrl}/`, {
+        const response = await fetch(`${DOTSUITE_CONNECT_URL}/health`, {
             method: 'GET',
             signal: AbortSignal.timeout(5000), // 5 second timeout
         });

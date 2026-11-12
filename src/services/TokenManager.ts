@@ -3,8 +3,8 @@ import axios from 'axios';
 import { getPlatformHost } from '../platforms/runtime';
 import { Logger } from '../utils/Logger';
 
-// Auth server URL — same server that issued the token
-export const AUTH_SERVER_URL = 'https://dotshare-auth-server.vercel.app';
+// Sign-in server (dotsuite.dev) — refreshes the tokens it issued
+import { DOTSUITE_CONNECT_URL } from '../constants';
 
 // Refresh 5 minutes before expiry
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -127,7 +127,7 @@ export class TokenManager {
         if (!refreshToken) throw new Error('No X refresh token stored');
 
         const res = await this.post<TokenResponse>(
-            `${AUTH_SERVER_URL}/api/auth/x/refresh`,
+            `${DOTSUITE_CONNECT_URL}/refresh/x`,
             { refreshToken }
         );
         

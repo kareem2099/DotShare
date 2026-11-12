@@ -64,6 +64,27 @@ function configuredMediaRoots(): string[] {
     return (process.env.DOTSHARE_MEDIA_ROOTS || '').split(path.delimiter).filter(root => root.trim());
 }
 
+export type MediaKind = 'image' | 'gif' | 'video';
+const MB = 1024 * 1024;
+/** Largest video each platform accepts from DotShare (Bluesky video isn't supported yet). */
+export const VIDEO_LIMITS: Partial<Record<Platform, number>> = { x: 512 * MB, linkedin: 200 * MB, mastodon: 99 * MB, telegram: 50 * MB, discord: 10 * MB };
+export const GIF_LIMITS: Partial<Record<Platform, number>> = { x: 15 * MB, mastodon: 16 * MB, telegram: 50 * MB, discord: 10 * MB };
+
+/** What a local file really is, from its first bytes and a matching extension; undefined if unsupported. */
+export function mediaKind(file: string): MediaKind | undefined {
+    const header = Buffer.alloc(12);
+    const fd = fs.openSync(file, 'r');
+    try { fs.readSync(fd, header, 0, 12, 0); } finally { fs.closeSync(fd); }
+    const ext = path.extname(file).toLowerCase();
+    if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff && ['.jpg', '.jpeg'].includes(ext)) return 'image';
+    if (header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && ext === '.png') return 'image';
+    if (header.toString('ascii', 0, 4) === 'RIFF' && header.toString('ascii', 8, 12) === 'WEBP' && ext === '.webp') return 'image';
+    if (header.toString('ascii', 0, 4) === 'GIF8' && ext === '.gif') return 'gif';
+    if (header.toString('ascii', 4, 8) === 'ftyp' && ['.mp4', '.mov'].includes(ext)) return 'video';
+    if (header.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) && ext === '.webm') return 'video';
+    return undefined;
+}
+
 export class PostPlanner {
     private readonly roots: string[] = [];
     private readonly rootsError?: string;
@@ -103,16 +124,22 @@ export class PostPlanner {
             throw new Error('Image is outside DOTSHARE_MEDIA_ROOTS.');
         }
         const info = fs.statSync(file);
-        const maximum = platform === 'bluesky' ? 1000000 : 8 * 1024 * 1024;
-        if (!info.isFile() || info.size < 1 || info.size > maximum) throw new Error(`Image must be a regular file between 1 and ${maximum} bytes.`);
-        const fd = fs.openSync(file, 'r');
-        const header = Buffer.alloc(12);
-        try { fs.readSync(fd, header, 0, 12, 0); } finally { fs.closeSync(fd); }
+        if (!info.isFile() || info.size < 1) throw new Error('Media must be a non-empty regular file.');
+        const kind = mediaKind(file);
+        if (!kind) throw new Error('Unsupported file. Use PNG/JPEG images (WebP on Bluesky, Mastodon and Discord), GIFs, or MP4/MOV videos (WebM on Mastodon and Discord).');
         const ext = path.extname(file).toLowerCase();
-        const jpeg = header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff && ['.jpg', '.jpeg'].includes(ext);
-        const png = header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && ext === '.png';
-        const webp = header.toString('ascii', 0, 4) === 'RIFF' && header.toString('ascii', 8, 12) === 'WEBP' && ext === '.webp';
-        if (!jpeg && !png && !(webp && ['bluesky', 'mastodon', 'discord'].includes(platform))) throw new Error('Use a PNG or JPEG image (WebP also supported on Bluesky, Mastodon and Discord).');
+        const label = PLATFORM_CONFIGS[platform]?.name || platform;
+        if (kind === 'image') {
+            if (ext === '.webp' && !['bluesky', 'mastodon', 'discord'].includes(platform)) throw new Error(`${label} doesn't accept WebP. Use PNG or JPEG.`);
+            const maximum = platform === 'bluesky' ? 1000000 : 8 * 1024 * 1024;
+            if (info.size > maximum) throw new Error(`Image must be at most ${maximum} bytes on ${label}.`);
+            return file;
+        }
+        const limits = kind === 'gif' ? GIF_LIMITS : VIDEO_LIMITS;
+        const maximum = limits[platform];
+        if (!maximum) throw new Error(`${label} posts from DotShare support images only${kind === 'gif' ? '; GIFs' : '; videos'} aren't supported there yet.`);
+        if (kind === 'video' && ext === '.webm' && !['mastodon', 'discord'].includes(platform)) throw new Error(`${label} doesn't accept WebM. Use MP4 or MOV.`);
+        if (info.size > maximum) throw new Error(`${kind === 'gif' ? 'GIF' : 'Video'} must be at most ${Math.floor(maximum / (1024 * 1024))} MB on ${label}.`);
         return file;
     }
 
@@ -152,7 +179,11 @@ export class PostPlanner {
                     const characters = characterCount(part.text, account.platform);
                     if (characters > limit) throw new Error(`Post has ${characters} characters; limit is ${limit}. Enable autoSplit for supported platforms.`);
                     if (account.platform === 'bluesky' && !part.text.trim()) throw new Error('Bluesky posts require text.');
-                    return { text: part.text, media: part.media.map(ref => this.media(ref, account.platform)), characters };
+                    const media = part.media.map(ref => this.media(ref, account.platform));
+                    if (['x', 'mastodon'].includes(account.platform) && media.length > 1 && media.some(file => mediaKind(file) !== 'image')) {
+                        throw new Error(`${config.name} allows one video or GIF per post, without other media.`);
+                    }
+                    return { text: part.text, media, characters };
                 });
                 result.targets.push({ accountId: id, platform: account.platform, posts, characterLimit: limit, maxMedia,
                     ...(firstComment !== undefined && account.platform === 'linkedin' && { firstComment }) });

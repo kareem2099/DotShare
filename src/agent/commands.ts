@@ -11,6 +11,8 @@ import { runSetup, SetupOptions } from './setup';
 import { runDoctor, formatDoctor, DoctorOptions } from './doctor';
 import { AgentDrafts } from './drafts';
 import { AgentTemplates } from './templates';
+import { connectAccount } from './connect';
+import { AgentStats } from './stats';
 import { protectStorage, securityStatus } from '../security/manage';
 import { hardenHttp } from '../security/http';
 import { privateRead } from '../security/private-files';
@@ -127,9 +129,16 @@ export function setupAgentCommands(program: Command): void {
             const result = await new AgentDrafts().publish({ draftId, expectedRevision: Number(options.revision), previewId: options.previewId, requestId: options.requestId });
             output(result); if (!['Published', 'SavedRemotely'].includes(result.draft.status)) process.exitCode = 1;
         }));
-    program.command('setup').description('Connect DotShare to Codex, or generate a generic MCP client snippet')
-        .option('--client <client>', 'codex or generic', 'codex')
-        .option('--config <path>', 'Custom Codex config.toml path')
+    drafts.command('schedule <draftId>').requiredOption('--revision <number>', 'Previewed content revision').requiredOption('--preview-id <id>', 'Saved preview ID')
+        .requiredOption('--request-id <id>', 'Stable ID; reuse it on retries').requiredOption('--at <time>', 'ISO 8601 time with timezone, e.g. 2026-12-01T10:00:00+02:00')
+        .description('Schedule a previewed draft through DotSuite, one post per platform')
+        .action(command(async (draftId: string, options: { revision: string; previewId: string; requestId: string; at: string }) => {
+            const result = await new AgentDrafts().schedule({ draftId, expectedRevision: Number(options.revision), previewId: options.previewId, requestId: options.requestId, scheduledAt: options.at });
+            output(result); if (result.draft.status !== 'Scheduled') process.exitCode = 1;
+        }));
+    program.command('setup').description('Connect DotShare to Codex, Claude Code or Cursor, or print a generic MCP client snippet')
+        .option('--client <client>', 'codex, claude, cursor or generic', 'codex')
+        .option('--config <path>', 'Custom config path (Codex config.toml or Cursor mcp.json)')
         .option('--media-root <paths...>', 'Explicit absolute image directories to allow')
         .option('--text-only', 'Disable local images in the client configuration')
         .option('--dry-run', 'Verify the server and preview configuration without writing it')
@@ -146,8 +155,8 @@ export function setupAgentCommands(program: Command): void {
             process.stdout.write(`\nNext steps:\n${result.nextSteps.map(step => `- ${step}`).join('\n')}\n`);
         }));
     program.command('doctor').description('Diagnose local setup and MCP connectivity without publishing')
-        .option('--client <client>', 'codex or generic', 'codex')
-        .option('--config <path>', 'Custom Codex config.toml path')
+        .option('--client <client>', 'codex, claude, cursor or generic', 'codex')
+        .option('--config <path>', 'Custom config path (Codex config.toml or Cursor mcp.json)')
         .option('--check-accounts', 'Read credentials and check platform identities; never publishes')
         .option('--account <id>', 'Check one account (implies --check-accounts)')
         .option('--skip-mcp', 'Skip the subprocess handshake; connectivity remains unverified')
@@ -171,6 +180,20 @@ export function setupAgentCommands(program: Command): void {
             for (const field of CREDENTIAL_FIELDS[platform]) credentials[field] = await hiddenQuestion(`${field}: `);
             output({ account: store.add({ id: accountId, name: options.name || accountId, platform, credentials }) });
         }));
+    accounts.command('connect <id>').requiredOption('--platform <platform>', 'linkedin or x')
+        .option('--name <name>', 'Display name (defaults to the ID, or the existing name)')
+        .option('--no-open', 'Print the sign-in link without opening a browser')
+        .option('--timeout <seconds>', 'How long to wait for the browser sign-in', '300')
+        .description('Sign in to LinkedIn or X in your browser; no token to copy. X sign-ins refresh automatically')
+        .action(command(async (id: string, options: { platform: string; name?: string; open: boolean; timeout: string }) => {
+            const timeout = Number(options.timeout);
+            if (!Number.isInteger(timeout) || timeout < 30 || timeout > 1800) throw new Error('timeout must be between 30 and 1800 seconds.');
+            const result = await connectAccount(new AccountStore(), {
+                id, platform: options.platform, name: options.name, open: options.open, timeoutMs: timeout * 1000,
+                announce: url => process.stderr.write(`Sign in to continue${options.open ? ' (opening your browser)' : ''}:\n${url}\n\nWaiting for the browser... (Ctrl+C to cancel)\n`),
+            });
+            output({ success: true, ...result });
+        }));
     accounts.command('remove <id>').action(command((id: string) => { new AccountStore().remove(id); output({ success: true }); }));
     program.command('preview').requiredOption('--input <file>', 'Post JSON file or - for stdin').action(command(async (options: { input: string }) => {
         const preview = await new AgentPublisher().planner.preview(parseInput(await readInput(options.input)));
@@ -181,6 +204,13 @@ export function setupAgentCommands(program: Command): void {
         const result = await new AgentPublisher().publish(parseInput(await readInput(options.input)));
         output(result); if (result.operation.status !== 'completed') process.exitCode = 1;
     }));
+    program.command('stats').option('--request-id <id>', 'Published operation').option('--draft <draftId>', 'Published draft')
+        .description('Show likes, reposts, replies and views for something DotShare published; read-only')
+        .action(command(async (options: { requestId?: string; draft?: string }) => {
+            const store = new AccountStore();
+            const drafts = new AgentDrafts(new AgentPublisher(store));
+            output(await new AgentStats(store, undefined, id => drafts.get(id).publication?.requestId).get({ requestId: options.requestId, draftId: options.draft }));
+        }));
     program.command('operation <requestId>').action(command((requestId: string) => {
         const operation = new AgentPublisher().journal.get(requestId);
         if (!operation) throw new Error('Operation not found.');

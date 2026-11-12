@@ -3,14 +3,18 @@ import * as path from 'path';
 import * as os from 'os';
 import { parse, stringify } from 'smol-toml';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
 import { defaultAgentHome } from './accounts';
 import { McpLaunch, ProbeMcp, probeMcp } from './mcp-probe';
 import { withFileLock } from '../security/locks';
 
-export type SetupClient = 'codex' | 'generic';
+export type SetupClient = 'codex' | 'claude' | 'cursor' | 'generic';
+export const SETUP_CLIENTS: readonly SetupClient[] = ['codex', 'claude', 'cursor', 'generic'];
+/** Runs the Claude Code CLI; replaceable in tests. Resolves with its exit code and output. */
+export type RunCommand = (command: string, args: string[]) => Promise<{ code: number; output: string }>;
 export interface Installation { root: string; server: string; node: string; }
 export interface SetupOptions { client?: SetupClient; config?: string; mediaRoot?: string[]; textOnly?: boolean; dryRun?: boolean; replace?: boolean; }
-export interface SetupContext { installation?: Installation; home?: string; environment?: Record<string, string | undefined>; probe?: ProbeMcp; }
+export interface SetupContext { installation?: Installation; home?: string; environment?: Record<string, string | undefined>; probe?: ProbeMcp; run?: RunCommand; }
 export interface ClientConfig { file: string; original: string; document: Record<string, unknown>; entry?: Record<string, unknown>; }
 export interface SetupResult {
     success: boolean; client: SetupClient; configPath?: string; changed: boolean; dryRun: boolean;
@@ -50,6 +54,38 @@ export function forwardedVariables(value: unknown): (string | { name: string; so
 export function configPath(file?: string, environment = process.env): string {
     return path.resolve(file || path.join(environment.CODEX_HOME || path.join(os.homedir(), '.codex'), 'config.toml'));
 }
+/** Cursor reads MCP servers from ~/.cursor/mcp.json (`mcpServers`). */
+export function cursorConfigPath(file?: string): string {
+    return path.resolve(file || path.join(os.homedir(), '.cursor', 'mcp.json'));
+}
+export interface JsonClientConfig { file: string; original: string; document: Record<string, unknown>; entry?: Record<string, unknown>; }
+export function readJsonClientConfig(file: string): JsonClientConfig {
+    let original = '';
+    try {
+        if (fs.existsSync(file)) {
+            file = fs.realpathSync(file);
+            if (!fs.statSync(file).isFile() || fs.statSync(file).size > 1024 * 1024) throw new Error();
+            original = fs.readFileSync(file, 'utf8');
+        }
+    } catch { throw new Error('Cannot read the MCP client configuration. Check its file path and permissions.'); }
+    let document: Record<string, unknown> | undefined;
+    try { document = original.trim() ? object(JSON.parse(original)) : {}; }
+    catch { throw new Error('Client configuration contains invalid JSON. Repair it before running setup; no settings were changed.'); }
+    if (!document) throw new Error('Client configuration must be a JSON object.');
+    const servers = document.mcpServers === undefined ? {} : object(document.mcpServers);
+    if (!servers) throw new Error('mcpServers must be a JSON object.');
+    const entry = servers.dotshare === undefined ? undefined : object(servers.dotshare);
+    if (servers.dotshare !== undefined && !entry) throw new Error('The dotshare MCP entry must be a JSON object.');
+    return { file, original, document, entry };
+}
+
+const runCommand: RunCommand = (command, args) => new Promise(resolve => {
+    execFile(command, args, { timeout: 60000, windowsHide: true, shell: false }, (error, stdout, stderr) => {
+        const code = error ? typeof (error as { code?: unknown }).code === 'number' ? (error as { code: number }).code : 127 : 0;
+        resolve({ code, output: `${stdout}${stderr}`.slice(0, 2000) });
+    });
+});
+
 export function readClientConfig(file: string): ClientConfig {
     let original = '';
     try {
@@ -124,7 +160,7 @@ export function replaceCodexEntry(config: ClientConfig, entry: Record<string, un
     return next;
 }
 
-function writeConfig(config: ClientConfig, next: string): string {
+function writeConfig(config: Pick<ClientConfig, 'file' | 'original'>, next: string): string {
     fs.mkdirSync(path.dirname(config.file), { recursive: true, mode: 0o700 });
     const temporary = `${config.file}.${randomUUID()}.tmp`;
     return withFileLock(`${config.file}.dotshare-setup.lock`, () => {
@@ -142,20 +178,39 @@ function writeConfig(config: ClientConfig, next: string): string {
     }, { busy: () => new Error('Cannot lock the client config. Check directory permissions, or wait for the other setup process to finish.') });
 }
 
+/**
+ * Adds DotShare to Claude Code's user scope through its own CLI rather than
+ * editing ~/.claude.json, which Claude Code rewrites while it runs.
+ */
+async function addToClaudeCode(entry: Record<string, unknown>, replace: boolean, run: RunCommand): Promise<boolean> {
+    const add = (): Promise<{ code: number; output: string }> => run('claude', ['mcp', 'add-json', '--scope', 'user', 'dotshare', JSON.stringify(entry)]);
+    let result = await add();
+    if (result.code === 127) throw new Error('The claude command was not found. Install Claude Code, or run setup --client claude --dry-run and add the printed command yourself.');
+    if (result.code !== 0 && /already exists/i.test(result.output)) {
+        if (!replace) throw new Error('Claude Code already has a dotshare MCP server. Use --replace to replace it.');
+        const removed = await run('claude', ['mcp', 'remove', '--scope', 'user', 'dotshare']);
+        if (removed.code !== 0) throw new Error('Could not replace the existing dotshare server in Claude Code. Remove it with: claude mcp remove dotshare');
+        result = await add();
+    }
+    if (result.code !== 0) throw new Error('Claude Code did not accept the DotShare server. Run setup --client claude --dry-run and add the printed command yourself.');
+    return true;
+}
+
 export async function runSetup(options: SetupOptions = {}, context: SetupContext = {}): Promise<SetupResult> {
     const client = options.client || 'codex';
-    if (!['codex', 'generic'].includes(client)) throw new Error('client must be codex or generic.');
-    if (client === 'generic' && options.config) throw new Error('--config is only used with --client codex.');
+    if (!SETUP_CLIENTS.includes(client)) throw new Error(`client must be one of: ${SETUP_CLIENTS.join(', ')}.`);
+    if ((client === 'generic' || client === 'claude') && options.config) throw new Error('--config is only used with --client codex or cursor.');
     if (options.textOnly && options.mediaRoot?.length) throw new Error('Use --text-only or --media-root, not both.');
     if (!supportedNode()) throw new Error('DotShare requires Node.js 22.12 or newer.');
     const current = context.installation || installation();
     if (!fs.existsSync(current.server)) throw new Error('DotShare MCP launcher is missing. Reinstall the CLI package or use a complete source checkout.');
     const environment = context.environment || process.env;
     const config = client === 'codex' ? readClientConfig(configPath(options.config, environment)) : undefined;
-    const prior = config?.entry;
+    const json = client === 'cursor' ? readJsonClientConfig(cursorConfigPath(options.config)) : undefined;
+    const prior = config?.entry || json?.entry;
     const conflict = prior && !sameServer(prior, current);
     if (conflict && !options.replace) throw new Error('Another DotShare server is already configured. Use --replace to replace only that entry, or --client generic to generate a snippet.');
-    const base = conflict ? {} : prior || {};
+    const base = conflict ? {} : client === 'codex' ? prior || {} : {};
     const inheritedVariables = forwardedVariables(base.env_vars);
     const previousEnv = object(base.env) || {};
     const roots = mediaRoots(options.textOnly ? [] : options.mediaRoot ?? String(previousEnv.DOTSHARE_MEDIA_ROOTS ?? environment.DOTSHARE_MEDIA_ROOTS ?? '').split(path.delimiter).filter(Boolean));
@@ -170,20 +225,37 @@ export async function runSetup(options: SetupOptions = {}, context: SetupContext
     const launch: McpLaunch = { command: current.node, args: [current.server], cwd: current.root, env: launchEnvironment(environment, entry.env) };
     const probe = await (context.probe || probeMcp)(launch);
     if (!probe.success) throw new Error(probe.message);
+    // JSON clients (Claude Code, Cursor, generic) take an absolute server path and no cwd.
+    const jsonEntry = { command: managed.command, args: managed.args, env: managed.env };
     // Never include inherited client secrets or other server settings in the output.
     const snippet = client === 'codex' ? stringify({ mcp_servers: { dotshare: managed } })
-        : JSON.stringify({ mcpServers: { dotshare: { command: managed.command, args: managed.args, cwd: managed.cwd, env: managed.env } } }, null, 2);
-    const changed = Boolean(config && stringify({ entry: prior || {} }) !== stringify({ entry }));
+        : client === 'claude' ? `claude mcp add-json --scope user dotshare '${JSON.stringify(jsonEntry)}'`
+            : JSON.stringify({ mcpServers: { dotshare: jsonEntry } }, null, 2);
+    let changed = false;
     let backupPath: string | undefined;
-    if (config && changed) {
-        const next = replaceCodexEntry(config, entry);
-        if (!options.dryRun) backupPath = writeConfig(config, next) || undefined;
+    let configFile: string | undefined;
+    if (config) {
+        changed = stringify({ entry: prior || {} }) !== stringify({ entry });
+        configFile = config.file;
+        if (changed && !options.dryRun) backupPath = writeConfig(config, replaceCodexEntry(config, entry)) || undefined;
+    } else if (json) {
+        changed = JSON.stringify(prior || {}) !== JSON.stringify(jsonEntry);
+        configFile = json.file;
+        const servers = { ...(object(json.document.mcpServers) || {}), dotshare: jsonEntry };
+        if (changed && !options.dryRun) backupPath = writeConfig(json, `${JSON.stringify({ ...json.document, mcpServers: servers }, null, 2)}\n`) || undefined;
+    } else if (client === 'claude' && !options.dryRun) {
+        changed = await addToClaudeCode(jsonEntry, Boolean(options.replace), context.run || runCommand);
     }
+    const reload = client === 'codex' ? 'Restart/reconnect Codex to load DotShare.'
+        : client === 'cursor' ? 'Reload Cursor (or toggle DotShare in Settings → MCP) to load DotShare.'
+            : client === 'claude' ? options.dryRun ? 'Run the command in snippet to add DotShare to Claude Code, then start a new session.' : 'Start a new Claude Code session (or run /mcp) to load DotShare.'
+                : 'Merge this snippet into your MCP client configuration and reconnect it.';
     return {
-        success: true, client, configPath: config?.file, changed: changed && !options.dryRun,
+        success: true, client, configPath: configFile, changed: changed && !options.dryRun,
         dryRun: Boolean(options.dryRun) || client === 'generic', backupPath, mediaRoots: roots, snippet, tools: probe.tools.length,
-        nextSteps: [client === 'codex' ? 'Restart/reconnect your MCP client to load DotShare.' : 'Merge this snippet into your MCP client configuration and reconnect it.',
-            'Connect an account with: dotshare-agent accounts add <id> --platform <platform>',
+        nextSteps: [reload,
+            'Connect LinkedIn or X in your browser with: dotshare-agent accounts connect <id> --platform linkedin|x',
+            'Connect other platforms with: dotshare-agent accounts add <id> --platform <platform>',
             'Verify account access with: dotshare-agent doctor --check-accounts',
             ...(roots.length ? [] : ['Local images are disabled. Enable specific directories with: dotshare-agent setup --media-root /absolute/image/directory'])],
     };

@@ -7,12 +7,13 @@ import { compareText, fingerprint, matchesFingerprint, Operation } from './journ
 import { StorageSecurityError } from '../security/private-files';
 import { withFileLock } from '../security/locks';
 import { accountIdSchema, platformSchema, postSchema, requestIdSchema, overrideSchema } from './schema';
-import { PublicationSeal, sealAssets, sealAccounts } from './publication-seal';
-import { Preview, resolveAccountContent, characterCount } from './preview';
+import { PublicationSeal, sealAssets, sealAccounts, stageAssets } from './publication-seal';
+import { Preview, PlannedTarget, resolveAccountContent, characterCount, mediaKind } from './preview';
+import { AgentCloud, CloudDraftPost } from './cloud';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 
 export const draftIdSchema = z.uuid();
-export const draftStatusSchema = z.enum(['Draft', 'Preview', 'Publishing', 'Published', 'NeedsReview', 'SavedRemotely']);
+export const draftStatusSchema = z.enum(['Draft', 'Preview', 'Publishing', 'Published', 'NeedsReview', 'SavedRemotely', 'Scheduled']);
 const revisionSchema = z.number().int().positive();
 export const draftContentSchema = postSchema.extend({ accountIds: z.array(accountIdSchema).max(20).default([]) });
 const patchSchema = z.object({
@@ -29,6 +30,11 @@ export const updateDraftSchema = getDraftSchema.extend({
 }).refine(value => value.title !== undefined || (value.patch !== undefined && Object.keys(value.patch).length > 0), 'Provide a title or content patch.');
 export const previewDraftSchema = getDraftSchema.extend({ expectedRevision: revisionSchema });
 export const publishDraftSchema = previewDraftSchema.extend({ previewId: z.uuid(), requestId: requestIdSchema });
+export const scheduleDraftSchema = publishDraftSchema.extend({
+    scheduledAt: z.iso.datetime({ offset: true }).describe('Future ISO 8601 timestamp with an explicit timezone or Z, at least one minute ahead.'),
+}).strict();
+/** Platforms the DotSuite scheduler publishes to. */
+const CLOUD_PLATFORMS = ['x', 'linkedin', 'bluesky', 'mastodon', 'telegram'] as const;
 export const listDraftsSchema = z.object({ status: draftStatusSchema.optional(), limit: z.number().int().min(1).max(100).default(20) }).strict();
 export const setDraftVariantSchema = previewDraftSchema.extend({ accountId: accountIdSchema, variant: overrideSchema.nullable() }).strict();
 const sourceTemplateSchema = z.object({ id: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/), revision: revisionSchema }).strict();
@@ -73,7 +79,7 @@ export class AgentDrafts {
             if (record.preview && (record.preview.revision !== record.revision || !matchesFingerprint(record.preview.contentHash, record.content) || !record.preview.plan.valid)) throw new Error();
             if (record.status !== 'Draft' && !record.preview) throw new Error();
             if (record.publication && (!record.preview || record.publication.revision !== record.revision || record.publication.previewId !== record.preview.id)) throw new Error();
-            if (['Publishing', 'Published', 'NeedsReview', 'SavedRemotely'].includes(record.status) && !record.publication) throw new Error();
+            if (['Publishing', 'Published', 'NeedsReview', 'SavedRemotely', 'Scheduled'].includes(record.status) && !record.publication) throw new Error();
             return record;
         } catch (error) {
             if (error instanceof StorageSecurityError) throw error;
@@ -91,13 +97,14 @@ export class AgentDrafts {
     private operation(record: DraftRecord): Operation | undefined {
         if (!record.publication) return undefined;
         const operation = this.publisher.journal.get(record.publication.requestId);
-        if (operation && (operation.kind !== 'publish' || !operation.draft || fingerprint(operation.draft) !== fingerprint({ draftId: record.id, revision: record.revision, previewId: record.publication.previewId }))) {
+        if (operation && (!['publish', 'schedule'].includes(operation.kind) || !operation.draft || fingerprint(operation.draft) !== fingerprint({ draftId: record.id, revision: record.revision, previewId: record.publication.previewId }))) {
             throw new Error('The operation belongs to a different action. Inspect the draft and operation before publishing again.');
         }
         return operation;
     }
     private stage(record: DraftRecord, operation?: Operation): DraftRecord['status'] {
         if (!operation) return record.status;
+        if (operation.kind === 'schedule') return operation.status === 'completed' ? 'Scheduled' : operation.status === 'needs_review' ? 'NeedsReview' : 'Publishing';
         if (operation.status === 'completed') return record.content.article?.published === false && record.preview?.plan.targets.every(target => target.platform === 'devto') ? 'SavedRemotely' : 'Published';
         return operation.status === 'needs_review' ? 'NeedsReview' : 'Publishing';
     }
@@ -219,9 +226,52 @@ export class AgentDrafts {
             this.save(record); return this.view(record);
         });
     }
-    async publish(value: unknown, signal?: AbortSignal): Promise<{ draft: DraftView; replayed: boolean }> {
-        const input = publishDraftSchema.parse(value);
-        const record = this.locked(input.draftId, () => {
+    /**
+     * Schedules exactly the saved preview through DotSuite: one cloud post per
+     * platform with that platform's own text and images (uploaded to DotSuite).
+     * Cloud posts are single posts: thread parts, LinkedIn first comments, Discord
+     * and Dev.to stay local, and each platform maps to its one cloud connection.
+     */
+    async schedule(value: unknown, cloud = new AgentCloud(this.publisher.accounts)): Promise<{ draft: DraftView; replayed: boolean }> {
+        const input = scheduleDraftSchema.parse(value);
+        const record = this.claim(input);
+        const preview = record.preview!;
+        const source = { draftId: record.id, revision: record.revision, previewId: preview.id };
+        try {
+            const byPlatform = new Map<string, PlannedTarget[]>();
+            for (const target of preview.plan.targets) byPlatform.set(target.platform, [...(byPlatform.get(target.platform) || []), target]);
+            const problems: string[] = [];
+            const posts = [...byPlatform.entries()].map(([platform, targets]) => {
+                const first = targets[0];
+                if (!(CLOUD_PLATFORMS as readonly string[]).includes(platform)) problems.push(`${platform}: DotSuite can't schedule this platform; publish it with publish_draft instead.`);
+                if (targets.some(target => target.posts.length > 1)) problems.push(`${platform}: scheduled posts can't be threads yet. Shorten it to one post in a variant, or publish the thread now.`);
+                if (targets.some(target => target.posts[0].media.some(file => mediaKind(file) === 'video'))) problems.push(`${platform}: DotSuite schedules images and GIFs, not videos yet. Publish the video now instead.`);
+                if (targets.some(target => target.firstComment)) problems.push(`${platform}: scheduled posts can't add a first comment yet. Move the link into the post or publish now.`);
+                if (targets.some(target => fingerprint(target.posts) !== fingerprint(first.posts))) problems.push(`${platform}: DotSuite has one connection per platform, so all ${platform} accounts in the draft need the same text.`);
+                return { platform: platform as CloudDraftPost['platform'], accountIds: targets.map(target => target.accountId), text: first.posts[0].text, media: first.posts[0].media };
+            });
+            if (problems.length) throw new Error(problems.join('\n'));
+            const staged = stageAssets({ source, targets: preview.plan.targets, assets: preview.assets, accounts: preview.accounts });
+            let result;
+            try {
+                const files = new Map(preview.plan.targets.flatMap((target, index) => target.posts[0].media.map((ref, slot) => [ref, staged.targets[index].posts[0].media[slot]] as const)));
+                result = await cloud.scheduleDraft({ requestId: input.requestId, scheduledAt: input.scheduledAt, source,
+                    posts: posts.map(post => ({ ...post, media: post.media.map(ref => files.get(ref)!) })) }, begin => this.locked(record.id, () => {
+                    const current = this.read(record.id);
+                    if (current.revision !== record.revision || current.publication?.requestId !== input.requestId || current.preview?.id !== preview.id) throw new Error('Draft changed while preparing the schedule. Preview it again.');
+                    return begin();
+                }));
+            } finally { staged.dispose(); }
+            const draft = this.locked(record.id, () => {
+                const current = this.read(record.id); current.status = this.stage(current, result.operation); this.save(current); return this.view(current);
+            });
+            return { draft, replayed: result.replayed };
+        } catch (error) { this.release(record.id, input.requestId, error); throw error; }
+    }
+
+    /** Reserves the draft for one publish or schedule request (same requestId on retries). */
+    private claim(input: { draftId: string; expectedRevision: number; previewId: string; requestId: string }): DraftRecord {
+        return this.locked(input.draftId, () => {
             const record = this.read(input.draftId); this.revision(record, input.expectedRevision);
             if (!record.preview || record.preview.id !== input.previewId) throw new Error('A current saved preview is required. Preview the draft again before publishing.');
             if (record.publication && record.publication.requestId !== input.requestId) throw new Error('This draft already has a publication request. Reuse the same requestId; inspect its results before taking further action.');
@@ -229,6 +279,26 @@ export class AgentDrafts {
             if (!record.publication) { record.publication = { requestId: input.requestId, revision: record.revision, previewId: input.previewId }; record.status = 'Publishing'; this.save(record); }
             return record;
         });
+    }
+
+    /** After a failure: keep the outcome if anything was sent, otherwise return the draft to editing. */
+    private release(id: string, requestId: string, error: unknown): void {
+        this.locked(id, () => {
+            const current = this.read(id);
+            if (current.publication?.requestId !== requestId) return;
+            const operation = this.operation(current);
+            if (operation) current.status = this.stage(current, operation);
+            else {
+                current.status = 'Draft'; delete current.preview; delete current.publication;
+                current.validation = { valid: false, targets: [], errors: [safeError(error)], warnings: [] };
+            }
+            this.save(current);
+        });
+    }
+
+    async publish(value: unknown, signal?: AbortSignal): Promise<{ draft: DraftView; replayed: boolean }> {
+        const input = publishDraftSchema.parse(value);
+        const record = this.claim(input);
         const preview = record.preview!;
         const seal: PublicationSeal = { source: { draftId: record.id, revision: record.revision, previewId: preview.id }, targets: preview.plan.targets, assets: preview.assets, accounts: preview.accounts };
         try {
@@ -241,19 +311,6 @@ export class AgentDrafts {
                 const current = this.read(record.id); current.status = this.stage(current, result.operation); this.save(current); return this.view(current);
             });
             return { draft, replayed: result.replayed };
-        } catch (error) {
-            this.locked(record.id, () => {
-                const current = this.read(record.id);
-                if (current.publication?.requestId !== input.requestId) return;
-                const operation = this.operation(current);
-                if (operation) current.status = this.stage(current, operation);
-                else {
-                    current.status = 'Draft'; delete current.preview; delete current.publication;
-                    current.validation = { valid: false, targets: [], errors: [safeError(error)], warnings: [] };
-                }
-                this.save(current);
-            });
-            throw error;
-        }
+        } catch (error) { this.release(record.id, input.requestId, error); throw error; }
     }
 }

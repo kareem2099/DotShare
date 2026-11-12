@@ -40,7 +40,7 @@ export function setupInitCommand(program: Command) {
                 // Use the constant here instead of manually writing the URL
                 const defaultServerUrl = currentConfig.serverUrl || DEFAULT_SERVER_URL;
 
-                const serverUrl = await question(rl, `Python server URL [${defaultServerUrl}]: `);
+                const serverUrl = await question(rl, `Server URL [${defaultServerUrl}]: `);
                 const finalServerUrl = serverUrl.trim() || defaultServerUrl;
 
                 configManager().setServerUrl(finalServerUrl);
@@ -54,7 +54,7 @@ export function setupInitCommand(program: Command) {
                         Logger.info('✅ Server connection successful!\n');
                     }
                 } catch {
-                    Logger.info('⚠️  Server connection failed. Make sure the Python server is running.\n');
+                    Logger.info('⚠️  Server connection failed. Check the URL and your internet connection.\n');
                 }
 
                 Logger.info('🎉 DotShare CLI initialized successfully!');
