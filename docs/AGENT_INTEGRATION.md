@@ -24,7 +24,7 @@ Restart or reconnect your MCP client after setup. In Codex, ask DotShare to list
 accounts, save a draft for one of them and prepare its preview. To review that draft
 in VS Code, follow the [Publishing Library guide](PUBLISHING_LIBRARY.md).
 
-You can also download the tarball and install it with `npm install -g ./dotshare-cli-3.0.0.tgz`. [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.6.0)
+You can also download the tarball and install it with `npm install -g ./dotshare-cli-3.1.0.tgz`. [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.7.0)
 
 To build and configure from source instead:
 
@@ -66,6 +66,11 @@ identified by its sign-in, not its current token. LinkedIn sign-ins last 60 days
 
 After packaging/installing the CLI, the same commands are available through
 `dotshare`, `dotshare-agent`, and the dedicated `dotshare-mcp` server entrypoint.
+
+The npm package also ships an agent skill at `skills/dotshare/SKILL.md` (in the
+installed package directory, e.g. `$(npm root -g)/dotshare-cli/skills/dotshare`). Copy
+that folder into your agent's skills directory so it follows DotShare's draft → preview
+→ approval → publish workflow and per-platform rules.
 
 ### Credential fields
 

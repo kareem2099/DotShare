@@ -8,7 +8,7 @@ export type ProbeMcp = (launch: McpLaunch, timeoutMs?: number) => Promise<McpPro
 
 /** A real read-only handshake. Never calls a publishing or authentication tool. */
 export const probeMcp: ProbeMcp = async (launch, timeoutMs = 10000) => {
-    const client = new Client({ name: 'dotshare-doctor', version: '3.0.1' });
+    const client = new Client({ name: 'dotshare-doctor', version: '3.1.0' });
     const transport = new StdioClientTransport({ ...launch, stderr: 'pipe' });
     // Drain diagnostics without displaying them: third-party errors can contain secrets.
     transport.stderr?.on('data', () => undefined);

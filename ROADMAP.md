@@ -15,8 +15,8 @@ v3.5.x       ████████████████████  AI re
 v3.6.0       ████████████████████  Local MCP server & shared Publishing Library                ✅ Done
 v3.6.1       ████████████████████  Field fixes: Bluesky facets, LinkedIn first comment, locks  ✅ Done
 ──────────────────────────────────────────────────────────────────────────────────────────────────────
-v3.6.2       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  Reliability: CI, token lifecycle, release automation        ⏳ Next
-v3.7.0       ░░░░░░░░░░░░░░░░░░░░  One domain: auth on dotsuite.dev, verified publishing        🔵 Planned
+v3.7.0       ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  Connect: sign-in on dotsuite.dev, agent sign-in, video, stats 🚀 Releasing
+v3.7.x       ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  Reliability & verified publishing: CI, read-back checks      ⏳ Next
 v3.8.0       ░░░░░░░░░░░░░░░░░░░░  Multi-account cloud & remote MCP (paid plans)              🔵 Planned
 v3.9.0       ░░░░░░░░░░░░░░░░░░░░  Trust & teams: provenance view, approvals, analytics       🔵 Backlog
 ```
@@ -25,43 +25,27 @@ Each milestone lists its CLI version where the MCP server or CLI changes. Plans:
 
 ---
 
-## 🚨 Now — Auth server security fixes (`dotshare-auth-server`)
+## 🚀 v3.7.0 — Connect (release checklist)
 
-> **Why:** Two flaws in the live OAuth server. Fix and redeploy before anything else; the merge below replaces this server later.
-
-- [ ] **`SCHEME_ALLOWLIST`** — The callback page sends the new tokens to `${scheme}://freerave.dotshare/auth?...`, taking `scheme` unchecked from the sign-in link. A link with `scheme=https://attacker.example/?` makes a victim's own LinkedIn or X sign-in deliver their access and refresh tokens to the attacker. Accept only known editor schemes (`vscode`, `vscode-insiders`, `vscodium`, `cursor`, `windsurf`) and fall back to `vscode`.
-- [ ] **`NO_CLIENT_USER_ID`** — `/api/auth/{linkedin,x}` takes `userId` from the request body and saves the token to that DotSuite account through `/internal/oauth/save`. Anyone with their own authorization code could attach their account to someone else's DotSuite user. Nothing in DotShare or the site sends `userId` today, so remove the field; after the merge the user comes from the signed-in session.
-
----
-
-## ⏳ v3.6.2 — Reliability
-
-> **Why:** Every real post during the 3.6 launch found a bug the tests missed, and the release took several manual steps. This milestone makes breakage visible before users see it.\
-> **CLI:** `3.0.2`
-
-- [ ] **`CI_PIPELINE`** — GitHub Actions on every push and pull request: type-check, lint, all Jest suites, `verify-agent`, `verify-security`, `verify-library`, and building the VSIX and CLI tarball. The repository has no workflows today.
-- [ ] **`X_TOKEN_REFRESH`** — The agent stores only an X access token, and X OAuth 2.0 tokens expire after about two hours, so MCP posting to X stops working soon after an account is added. Store the refresh token and rotate it, as the extension already does through the auth server.
-- [ ] **`TOKEN_EXPIRY`** — Record when each token expires (LinkedIn: 60 days). `doctor` lists expiry dates and warns a week ahead; `publish_post` and `preview_post` return a warning for expiring accounts.
-- [ ] **`ACCOUNTS_CONNECT`** — `dotshare-agent accounts connect linkedin` (and `x`): the browser sign-in flow built into the CLI, so nobody needs LinkedIn's token generator, which failed with a "state parameter" error during launch.
-- [ ] **`RELEASE_SCRIPT`** — `npm run release <version>`: one source of truth for the extension, CLI and in-code client versions; create the CHANGELOG and What's New sections; build both artifacts and verify their contents; print the exact publish commands (`npm publish ./artifacts/…`, not `artifacts/…`).
-- [ ] **`LEGACY_SECRET_CLEANUP`** — Clear All Credentials also removes secrets from removed platforms (Reddit).
-
----
-
-## 🔵 v3.7.0 — One Domain & Verified Publishing
-
-> **Why:** DotShare spans `core.dotsuite.dev`, `dotsuite.dev` and `dotshare-auth-server.vercel.app`. Merging auth into the DotSuite site puts every service under one name users can trust and one sign-in, and verified publishing confirms that what DotShare posted looks right.\
+> **Built and pushed:** sign-in on `dotsuite.dev/api/connect`, agent browser sign-in and X refresh, `schedule_draft`, `get_post_stats`, video/GIF, Bluesky mentions, Claude Code/Cursor setup (see Completed). Ship once the items below are done.\
 > **CLI:** `3.1.0`
 
-### 🌐 Merge the auth server into `dotsuite.dev`
-The auth server (`dotshare-auth-server`, v1.4.2) is a small Next.js app: PKCE sign-in pages, a callback page, LinkedIn and X token exchange, X token refresh, Upstash rate limits and a sync to `dotsuite-core`. The `dotsuite` site is Next.js 16 too, so the code moves in rather than being rebuilt.
-- [ ] **`MOVE_ROUTES`** — Bring `src/lib/{pkce,platforms,tokenUtils}.ts`, the two hooks and the pages and API routes into `dotsuite`. Use new paths, because `dotsuite` already serves NextAuth and account routes under `/api/auth/*`: pages at `/connect/{linkedin,x}` and `/connect/{platform}/callback`, APIs at `/api/connect/{platform}` and `/api/connect/x/refresh`. Keep the pages outside the `[locale]` routing in `dotsuite/src/proxy.ts`.
-- [ ] **`SESSION_USER`** — Take the DotSuite user from the NextAuth session when syncing tokens to `dotsuite-core`, never from the request.
-- [ ] **`ENV_AND_LIMITS`** — Move `LINKEDIN_CLIENT_ID`/`SECRET`, `X_CLIENT_ID`, `INTERNAL_SECRET`, `DOTSUITE_CORE_URL` and the Upstash variables to the `dotsuite` deployment, with the same rate limits.
-- [ ] **`OAUTH_REDIRECTS`** — Add `https://dotsuite.dev/connect/linkedin/callback` and `https://dotsuite.dev/connect/x/callback` to the LinkedIn and X apps, keeping the Vercel callbacks during the transition.
-- [ ] **`ONE_URL_CONSTANT`** — The auth URL is hard-coded in `src/constants.ts`, `src/services/TokenManager.ts` and `media/main.ts`. Replace them with one constant pointing at `dotsuite.dev`, with a development override like `DOTSUITE_API_URL`, and update the paths.
-- [ ] **`CLI_CONFIG_MIGRATION`** — The CLI saves `serverUrl` in `~/.dotshare/config.json`; rewrite the old Vercel address on load.
+### 🌐 Before tagging
+- [ ] **`ENV_AND_LIMITS`** — Set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` and `X_CLIENT_ID` on the `dotsuite` deployment (rate limits use its Postgres limiter). `/api/connect/health` must report both platforms before 3.7.0 ships.
+- [ ] **`OAUTH_REDIRECTS`** — Add `https://dotsuite.dev/api/connect/linkedin/callback` and `https://dotsuite.dev/api/connect/x/callback` to the LinkedIn and X apps, keeping the Vercel callbacks during the transition.
 - [ ] **`RETIRE_VERCEL`** — Keep the old server running, not redirecting, until older extensions age out: 3.6.x refuses HTTP redirects, so a redirect would break X token refresh for those users. Then shut it down.
+
+---
+
+## ⏳ v3.7.x — Reliability & Verified Publishing
+
+> **Why:** Every real post during the 3.6 launch found a bug the tests missed, and the release took several manual steps. This milestone makes breakage visible before users see it.\
+> **CLI:** `3.1.x`
+
+- [ ] **`CI_PIPELINE`** — GitHub Actions on every push and pull request: type-check, lint, all Jest suites, `verify-agent`, `verify-security`, `verify-library`, and building the VSIX and CLI tarball. The repository has no workflows today.
+- [ ] **`TOKEN_EXPIRY`** — Browser-connected accounts record their expiry and `doctor` warns a week ahead (3.7.0). Still to do: `preview_post`/`preview_draft` warnings, and expiry for tokens pasted with `accounts add`.
+- [ ] **`RELEASE_SCRIPT`** — `npm run release <version>`: one source of truth for the extension, CLI and in-code client versions; create the CHANGELOG and What's New sections; build both artifacts and verify their contents; print the exact publish commands (`npm publish ./artifacts/…`, not `artifacts/…`).
+- [ ] **`LEGACY_SECRET_CLEANUP`** — Clear All Credentials also removes secrets from removed platforms (Reddit).
 
 ### ✅ Verified publishing
 - [ ] **`POST_PUBLISH_CHECK`** — After publishing, read the post back from the platform and record in the receipt whether images, links, hashtags and the first comment are present. This would have caught the thread images that went out without media.
@@ -97,7 +81,7 @@ The auth server (`dotshare-auth-server`, v1.4.2) is a small Next.js app: PKCE si
 - [ ] **`PROVENANCE_VIEW`** — Compare draft revisions, and show the sources (commits, changelog lines, links) next to the AI-written claims they support.
 - [ ] **`TEAM_APPROVALS`** — Shared libraries with reviewer roles and approvals bound to a revision (Max).
 - [ ] **`HOSTED_AI`** — AI generation without a personal key, as a monthly credit allowance on Pro and Max.
-- [ ] **`ANALYTICS_AND_COMMENTS`** — Engagement metrics and replies from supported platforms.
+- [ ] **`ANALYTICS_AND_COMMENTS`** — Replies from supported platforms, and engagement in the VS Code library (agents have `get_post_stats` since 3.7.0).
 - [ ] **`CODESNAP_RELEASE_BRIDGE`** — Suggest a CodeSnap image from the key changes in a release diff.
 
 ---
@@ -111,6 +95,13 @@ The auth server (`dotshare-auth-server`, v1.4.2) is a small Next.js app: PKCE si
 ---
 
 ## ✅ Completed
+
+### v3.7.0 — Connect (November 2026)
+- [x] Auth server security fixes: editor scheme allowlist, required LinkedIn state, no client-supplied `userId` (deployed to the Vercel server November 11).
+- [x] LinkedIn/X sign-in moved to `dotsuite.dev/api/connect`, server-side with signed state and PKCE; dashboard Connect buttons save accounts for cloud scheduling with the signed-in session user.
+- [x] One `DOTSUITE_CONNECT_URL` in the extension and CLI; saved Vercel URLs migrate automatically.
+- [x] `dotshare-agent accounts connect` (browser sign-in, tokens encrypted to the CLI) and automatic X token refresh.
+- [x] `schedule_draft`, `get_post_stats`, agent video/GIF, Bluesky mentions, setup for Claude Code and Cursor, and the DotShare agent skill.
 
 ### v3.6.1 — Field Fixes (November 2026)
 - [x] Clickable Bluesky links and hashtags (rich-text facets with UTF-8 byte offsets).

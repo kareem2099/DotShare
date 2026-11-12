@@ -2,7 +2,7 @@
   "name": "dotshare",
   "displayName": "DotShare",
   "description": "Share code updates to LinkedIn, X, Bluesky, Mastodon, Telegram, Discord and Dev.to from VS Code. AI-written posts, threads, CodeSnap images, Gists and scheduling.",
-  "version": "3.6.1",
+  "version": "3.7.0",
   "publisher": "freerave",
   "funding": [
     {

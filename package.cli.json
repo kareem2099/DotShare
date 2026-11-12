@@ -2,7 +2,7 @@
   "name": "dotshare-cli",
   "displayName": "DotShare CLI",
   "description": "Publish posts, images and threads to seven platforms from AI agents, MCP clients or the CLI.",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "bin": {
     "dotshare": "./bin/dotshare-cli.js",
     "dotshare-mcp": "./bin/dotshare-mcp.js",
@@ -14,6 +14,7 @@
     "README.md",
     "LICENSE",
     "docs/AGENT_INTEGRATION.md",
+    "skills/dotshare/SKILL.md",
     "out/agent/server.js",
     "out/agent/commands.js",
     "SECURITY.md"

@@ -34,6 +34,7 @@ dotshare-scheduler.service
 CLI_README.md
 CLI_SCHEDULER_README.md
 package.cli.json
+skills/
 
 # Internal developer documentation (not useful for end users)
 IMAGE_UPLOAD_FLOW.md

@@ -24,15 +24,15 @@
 
 ---
 
-## 🆕 What's New in 3.6.1 — Field Fixes
+## 🆕 What's New in 3.7.0 — Connect
 
-- **Clickable Bluesky links and hashtags**, and hashtags that show up in Bluesky search.
-- **LinkedIn first comment:** agents can post the article link as the first comment instead of in the post body.
-- **No stuck locks:** a crash no longer blocks the MCP, and several MCP clients can share one library.
+- **LinkedIn and X sign-in on dotsuite.dev**, with the whole exchange on the server.
+- **Agents sign in through the browser:** `dotshare-agent accounts connect`, with no token to copy, and X sign-ins renew themselves.
+- **Schedule saved drafts** with `schedule_draft`, so each platform gets its own version, images included.
+- **Videos and GIFs from agents**, clickable **Bluesky mentions**, and **post stats** with `get_post_stats`.
+- **One-command setup for Claude Code and Cursor.**
 
-Builds on 3.6.0, which added the **local MCP server** for AI agents, the **shared Publishing Library** in VS Code, **saved previews and receipts**, and **encrypted local records**.
-
-[Download VS Code 3.6.1 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.6.1/dotshare-3.6.1.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.6.1)
+[Download VS Code 3.7.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.7.0/dotshare-3.7.0.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.7.0)
 
 ---
 
@@ -45,17 +45,19 @@ content, multiple accounts, durable retry protection and DotSuite cloud scheduli
 are available through structured tools.
 
 Use Node.js 22.12+ and an unlocked OS credential store. Install the CLI and MCP
-server from npm, then connect Codex and a publishing account.
+server from npm, then connect your MCP client and a publishing account.
 
 ```sh
 npm install -g dotshare-cli
-dotshare-agent setup
+dotshare-agent setup                     # Codex; or --client claude / --client cursor
+dotshare-agent accounts connect work-linkedin --platform linkedin   # LinkedIn/X: sign in in the browser
 dotshare-agent accounts add personal-mastodon --platform mastodon
 dotshare-agent doctor --account personal-mastodon
 ```
 
-Enter the Mastodon instance and token in the terminal prompts. After setup, reconnect
-or restart Codex. Try this prompt to save a draft and prepare a preview:
+`accounts connect` opens your browser to sign in to LinkedIn or X. For other platforms,
+`accounts add` asks for the credentials in hidden terminal prompts. After setup, reconnect
+or restart your MCP client. Try this prompt to save a draft and prepare a preview:
 
 > Use DotShare to save a draft titled “My first DotShare post” for `personal-mastodon` with the text “Hello from DotShare!” and prepare a preview for me to review.
 
@@ -104,7 +106,7 @@ composer drafts remain in their existing screen; no automatic migration occurs.
 code --install-extension freerave.dotshare
 ```
 
-**From GitHub:** download the `v3.6.1` VSIX above and run `code --install-extension ./dotshare-3.6.1.vsix`.
+**From GitHub:** download the `v3.7.0` VSIX above and run `code --install-extension ./dotshare-3.7.0.vsix`.
 For the shared Publishing Library, also complete the [MCP quick start](#quick-start-for-ai-agents).
 
 Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.

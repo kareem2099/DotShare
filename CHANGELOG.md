@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.0] - 2026-11-12 — "Connect"
+
+VS Code extension 3.7.0 and `dotshare-cli` 3.1.0. LinkedIn and X sign-in moves to dotsuite.dev, and AI agents can sign in, schedule saved drafts, post videos and read engagement.
+
+### Added
+- **Browser sign-in for agents.** `dotshare-agent accounts connect <id> --platform linkedin|x` opens the browser to approve DotShare, with no token to copy. The result returns to a `127.0.0.1` listener encrypted to a key held only by that CLI process (X25519 + HKDF + AES-256-GCM). A nonce ties it to this sign-in, and anything else sent to the port is ignored.
+- **X sign-ins renew themselves.** Agent X accounts connected in the browser get a fresh token when the current one has under five minutes left, before publishing or `doctor` checks. The rotated pair is saved first, and refreshing doesn't invalidate saved previews. `doctor --check-accounts` warns a week before a LinkedIn sign-in expires.
+- **`schedule_draft`** (CLI: `drafts schedule`). Schedules a previewed draft through DotSuite: one cloud post per platform with that platform's own text, and local images uploaded first. The draft becomes `Scheduled`. Threads, LinkedIn first comments, videos, Discord and Dev.to are refused with the reason.
+- **`get_post_stats`** (CLI: `stats`). Read-only likes, reposts, replies and quotes for published posts on X, Bluesky, Mastodon, LinkedIn and Dev.to, plus impressions on X and views on Dev.to. When a platform withholds metrics, the result explains why.
+- **Video and GIF for agents.** MP4/MOV on X, LinkedIn, Mastodon, Telegram and Discord (WebM on Mastodon and Discord), and GIFs on X, Mastodon, Telegram and Discord. Files are checked by content, with each platform's size limit shown at preview.
+- **Bluesky mentions.** `@handle.domain` becomes a real mention when the handle resolves; unknown handles stay plain text.
+- **Setup for Claude Code and Cursor.** `setup --client claude` registers DotShare through `claude mcp add-json`. `--client cursor` merges it into `~/.cursor/mcp.json`, keeping other servers and saving a backup. `doctor --client cursor` checks the entry.
+- **DotShare agent skill.** `skills/dotshare/SKILL.md` teaches agents the draft → preview → approval → publish workflow, per-platform writing rules and safe recovery.
+
+### Changed
+- **Sign-in runs on dotsuite.dev.** The extension's LinkedIn/X sign-in, X token refresh and sign-in health check use `https://dotsuite.dev/api/connect`. The exchange happens on the server, with state and PKCE in a signed cookie. X now also asks for `media.write`. The CLI moves saved `dotshare-auth-server.vercel.app` URLs to dotsuite.dev.
+
+### Fixed
+- **X videos and GIFs upload again.** They used the v1.1 upload, which doesn't accept OAuth 2 tokens. They now use the v2 chunked upload and wait for X to finish processing.
+- **Scheduled post IDs are recorded.** DotSuite returns `post_id`, which the CLI ignored, so cancelling a scheduled post required looking up its ID.
+- **Sign-in security** (old server, fixed on November 11): the editor scheme is checked against known editors, LinkedIn sign-in requires state, and tokens are no longer saved to a DotSuite account named by the request.
+
 ## [3.6.1] - 2026-11-09 — "Field Fixes"
 
 VS Code extension 3.6.1 and `dotshare-cli` 3.0.1. Found while publishing the first DotShare article through the MCP to Bluesky and LinkedIn.

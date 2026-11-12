@@ -2,6 +2,19 @@
 
 ---
 
+## v3.7.0 — Connect
+
+*November 12, 2026*
+
+- **Sign in to LinkedIn and X on dotsuite.dev.** Same buttons, now hosted on DotSuite with the whole exchange on the server.
+- **Agents sign in through the browser.** `dotshare-agent accounts connect` replaces copying tokens, and X sign-ins renew themselves.
+- **Schedule a saved draft.** `schedule_draft` sends each platform its own version through DotSuite, images included.
+- **Videos and GIFs from agents** on X, LinkedIn, Mastodon, Telegram and Discord, plus clickable Bluesky mentions.
+- **See how a post is doing.** `get_post_stats` reads likes, reposts, replies and views.
+- **One-command setup for Claude Code and Cursor.**
+
+---
+
 ## v3.6.1 — Field Fixes
 
 *November 9, 2026*
