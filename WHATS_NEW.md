@@ -2,6 +2,17 @@
 
 ---
 
+## v3.8.0 — Fair X
+
+*November 12, 2026*
+
+- **X posts go through DotSuite.** X charges per post, so posts through DotShare's X app are published by DotSuite and counted against your plan's monthly X budget. Your X token stays on DotSuite.
+- **See the cost before you post.** Agents show the exact X charge and what's left; the extension shows it after each post, and the DotSuite dashboard lists every charge.
+- **Fair charges.** Prices follow X's list, and you're charged what X actually took when it can be measured.
+- **Your own X app** still works with the CLI if you'd rather pay X directly.
+
+---
+
 ## v3.7.0 — Connect
 
 *November 12, 2026*

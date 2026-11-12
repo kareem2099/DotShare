@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.8.0] - 2026-11-12 — "Fair X"
+
+VS Code extension 3.8.0 and `dotshare-cli` 3.2.0. X charges per post, so X posts through DotShare's X app now go through DotSuite and count against each plan's monthly X budget.
 
 ### Added
 - **X through DotSuite, metered.** X charges DotSuite per post made through DotShare's X app, so X posts can go through DotSuite (`POST /v1/x/posts`) and count against the plan's monthly X budget. Previews show the exact charge and what's left. Prices follow X's list, anything that might be a link is priced as one, and if X deducts more than the estimate (measured from DotSuite's X balance around each post) the actual amount is charged. Publishing is idempotent, so retries never post or charge twice.

@@ -24,15 +24,15 @@
 
 ---
 
-## 🆕 What's New in 3.7.0 — Connect
+## 🆕 What's New in 3.8.0 — Fair X
 
-- **LinkedIn and X sign-in on dotsuite.dev**, with the whole exchange on the server.
-- **Agents sign in through the browser:** `dotshare-agent accounts connect`, with no token to copy, and X sign-ins renew themselves.
-- **Schedule saved drafts** with `schedule_draft`, so each platform gets its own version, images included.
-- **Videos and GIFs from agents**, clickable **Bluesky mentions**, and **post stats** with `get_post_stats`.
-- **One-command setup for Claude Code and Cursor.**
+- **X posts go through DotSuite** and count against your plan's monthly X budget (X charges per post). Your X token stays on DotSuite.
+- **See the cost before you post:** agents show the exact X charge and what's left, and the DotSuite dashboard lists every charge.
+- **Fair charges:** X's published prices, or what X actually took when that's higher.
 
-[Download VS Code 3.7.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.7.0/dotshare-3.7.0.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.7.0)
+Builds on 3.7.0: sign-in on dotsuite.dev, browser sign-in for agents, `schedule_draft`, video and GIFs, Bluesky mentions, post stats and setup for Claude Code and Cursor.
+
+[Download VS Code 3.8.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.8.0/dotshare-3.8.0.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.8.0)
 
 ---
 
@@ -106,7 +106,7 @@ composer drafts remain in their existing screen; no automatic migration occurs.
 code --install-extension freerave.dotshare
 ```
 
-**From GitHub:** download the `v3.7.0` VSIX above and run `code --install-extension ./dotshare-3.7.0.vsix`.
+**From GitHub:** download the `v3.8.0` VSIX above and run `code --install-extension ./dotshare-3.8.0.vsix`.
 For the shared Publishing Library, also complete the [MCP quick start](#quick-start-for-ai-agents).
 
 Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.
