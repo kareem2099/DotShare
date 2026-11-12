@@ -287,7 +287,7 @@ export class ConfigHandler {
         const { StorageManager } = await import('../storage/storage-manager');
         const storageManager = new StorageManager(this.context);
         await storageManager.clearAllCredentials();
-        this.sendSuccess('All local credentials and saved APIs cleared. Revoke any cloud copies in the DotSuite Dashboard.');
+        this.sendSuccess('All local credentials and saved APIs cleared. To delete copies synced to DotSuite, email support@dotsuite.dev.');
         this.view.webview.postMessage({ command: 'credentialsCleared' });
         this.view.webview.postMessage({ command: 'LOGOUT_SUCCESS' });
         // Reload configuration so the UI updates

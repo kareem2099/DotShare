@@ -268,9 +268,9 @@ journals are encrypted with a separate OS-keyring master key. The old `dotshare
 - **Direct publishing** sends each credential only to its own platform. AI prompts go only to the provider you choose.
 - **Cloud scheduling is opt-in.** Before any credential is synced to DotSuite, DotShare asks for explicit consent (Mastodon has its own prompt). Sync requires HTTPS and a signed-in DotSuite account.
 - **Logs are redacted**: credential values and OAuth callback queries are excluded, and known secret formats are masked.
-- **Clear All Credentials** removes local platform, AI, GitHub and DotSuite secrets and cloud consent. Copies already synced to DotSuite are revoked from the DotSuite Dashboard.
+- **DotShare: Clear All Credentials** (Command Palette) removes local platform, AI, GitHub and DotSuite secrets and cloud consent. It doesn't revoke tokens at each platform. To delete copies already synced to DotSuite, email support@dotsuite.dev.
 
-Server-side handling is implemented in the separately maintained DotSuite backend; local SecretStorage does not protect copies held there.
+Server-side handling is implemented in the separately maintained DotSuite backend; local SecretStorage does not protect copies held there. Full details: **[DotShare Privacy Policy](https://dotsuite.dev/en/dotshare/privacy)**.
 
 ---
 

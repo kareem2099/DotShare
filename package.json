@@ -90,6 +90,11 @@
         "category": "DotShare"
       },
       {
+        "command": "dotshare.clearAllCredentials",
+        "title": "DotShare: Clear All Credentials",
+        "category": "DotShare"
+      },
+      {
         "command": "dotshare.confirmLogout",
         "title": "DotShare: Confirm Logout",
         "category": "DotShare"

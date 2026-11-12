@@ -1,6 +1,7 @@
 # Development & Config files
 .github/
 .vscode/
+.claude/
 tmp/
 temp/
 node_modules/**

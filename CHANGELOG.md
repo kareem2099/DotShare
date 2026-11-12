@@ -18,6 +18,8 @@ VS Code extension 3.7.0 and `dotshare-cli` 3.1.0. LinkedIn and X sign-in moves t
 - **Bluesky mentions.** `@handle.domain` becomes a real mention when the handle resolves; unknown handles stay plain text.
 - **Setup for Claude Code and Cursor.** `setup --client claude` registers DotShare through `claude mcp add-json`. `--client cursor` merges it into `~/.cursor/mcp.json`, keeping other servers and saving a backup. `doctor --client cursor` checks the entry.
 - **DotShare agent skill.** `skills/dotshare/SKILL.md` teaches agents the draft → preview → approval → publish workflow, per-platform writing rules and safe recovery.
+- **DotShare: Clear All Credentials** command. Removes every local platform, AI, GitHub and DotSuite secret and the cloud-sync consent, after a confirmation. The cleanup already existed, but no screen could run it.
+- **[DotShare Privacy Policy](https://dotsuite.dev/en/dotshare/privacy)** on dotsuite.dev covers what the extension, CLI, sign-in and cloud scheduling store and send, and how to delete it.
 
 ### Changed
 - **Sign-in runs on dotsuite.dev.** The extension's LinkedIn/X sign-in, X token refresh and sign-in health check use `https://dotsuite.dev/api/connect`. The exchange happens on the server, with state and PKCE in a signed cookie. X now also asks for `media.write`. The CLI moves saved `dotshare-auth-server.vercel.app` URLs to dotsuite.dev.

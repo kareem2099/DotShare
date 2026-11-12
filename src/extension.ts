@@ -298,6 +298,23 @@ export async function activate(context: vscode.ExtensionContext) {
             // ✅ Success message
             vscode.window.showInformationMessage('✓ DotShare: Successfully logged out. Token cleared! 🧹');
         }),
+        vscode.commands.registerCommand('dotshare.clearAllCredentials', async () => {
+            const choice = await vscode.window.showWarningMessage(
+                'DotShare: Remove every saved credential from this device?',
+                {
+                    modal: true,
+                    detail: 'This deletes all platform tokens and keys, AI provider keys, the GitHub token, your DotSuite key and your cloud-sync consent from VS Code SecretStorage. ' +
+                        'It does not revoke them at each platform, and copies already synced to DotSuite stay there until you ask support@dotsuite.dev to delete them.',
+                },
+                'Clear All'
+            );
+            if (choice !== 'Clear All') return;
+            await new StorageManager(context).clearAllCredentials();
+            provider.postMessage({ command: 'LOGOUT_SUCCESS' });
+            provider.reloadConfiguration();
+            DotShareWebView.reloadConfiguration();
+            vscode.window.showInformationMessage('DotShare: All local credentials were removed.');
+        }),
         vscode.commands.registerCommand('dotshare.confirmLogout', async () => {
             const choice = await vscode.window.showWarningMessage(
                 '⚠️ DotShare: Are you sure you want to logout and clear your token?\n\nYou will need to login again.',
