@@ -18,7 +18,7 @@ VS Code extension 3.7.0 and `dotshare-cli` 3.1.0. LinkedIn and X sign-in moves t
 - **Bluesky mentions.** `@handle.domain` becomes a real mention when the handle resolves; unknown handles stay plain text.
 - **Setup for Claude Code and Cursor.** `setup --client claude` registers DotShare through `claude mcp add-json`. `--client cursor` merges it into `~/.cursor/mcp.json`, keeping other servers and saving a backup. `doctor --client cursor` checks the entry.
 - **DotShare agent skill.** `skills/dotshare/SKILL.md` teaches agents the draft → preview → approval → publish workflow, per-platform writing rules and safe recovery.
-- **DotShare: Clear All Credentials** command. Removes every local platform, AI, GitHub and DotSuite secret and the cloud-sync consent, after a confirmation. The cleanup already existed, but no screen could run it.
+- **Clear all credentials**, as a button in Settings (new Privacy section) and as the **DotShare: Clear All Credentials** command. It removes every local platform, AI, GitHub and DotSuite secret and the cloud-sync consent after a native confirmation. The cleanup code already existed, but nothing could run it.
 - **[DotShare Privacy Policy](https://dotsuite.dev/en/dotshare/privacy)** on dotsuite.dev covers what the extension, CLI, sign-in and cloud scheduling store and send, and how to delete it.
 
 ### Changed
@@ -26,6 +26,7 @@ VS Code extension 3.7.0 and `dotshare-cli` 3.1.0. LinkedIn and X sign-in moves t
 
 ### Fixed
 - **X videos and GIFs upload again.** They used the v1.1 upload, which doesn't accept OAuth 2 tokens. They now use the v2 chunked upload and wait for X to finish processing.
+- **Live CodeSnap embeds work.** "Copy Dynamic CodeSnap Markdown" pointed at `codesnap.dotsuite.dev`, which never existed. It now uses `dotsuite.dev/api/codesnap/gist/{id}`, which draws the gist and follows its edits.
 - **Scheduled post IDs are recorded.** DotSuite returns `post_id`, which the CLI ignored, so cancelling a scheduled post required looking up its ID.
 - **Sign-in security** (old server, fixed on November 11): the editor scheme is checked against known editors, LinkedIn sign-in requires state, and tokens are no longer saved to a DotSuite account named by the request.
 
