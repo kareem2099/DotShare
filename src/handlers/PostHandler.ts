@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { formatXCharge, isXViaDotSuite, publishXViaDotSuite } from '../services/XViaDotSuite';
 import { DOTSUITE_WEB_URL } from '../constants';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -1038,6 +1039,12 @@ export class PostHandler {
 
     private async shareToXWithUpdate(post: PostData, postId: string | undefined): Promise<void> {
         try {
+            if (isXViaDotSuite(this.context)) {
+                const result = await publishXViaDotSuite(this.context, [{ text: post.text, media: post.media }]);
+                this.sendSuccess(`Successfully posted to X! ${formatXCharge(result)}`);
+                if (postId) this.historyService.recordShare(postId, 'x', true);
+                return;
+            }
             const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
             const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
 
@@ -1306,7 +1313,10 @@ export class PostHandler {
                 });
             }
 
-            if (platform === 'x') {
+            if (platform === 'x' && isXViaDotSuite(this.context)) {
+                const result = await publishXViaDotSuite(this.context, processedPosts);
+                this.sendSuccess(formatXCharge(result));
+            } else if (platform === 'x') {
                 const xAccessToken = await this.context.secrets.get('xAccessToken') || '';
                 const xAccessSecret = await this.context.secrets.get('xAccessSecret') || '';
                 // Pass structured posts to x platform handler

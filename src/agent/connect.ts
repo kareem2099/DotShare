@@ -28,8 +28,11 @@ const tokenSchema = z.object({
         access_token: z.string().min(1).max(8192),
         refresh_token: z.string().min(1).max(8192).optional(),
         expires_at: z.number().int().positive(),
-    }).loose(),
-});
+    }).loose().optional(),
+    // X connected on DotSuite: no token is sent; posts go through DotSuite.
+    via: z.literal('dotsuite').optional(),
+}).refine(result => Boolean(result.token) !== Boolean(result.via));
+type SignInResult = z.infer<typeof tokenSchema>;
 
 export interface ConnectOptions {
     id: string;
@@ -44,7 +47,7 @@ export interface ConnectOptions {
     openBrowser?: (url: string) => void;
 }
 
-export interface ConnectResult { account: Account; expiresAt: string; refreshable: boolean; }
+export interface ConnectResult { account: Account; expiresAt?: string; refreshable: boolean; via?: 'dotsuite'; }
 
 /** Opens the system browser without a shell, so the URL can't be reinterpreted. */
 export function openBrowser(url: string): void {
@@ -89,7 +92,7 @@ export async function connectAccount(store: AccountStore, options: ConnectOption
     const nonce = randomBytes(24).toString('base64url');
     const base = connectBaseUrl();
 
-    const token = await new Promise<z.infer<typeof tokenSchema>['token']>((resolve, reject) => {
+    const signIn = await new Promise<SignInResult>((resolve, reject) => {
         let settled = false;
         const server = http.createServer((req, res) => {
             const url = new URL(req.url || '/', 'http://127.0.0.1');
@@ -110,14 +113,14 @@ export async function connectAccount(store: AccountStore, options: ConnectOption
                 const result = tokenSchema.parse(openPayload(url.searchParams.get('payload') || '', keys.privateKey, ownKey));
                 if (result.nonce !== nonce || result.platform !== platform) throw new Error('Foreign sign-in result.');
                 reply(200, 'Connected', 'DotShare received your sign-in. You can close this tab and return to your terminal.', true);
-                finish(undefined, result.token);
+                finish(undefined, result);
             } catch {
                 // Anything that isn't this sign-in's result is ignored; the genuine one (or the timeout) still ends the wait.
                 reply(400, 'Unknown sign-in', 'This result is not for the sign-in running in your terminal.', false);
             }
         });
         const timer = setTimeout(() => finish(new Error('Timed out waiting for the browser sign-in. Run the command again.')), options.timeoutMs ?? 5 * 60 * 1000);
-        function finish(error?: Error, value?: z.infer<typeof tokenSchema>['token']): void {
+        function finish(error?: Error, value?: SignInResult): void {
             if (settled) return;
             settled = true; clearTimeout(timer);
             // Drop the browser's keep-alive connection too, so the CLI exits right away.
@@ -133,6 +136,11 @@ export async function connectAccount(store: AccountStore, options: ConnectOption
         });
     });
 
+    if (signIn.via === 'dotsuite') {
+        const account = store.add({ id, name, platform, credentials: { via: 'dotsuite' } });
+        return { account, refreshable: false, via: 'dotsuite' };
+    }
+    const token = signIn.token!;
     rememberSecret(token.access_token);
     if (token.refresh_token) rememberSecret(token.refresh_token);
     const credentials: Record<string, string> = {

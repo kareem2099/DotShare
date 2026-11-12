@@ -10,7 +10,7 @@ import { characterCount } from './preview';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 import { scheduleSchema, requestIdSchema, Platform } from './schema';
 import { safeError } from './publisher';
-import { assertNoKnownSecrets } from '../security/redaction';
+import { assertNoKnownSecrets, redactSensitiveText } from '../security/redaction';
 
 /** DotSuite answers with `post_id`; older responses used `id` or `post.id`. */
 function scheduledId(data: unknown): string | undefined {
@@ -21,6 +21,10 @@ function scheduledId(data: unknown): string | undefined {
 
 const CLOUD_IMAGE_MAX = 5 * 1024 * 1024;
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
+
+export interface XUsage { month: string; budget_micros: number; spent_micros: number; reserved_micros: number; remaining_micros: number; posts_today: number; daily_post_limit: number; prices: { post_micros: number; post_with_link_micros: number; media_micros: number } }
+export interface XPublishResponse { status: 'published' | 'needs_review' | 'failed'; charged_micros: number; posts: { status: string; x_post_id?: string; url?: string; error?: string; charged_micros: number }[]; usage: XUsage }
+export const usd = (micros: number): string => `$${(micros / 1_000_000).toFixed(micros % 10_000 === 0 ? 2 : 3)}`;
 
 /** One cloud post for one platform, taken from a saved preview. */
 export interface CloudDraftPost { platform: Platform; accountIds: string[]; text: string; media: string[]; }
@@ -134,6 +138,29 @@ export class AgentCloud {
         claim.operation.status = claim.operation.results.every(result => result.status === 'scheduled') ? 'completed' : 'needs_review';
         this.journal.save(claim.operation);
         return claim;
+    }
+
+    /** This month's X budget on DotSuite (DotSuite pays X per post through its app). */
+    async xUsage(): Promise<XUsage> {
+        const response = await this.http.get('/v1/x/usage', this.auth());
+        return response.data as XUsage;
+    }
+
+    /** What these X posts would cost, without publishing. */
+    async xEstimate(posts: { text: string; media_urls: string[] }[]): Promise<{ estimated_micros: number; affordable: boolean; usage: XUsage; posts: { kind: string; estimated_micros: number }[] }> {
+        const response = await this.http.post('/v1/x/estimate', { posts }, this.auth());
+        return response.data;
+    }
+
+    /** Publishes through DotSuite, which charges the plan's X budget. Idempotent by requestId. */
+    async xPublish(requestId: string, posts: { text: string; media_urls: string[] }[]): Promise<XPublishResponse> {
+        try {
+            const response = await this.http.post('/v1/x/posts', { request_id: requestId, posts }, { ...this.auth(), timeout: 600000 });
+            return response.data as XPublishResponse;
+        } catch (error) {
+            const data = axios.isAxiosError(error) ? error.response?.data as { error?: string } | undefined : undefined;
+            throw new Error(data?.error ? redactSensitiveText(data.error) : safeError(error));
+        }
     }
 
     async cancel(requestId: string, postId: string): Promise<{ operation: Operation; replayed: boolean }> {

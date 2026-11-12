@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { AccountStore, Account } from './accounts';
+import { AgentCloud, usd } from './cloud';
 import { redactSensitiveText } from '../security/redaction';
 
 const cleanIdentity = (identity: string): string => [...redactSensitiveText(identity)].map(char => {
@@ -19,6 +20,11 @@ export const checkAccount: CheckAccount = async (store, account) => {
     const fix = `Reconnect in your terminal: dotshare-agent accounts ${browser ? 'connect' : 'add'} ${account.id} --platform ${account.platform}`;
     try {
         const credentials = await store.freshCredentials(account.id);
+        if (account.platform === 'x' && credentials.via === 'dotsuite') {
+            const usage = await new AgentCloud(store).xUsage();
+            return { ...base, status: usage.remaining_micros > 0 ? 'pass' : 'warn', identity: 'DotSuite',
+                message: `Posts through DotSuite. ${usd(usage.remaining_micros)} of this month's ${usd(usage.budget_micros)} X budget left; ${usage.posts_today} of ${usage.daily_post_limit} posts used today.` };
+        }
         const options = { timeout: 10000, maxRedirects: 0 };
         const bearer = { ...options, headers: { Authorization: `Bearer ${credentials.accessToken}` } };
         let identity: unknown;

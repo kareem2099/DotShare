@@ -46,6 +46,28 @@ different IDs. To replace an account's credentials, run `accounts add` with its 
 It does not revoke the token on the platform. Expired/revoked platform tokens must
 be replaced using `accounts add`, or `accounts connect` for LinkedIn and X.
 
+### X through DotSuite (metered)
+
+X charges DotSuite for every post made through DotShare's X app, so once X posting
+moves to DotSuite (DotSuite's `X_SERVER_ONLY` setting), an X sign-in saves the X
+connection to the user's DotSuite account. The X token never reaches the device. The
+local account stores only `{"via": "dotsuite"}`, and posts go through
+`POST /v1/x/posts` with the DotSuite key from `dotshare cloud login`:
+
+- Each plan has a monthly X budget. Preview calls `POST /v1/x/estimate` and shows the
+  exact charge and what's left, and refuses posts the budget can't cover.
+- Prices follow X's list ($0.015 per post, $0.20 with a link, plus images). Anything
+  that might be a link is priced as one, and if X deducts more than the estimate
+  (measured from DotSuite's X balance before and after each post), the actual amount
+  is charged.
+- Publishing is idempotent by request ID, so retries never post or charge twice. A post
+  X doesn't confirm is charged and never resent automatically.
+- Images and GIFs are uploaded to DotSuite first; videos aren't supported this way yet.
+  Stats aren't available for these accounts.
+
+To post with your own X developer app instead (X bills you directly, DotSuite isn't
+involved), add its access token with `dotshare-agent accounts add <id> --platform x`.
+
 ### Browser sign-in for LinkedIn and X
 
 `dotshare-agent accounts connect <id> --platform linkedin|x [--name ...] [--no-open]`

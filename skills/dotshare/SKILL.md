@@ -28,7 +28,10 @@ dotshare-agent doctor --check-accounts
 ```
 
 `accounts connect` opens the browser to sign in. There's nothing to copy, and X
-sign-ins renew themselves. `accounts add` prompts for the other platforms'
+sign-ins renew themselves. When X is connected **through DotSuite** (the account's
+credentials are only `via: dotsuite`), the X token stays on DotSuite: X posts go
+through the user's DotSuite account (`dotshare cloud login` required) and each one is
+charged to the plan's monthly X budget. `accounts add` prompts for the other platforms'
 credentials with hidden input. Everything is stored in the OS keyring. Fields:
 Mastodon `instance`, `accessToken`; Bluesky `identifier`, `password` (an app
 password); Telegram `botToken`, `chatId`; Discord `webhookUrl`; Dev.to `apiKey`. After an upgrade the
@@ -94,7 +97,7 @@ capabilities, and Mastodon's limit is read from the user's instance.
 
 | Platform | Text limit | Threads | Images per post | Notes |
 |---|---|---|---|---|
-| X | 280 (URLs count as 23) | yes | 4 | Hook in the first part. |
+| X | 280 (URLs count as 23) | yes | 4 | Hook in the first part. Through DotSuite, each post costs budget (a link costs much more); preview shows it. |
 | Bluesky | 300 | yes | 4, ≤1 MB each, WebP ok | Links, #hashtags and @handle.domain mentions become clickable (unknown handles stay plain text). |
 | Mastodon | instance limit (default 500; URLs count as 23) | yes | 4, WebP ok | Hashtags drive discovery; use CamelCase (#OpenSource). |
 | LinkedIn | 3,000 | no | 1 | Put the link in `firstComment` (≤1,250 chars), not the body. |
@@ -161,6 +164,16 @@ Every publish, schedule and cancel is recorded on disk by `requestId`.
 - `list_history` and `list_drafts` recover what happened after a restart.
 - Errors before publishing (preview errors, missing credentials) publish nothing.
   Fix the cause, re-preview and ask again.
+
+### X through DotSuite: costs
+
+DotSuite pays X per post, so an X account connected through DotSuite has a monthly X
+budget. Preview warns with the exact charge and what's left, for example
+`X will charge $0.215 for 2 post(s), 1 with a link; $4.785 ... left`, and refuses
+posts the budget can't cover. A post with a link costs about 13 times a plain post, so
+when the user asks you to save budget, put the link in a reply only if they want it,
+or leave it out. Tell the user the cost before asking for approval. Images and GIFs
+work; videos don't (yet). Stats aren't available for these accounts.
 
 ## 6. How did it do? (stats)
 

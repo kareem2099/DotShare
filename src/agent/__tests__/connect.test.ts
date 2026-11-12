@@ -10,7 +10,7 @@ import { accountFingerprint } from '../publication-seal';
 jest.mock('@napi-rs/keyring', () => ({ Entry: jest.fn() }));
 
 /** The server half of the hand-off, as dotsuite.dev implements it (src/lib/social-connect.ts). */
-function seal(cli: { port: number; key: string; nonce: string }, platform: string, token: Record<string, unknown>): string {
+function seal(cli: { port: number; key: string; nonce: string }, platform: string, token: Record<string, unknown> | null): string {
     const info = Buffer.from('dotshare-connect-v1');
     const peer = createPublicKey({ key: { kty: 'OKP', crv: 'X25519', x: cli.key }, format: 'jwk' });
     const own = generateKeyPairSync('x25519');
@@ -18,7 +18,8 @@ function seal(cli: { port: number; key: string; nonce: string }, platform: strin
     const key = Buffer.from(hkdfSync('sha256', diffieHellman({ privateKey: own.privateKey, publicKey: peer }), Buffer.concat([ownKey, Buffer.from(cli.key, 'base64url')]), info, 32));
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv); cipher.setAAD(info);
-    const body = Buffer.concat([cipher.update(JSON.stringify({ nonce: cli.nonce, platform, token })), cipher.final()]);
+    const result = token ? { nonce: cli.nonce, platform, token } : { nonce: cli.nonce, platform, via: 'dotsuite' };
+    const body = Buffer.concat([cipher.update(JSON.stringify(result)), cipher.final()]);
     return `http://127.0.0.1:${cli.port}/callback?${new URLSearchParams({ payload: Buffer.concat([ownKey, iv, cipher.getAuthTag(), body]).toString('base64url') })}`;
 }
 const cliOf = (url: string) => { const q = new URL(url).searchParams; return { port: Number(q.get('port')), key: q.get('key')!, nonce: q.get('nonce')! }; };
@@ -97,4 +98,12 @@ it('accepts sign-in fields only on browser-connected platforms', () => {
     expect(() => store.add({ id: 'x', name: 'X', platform: 'x', credentials: { accessToken: 'a', expiresAt: 'soon' } })).toThrow('Unix seconds');
     store.add({ id: 'manual', name: 'Manual', platform: 'x', credentials: { accessToken: 'pasted' } });
     expect(store.credentials('manual')).toEqual({ accessToken: 'pasted' });
+});
+
+it('saves an X account connected on DotSuite without any token', async () => {
+    const result = await connectAccount(store, { id: 'x-cloud', platform: 'x', openBrowser: async url => {
+        expect(await get(seal(cliOf(url), 'x', null))).toBe(200);
+    } });
+    expect(result).toMatchObject({ via: 'dotsuite', refreshable: false });
+    expect(store.credentials('x-cloud')).toEqual({ via: 'dotsuite' });
 });

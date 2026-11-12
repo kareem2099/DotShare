@@ -4,6 +4,7 @@ import { AccountStore } from './accounts';
 import { Platform, PostInput, postSchema } from './schema';
 import { PLATFORM_CONFIGS } from '../platforms/platform-config';
 import { fetchInstanceLimits } from '../platforms/mastodon';
+import { AgentCloud, usd } from './cloud';
 
 export interface PlannedPart { text: string; media: string[]; characters: number; }
 export interface PlannedTarget { accountId: string; platform: Platform; posts: PlannedPart[]; characterLimit: number; maxMedia: number; firstComment?: string; }
@@ -148,6 +149,7 @@ export class PostPlanner {
         const result: Preview = { valid: true, targets: [], errors: [], warnings: [] };
         if (new Set(input.accountIds).size !== input.accountIds.length) result.errors.push('Account IDs must be unique.');
         if (Object.keys(input.overrides).some(id => !input.accountIds.includes(id))) result.errors.push('An override references an account outside accountIds.');
+        let xThroughDotSuite = 0;
         for (const id of input.accountIds) {
             try {
                 const account = this.accounts.get(id);
@@ -185,6 +187,15 @@ export class PostPlanner {
                     }
                     return { text: part.text, media, characters };
                 });
+                if (account.platform === 'x' && this.accounts.xViaDotSuite(id)) {
+                    if (++xThroughDotSuite > 1) throw new Error('Only one X account can post through DotSuite in a request.');
+                    if (posts.some(post => post.media.some(file => mediaKind(file) === 'video'))) throw new Error('X posts through DotSuite support images and GIFs, not videos yet.');
+                    const estimate = await new AgentCloud(this.accounts).xEstimate(posts.map(post => ({ text: post.text, media_urls: post.media.map(() => 'https://dotsuite.dev/estimate.png') })));
+                    const left = estimate.usage.remaining_micros;
+                    if (!estimate.affordable) throw new Error(`This costs ${usd(estimate.estimated_micros)} on X but only ${usd(left)} of this month's X budget is left.`);
+                    const links = estimate.posts.filter(post => post.kind === 'post_url').length;
+                    result.warnings.push(`${id}: X will charge ${usd(estimate.estimated_micros)} for ${posts.length} post(s)${links ? `, ${links} with a link` : ''}; ${usd(left - estimate.estimated_micros)} of this month's X budget will be left.`);
+                }
                 result.targets.push({ accountId: id, platform: account.platform, posts, characterLimit: limit, maxMedia,
                     ...(firstComment !== undefined && account.platform === 'linkedin' && { firstComment }) });
             } catch (error) {

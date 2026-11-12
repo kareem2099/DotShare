@@ -55,6 +55,11 @@ export class AccountStore {
     }
 
     private validate(input: AccountInput): void {
+        // X through DotSuite: the token stays on DotSuite, which meters each post.
+        if (input.platform === 'x' && input.credentials.via !== undefined) {
+            if (input.credentials.via !== 'dotsuite' || Object.keys(input.credentials).length !== 1) throw new Error('An X account through DotSuite stores only via: dotsuite.');
+            return;
+        }
         const fields = CREDENTIAL_FIELDS[input.platform];
         const allowed = [...fields, ...(OPTIONAL_CREDENTIAL_FIELDS[input.platform] || [])];
         if (fields.some(key => !input.credentials[key]?.trim())) throw new Error(`Required credentials: ${fields.join(', ')}.`);
@@ -111,6 +116,11 @@ export class AccountStore {
         else delete next.refreshToken;
         this.add({ ...account, credentials: next });
         return next;
+    }
+
+    /** True when this X account posts through DotSuite (metered) rather than with a local token. */
+    xViaDotSuite(id: string): boolean {
+        return this.get(id).platform === 'x' && this.credentials(id).via === 'dotsuite';
     }
 
     remove(id: string): void {

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **X through DotSuite, metered.** X charges DotSuite per post made through DotShare's X app, so X posts can go through DotSuite (`POST /v1/x/posts`) and count against the plan's monthly X budget. Previews show the exact charge and what's left. Prices follow X's list, anything that might be a link is priced as one, and if X deducts more than the estimate (measured from DotSuite's X balance around each post) the actual amount is charged. Publishing is idempotent, so retries never post or charge twice.
+- The extension posts to X through DotSuite when X is connected there (`via=dotsuite`), and shows the charge and remaining budget after each post. The CLI stores such accounts as `{"via": "dotsuite"}` and `doctor` reports the budget.
+
+### Changed
+- With DotSuite's `X_SERVER_ONLY` setting, X sign-ins are saved to the DotSuite account and X tokens never reach the device; the X token refresh endpoint is retired.
+
 ## [3.7.0] - 2026-11-12 — "Connect"
 
 VS Code extension 3.7.0 and `dotshare-cli` 3.1.0. LinkedIn and X sign-in moves to dotsuite.dev, and AI agents can sign in, schedule saved drafts, post videos and read engagement.

@@ -59,6 +59,9 @@ export class AgentStats {
         // LinkedIn's second receipt is the first comment, not a post.
         const receipts = result.platform === 'linkedin' ? result.receipts.slice(0, 1) : result.receipts;
         if (!receipts.length) return { ...base, posts: [], unavailable: 'Nothing was published to this account.' };
+        if (result.platform === 'x' && this.accounts.xViaDotSuite(result.accountId)) {
+            return { ...base, posts: receipts.map(({ id, url }) => ({ id, url })), unavailable: 'X statistics aren\'t available for accounts that post through DotSuite.' };
+        }
         if (result.platform === 'telegram' || result.platform === 'discord') return { ...base, posts: receipts.map(({ id, url }) => ({ id, url })), unavailable: `${result.platform === 'telegram' ? 'Telegram bots' : 'Discord webhooks'} can't read message metrics.` };
         try {
             const metrics = await this.read(result.platform, result.accountId, receipts);

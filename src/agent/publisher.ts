@@ -12,6 +12,9 @@ import { shareToDiscord } from '../platforms/discord';
 import { shareToDevTo } from '../platforms/devto';
 import { redactSensitiveText, assertNoKnownSecrets } from '../security/redaction';
 import { PublicationSeal, accountMatches, stageAssets } from './publication-seal';
+import { AgentCloud } from './cloud';
+import { mediaKind } from './preview';
+import { createHash } from 'crypto';
 
 export type PublishClaim = { operation: Operation; replayed: boolean };
 export type ClaimGuard = (begin: () => PublishClaim) => PublishClaim;
@@ -27,6 +30,7 @@ export const publishTarget: PublishAdapter = async (target, credentials, input, 
         case 'bluesky':
             await shareToBlueSky(credentials.identifier, credentials.password, thread, report); return;
         case 'x':
+            if (credentials.via === 'dotsuite') { await publishXThroughDotSuite(target, input, report); return; }
             await shareToX(credentials.accessToken, '', thread, { tokenProvider: async () => credentials.accessToken, onPublished: report }); return;
         case 'linkedin':
             await shareToLinkedIn(first, credentials.accessToken, undefined, report, { firstComment: target.firstComment }); return;
@@ -41,6 +45,29 @@ export const publishTarget: PublishAdapter = async (target, credentials, input, 
         }
     }
 };
+
+/**
+ * Posts through DotSuite, which holds the X token and charges the plan's X budget.
+ * The request ID is derived from the publish request, so a retry is recognised by
+ * DotSuite and never posts or charges twice.
+ */
+async function publishXThroughDotSuite(target: PlannedTarget, input: PublishInput, report: PublicationObserver): Promise<void> {
+    const cloud = new AgentCloud(new AccountStore());
+    const posts = [];
+    for (const post of target.posts) {
+        if (post.media.some(file => mediaKind(file) === 'video')) throw new Error('X posts through DotSuite support images and GIFs, not videos yet.');
+        const mediaUrls = [];
+        for (const file of post.media) mediaUrls.push(await cloud.uploadImage(file));
+        posts.push({ text: post.text, media_urls: mediaUrls });
+    }
+    const requestId = `mcp-${createHash('sha256').update(`${input.requestId}\n${target.accountId}`).digest('hex').slice(0, 40)}`;
+    const result = await cloud.xPublish(requestId, posts);
+    for (const post of result.posts) if (post.status === 'published' && post.x_post_id) report({ id: post.x_post_id, url: post.url });
+    if (result.status !== 'published') {
+        const failed = result.posts.find(post => post.status !== 'published');
+        throw new Error(failed?.status === 'uncertain' ? `X didn't confirm a post; check the account before trying again. ${failed.error || ''}`.trim() : failed?.error || 'X rejected the post.');
+    }
+}
 
 export function safeError(error: unknown): string {
     // Do not return Axios request configs, headers, webhook URLs, or response bodies.

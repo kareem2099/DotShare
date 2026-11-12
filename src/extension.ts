@@ -6,6 +6,7 @@ import { DotShareWebView } from './ui/DotShareWebView';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
 import { DOTSUITE_CODESNAP_URL, DOTSUITE_CORE_API_URL } from './constants';
+import { X_VIA_KEY } from './services/XViaDotSuite';
 import { Logger } from './utils/Logger';
 import { TokenManager } from './services/TokenManager';
 import { DotShareAuth } from './services/DotShareAuth';
@@ -412,6 +413,17 @@ export async function activate(context: vscode.ExtensionContext) {
             const expiresAt = params.get('expires_at');
             const shouldRefreshSoon = params.get('should_refresh_soon') === 'true';
             const warning = params.get('warning');
+
+            // X connected on DotSuite: no token comes back; posts go through DotSuite.
+            if (platform === 'x' && params.get('via') === 'dotsuite' && !accessToken) {
+                await context.globalState.update(X_VIA_KEY, 'dotsuite');
+                for (const key of ['xAccessToken', 'xRefreshToken', 'x_expires_at']) await context.secrets.delete(key);
+                await context.globalState.update('x_should_refresh_soon', undefined);
+                provider.reloadConfiguration();
+                DotShareWebView.reloadConfiguration();
+                vscode.window.showInformationMessage('DotShare: X is connected through your DotSuite account. Each post is charged to your plan\'s monthly X budget.');
+                return;
+            }
 
             if (!platform || !accessToken) {
                 vscode.window.showErrorMessage('DotShare: Invalid auth callback — missing platform or token.');

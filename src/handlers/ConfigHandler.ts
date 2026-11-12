@@ -182,6 +182,9 @@ export class ConfigHandler {
     private async handleLoadConfiguration(): Promise<void> {
         const savedModel = this.context.globalState.get<{ provider: string; model: string }>('selectedModel');
         const credentialsSaved = await credentialStatus(this.context.secrets);
+        // X connected through DotSuite keeps no local token but is connected.
+        const xViaDotSuite = this.context.globalState.get<string>('dotshare.xVia') === 'dotsuite';
+        if (xViaDotSuite) credentialsSaved.xAccessToken = true;
         const aiKeysSaved = Object.fromEntries(AI_PROVIDERS.map(provider => [provider, credentialsSaved[`${provider}ApiKey`]]));
 
         const currentLanguage = this.context.globalState.get('dotshareLanguage') || 'en';
@@ -212,6 +215,7 @@ export class ConfigHandler {
             aiKeysSaved,
 
             githubConnected,
+            xViaDotSuite,
 
             language: currentLanguage,
             translations: translations,

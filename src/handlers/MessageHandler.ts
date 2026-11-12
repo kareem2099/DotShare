@@ -168,6 +168,9 @@ export class MessageHandler {
                             break;
                         case 'x':
                             await TokenManager.clearToken(platform as 'x');
+                            // Posts stop going through DotSuite; the X connection there stays until
+                            // removed in the DotSuite dashboard (Disconnect).
+                            await this.context.globalState.update('dotshare.xVia', undefined);
                             break;
                     }
                     // Reload full config so webview reflects disconnected state immediately
