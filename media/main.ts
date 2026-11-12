@@ -550,6 +550,11 @@ function initEventListeners(): void {
         send({ command: 'logout' });
     });
 
+    // The extension asks for confirmation in a native dialog before deleting anything.
+    getEl('btn-clear-all-credentials')?.addEventListener('click', () => {
+        send({ command: 'clearAllCredentials' });
+    });
+
     // Check auth server health on startup
     checkAuthServerHealth();
 

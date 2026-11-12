@@ -5,7 +5,7 @@ import { DotShareProvider } from './ui/DotShareProvider';
 import { DotShareWebView } from './ui/DotShareWebView';
 import { WhatsNewProvider } from './ui/WhatsNewProvider';
 import { StorageManager } from './storage/storage-manager';
-import { DOTSUITE_CORE_API_URL } from './constants';
+import { DOTSUITE_CODESNAP_URL, DOTSUITE_CORE_API_URL } from './constants';
 import { Logger } from './utils/Logger';
 import { TokenManager } from './services/TokenManager';
 import { DotShareAuth } from './services/DotShareAuth';
@@ -577,7 +577,7 @@ async function handleGistCreation(context: vscode.ExtensionContext, content: str
                         }, 1500);
                         vscode.window.showInformationMessage('DotShare: Gist link added to your post!');
                     } else if (sel === '🔗 Copy Dynamic CodeSnap Markdown') {
-                        const dynamicUrl = `![CodeSnap](https://codesnap.dotsuite.dev/gist/${gistId})`;
+                        const dynamicUrl = `![CodeSnap](${DOTSUITE_CODESNAP_URL}/${gistId})`;
                         await vscode.env.clipboard.writeText(dynamicUrl);
                         vscode.window.showInformationMessage('DotShare: Dynamic Gist Markdown copied to clipboard! Paste it into any README.');
                     }

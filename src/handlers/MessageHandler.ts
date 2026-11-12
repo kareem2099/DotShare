@@ -67,7 +67,11 @@ export class MessageHandler {
             // GitHub Gist operations
             await this.gistHandler.handleMessage(message);
         }
-        else if (cmd.startsWith('save') || cmd === 'loadConfiguration' || cmd === 'clearAllCredentials' || cmd.includes('Api')) {
+        else if (cmd === 'clearAllCredentials') {
+            // Always confirm in a native modal; a webview message alone never deletes credentials.
+            await vscode.commands.executeCommand('dotshare.clearAllCredentials');
+        }
+        else if (cmd.startsWith('save') || cmd === 'loadConfiguration' || cmd.includes('Api')) {
             // Configuration operations (excluding loadPostHistory and loadAnalytics)
             await this.configHandler.handleMessage(message);
         }

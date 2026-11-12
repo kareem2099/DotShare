@@ -5,6 +5,9 @@ export const APP_NAME = 'DotShare';
 // callbacks registered there, so this never points at localhost.
 export const DOTSUITE_CONNECT_URL = 'https://dotsuite.dev/api/connect';
 
+// Live CodeSnap image of a gist, drawn by dotsuite.dev (README embeds).
+export const DOTSUITE_CODESNAP_URL = 'https://dotsuite.dev/api/codesnap/gist';
+
 export const DEFAULT_SERVER_URL = 'https://dotsuite.dev';
 
 /** Earlier releases used this server; saved CLI configs move off it automatically. */

@@ -993,7 +993,7 @@
       btnCopyGistMarkdown.addEventListener('click', async () => {
         const gistId = btnCopyGistMarkdown.dataset.gistId;
         if (!gistId) return;
-        const md = `![CodeSnap](https://codesnap.dotsuite.dev/gist/${gistId})`;
+        const md = `![CodeSnap](https://dotsuite.dev/api/codesnap/gist/${gistId})`;
         try {
           await navigator.clipboard.writeText(md);
           btnCopyGistMarkdown.textContent = '✅ Copied!';

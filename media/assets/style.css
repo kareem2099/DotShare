@@ -837,5 +837,9 @@ header {
 }
 .btn-cloud-disconnect:hover { background: rgba(239,68,68,0.1); }
 
+.privacy-controls { margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--vscode-panel-border, rgba(127,127,127,0.25)); }
+.privacy-controls h3 { margin: 0 0 6px; font-size: 13px; }
+.privacy-controls p { margin: 0 0 10px; font-size: 12px; opacity: 0.8; }
+
 
 
