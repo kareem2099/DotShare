@@ -77,7 +77,7 @@ export class LibraryClient {
     }
     private async start(): Promise<LibraryConnection> {
         const launch = readLibraryLaunch(this.configFile);
-        const client = new Client({ name: 'dotshare-vscode-library', version: '3.8.0' });
+        const client = new Client({ name: 'dotshare-vscode-library', version: '3.8.1' });
         const transport = new StdioClientTransport({ ...launch, stderr: 'pipe', maxBufferSize: 16 * 1024 * 1024 });
         // Never forward subprocess diagnostics or configuration/credential values to the webview.
         transport.stderr?.on('data', () => undefined);

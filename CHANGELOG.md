@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.8.1] - 2026-11-14
+
+VS Code extension 3.8.1 and `dotshare-cli` 3.2.1. X posts are now charged what X actually deducts.
+
+### Changed
+- **X charges work like a card payment.** DotSuite holds the most a post can cost while it's pending, then charges exactly what X deducted (read from DotSuite's X balance after the post) and releases the rest of the hold. A reply with a link, priced as a $0.20 link post, is charged the $0.01 X actually took. If the deduction can't be confirmed, the hold is charged; nothing is added later. This takes effect on DotSuite for every client version.
+- Previews say what will be held: "up to $X of your X budget will be held… You pay what X actually deducts and the rest is released", along with the least that will be left this month. The DotShare agent skill describes X costs the same way.
+
 ## [3.8.0] - 2026-11-12 — "Fair X"
 
 VS Code extension 3.8.0 and `dotshare-cli` 3.2.0. X charges per post, so X posts through DotShare's X app now go through DotSuite and count against each plan's monthly X budget.

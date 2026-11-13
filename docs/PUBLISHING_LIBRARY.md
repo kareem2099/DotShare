@@ -8,9 +8,9 @@ to edit/preview it. There is no second copy to synchronize.
 ## Open it
 
 1. Install CLI 3.0.0 and connect a named account using the [agent setup guide](AGENT_INTEGRATION.md#install-and-set-up).
-2. Install DotShare 3.8.0 in VS Code. To install from GitHub, download the
-   [VSIX](https://github.com/kareem2099/DotShare/releases/download/v3.8.0/dotshare-3.8.0.vsix)
-   and run `code --install-extension ./dotshare-3.8.0.vsix`.
+2. Install DotShare 3.8.1 in VS Code. To install from GitHub, download the
+   [VSIX](https://github.com/kareem2099/DotShare/releases/download/v3.8.1/dotshare-3.8.1.vsix)
+   and run `code --install-extension ./dotshare-3.8.1.vsix`.
 3. Run **DotShare: Open Publishing Library** from the Command Palette, or click
    **Open Publishing Library** in the DotShare sidebar. Platform composers also
    have a library navigation button.

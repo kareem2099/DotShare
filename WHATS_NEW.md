@@ -2,6 +2,15 @@
 
 ---
 
+## v3.8.1 — Fair X
+
+*November 14, 2026*
+
+- **You pay what X actually takes.** The most a post can cost is held while it's pending; once X's deduction shows up, that's what you're charged and the rest of the hold goes back to your budget. A reply with a link is charged $0.01, not $0.20.
+- **Previews say what's held** and the least that will be left of this month's X budget.
+
+---
+
 ## v3.8.0 — Fair X
 
 *November 12, 2026*

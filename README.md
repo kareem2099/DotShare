@@ -24,15 +24,15 @@
 
 ---
 
-## 🆕 What's New in 3.8.0 — Fair X
+## 🆕 What's New in 3.8.1 — Fair X
 
 - **X posts go through DotSuite** and count against your plan's monthly X budget (X charges per post). Your X token stays on DotSuite.
 - **See the cost before you post:** agents show the exact X charge and what's left, and the DotSuite dashboard lists every charge.
-- **Fair charges:** X's published prices, or what X actually took when that's higher.
+- **Fair charges:** the most a post can cost is held while it's pending, then you pay what X actually took and the rest is released.
 
 Builds on 3.7.0: sign-in on dotsuite.dev, browser sign-in for agents, `schedule_draft`, video and GIFs, Bluesky mentions, post stats and setup for Claude Code and Cursor.
 
-[Download VS Code 3.8.0 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.8.0/dotshare-3.8.0.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.8.0)
+[Download VS Code 3.8.1 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.8.1/dotshare-3.8.1.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.8.1)
 
 ---
 
@@ -106,7 +106,7 @@ composer drafts remain in their existing screen; no automatic migration occurs.
 code --install-extension freerave.dotshare
 ```
 
-**From GitHub:** download the `v3.8.0` VSIX above and run `code --install-extension ./dotshare-3.8.0.vsix`.
+**From GitHub:** download the `v3.8.1` VSIX above and run `code --install-extension ./dotshare-3.8.1.vsix`.
 For the shared Publishing Library, also complete the [MCP quick start](#quick-start-for-ai-agents).
 
 Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.
