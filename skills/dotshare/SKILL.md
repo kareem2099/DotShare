@@ -168,11 +168,13 @@ Every publish, schedule and cancel is recorded on disk by `requestId`.
 ### X through DotSuite: costs
 
 DotSuite pays X per post, so an X account connected through DotSuite has a monthly X
-budget. Preview warns with the exact charge and what's left, for example
-`X will charge $0.215 for 2 post(s), 1 with a link; $4.785 ... left`, and refuses
-posts the budget can't cover. A post with a link costs about 13 times a plain post, so
-when the user asks you to save budget, put the link in a reply only if they want it,
-or leave it out. Tell the user the cost before asking for approval. Images and GIFs
+budget. Preview warns with the most that will be held and what's left, for example
+`up to $0.215 of your X budget will be held for 2 post(s), 1 with a link. You pay what
+X actually deducts and the rest is released ...`, and refuses posts the budget can't
+cover. After posting, the user pays exactly what X deducted (often less than the hold).
+A link is held at about 13 times a plain post, so when the user asks you to save
+budget, put the link in a reply only if they want it, or leave it out. Tell the user
+the most it can cost before asking for approval. Images and GIFs
 work; videos don't (yet). Stats aren't available for these accounts.
 
 ## 6. How did it do? (stats)

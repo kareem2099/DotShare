@@ -192,9 +192,9 @@ export class PostPlanner {
                     if (posts.some(post => post.media.some(file => mediaKind(file) === 'video'))) throw new Error('X posts through DotSuite support images and GIFs, not videos yet.');
                     const estimate = await new AgentCloud(this.accounts).xEstimate(posts.map(post => ({ text: post.text, media_urls: post.media.map(() => 'https://dotsuite.dev/estimate.png') })));
                     const left = estimate.usage.remaining_micros;
-                    if (!estimate.affordable) throw new Error(`This costs ${usd(estimate.estimated_micros)} on X but only ${usd(left)} of this month's X budget is left.`);
+                    if (!estimate.affordable) throw new Error(`This can cost up to ${usd(estimate.estimated_micros)} on X but only ${usd(left)} of this month's X budget is left.`);
                     const links = estimate.posts.filter(post => post.kind === 'post_url').length;
-                    result.warnings.push(`${id}: X will charge ${usd(estimate.estimated_micros)} for ${posts.length} post(s)${links ? `, ${links} with a link` : ''}; ${usd(left - estimate.estimated_micros)} of this month's X budget will be left.`);
+                    result.warnings.push(`${id}: up to ${usd(estimate.estimated_micros)} of your X budget will be held for ${posts.length} post(s)${links ? `, ${links} with a link` : ''}. You pay what X actually deducts and the rest is released; at least ${usd(left - estimate.estimated_micros)} of this month's X budget will be left.`);
                 }
                 result.targets.push({ accountId: id, platform: account.platform, posts, characterLimit: limit, maxMedia,
                     ...(firstComment !== undefined && account.platform === 'linkedin' && { firstComment }) });

@@ -37,12 +37,12 @@ it('previews the exact X charge and remaining budget, and refuses what the budge
     const planner = new AgentPublisher(accounts).planner;
     const plan = await planner.preview({ accountIds: ['x-cloud'], posts: [{ text: 'read https://dotsuite.dev', media: [] }, { text: 'more', media: [] }] });
     expect(plan.valid).toBe(true);
-    expect(plan.warnings).toContain('x-cloud: X will charge $0.215 for 2 post(s), 1 with a link; $4.785 of this month\'s X budget will be left.');
+    expect(plan.warnings).toContain('x-cloud: up to $0.215 of your X budget will be held for 2 post(s), 1 with a link. You pay what X actually deducts and the rest is released; at least $4.785 of this month\'s X budget will be left.');
     expect(estimate).toHaveBeenCalledWith([{ text: 'read https://dotsuite.dev', media_urls: [] }, { text: 'more', media_urls: [] }]);
 
     estimate.mockResolvedValue({ estimated_micros: 200_000, affordable: false, usage: { ...usage, remaining_micros: 100_000 }, posts: [{ kind: 'post_url', estimated_micros: 200_000 }] });
     const refused = await planner.preview({ accountIds: ['x-cloud'], text: 'https://dotsuite.dev' });
-    expect(refused.errors[0]).toContain('costs $0.20 on X but only $0.10');
+    expect(refused.errors[0]).toContain('cost up to $0.20 on X but only $0.10');
 });
 
 it('allows one X-through-DotSuite account per request, since DotSuite holds one X connection', async () => {
