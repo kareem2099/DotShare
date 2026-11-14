@@ -24,7 +24,7 @@ Restart or reconnect your MCP client after setup. In Codex, ask DotShare to list
 accounts, save a draft for one of them and prepare its preview. To review that draft
 in VS Code, follow the [Publishing Library guide](PUBLISHING_LIBRARY.md).
 
-You can also download the tarball and install it with `npm install -g ./dotshare-cli-3.2.1.tgz`. [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.8.1)
+You can also download the tarball and install it with `npm install -g ./dotshare-cli-3.2.2.tgz`. [GitHub release](https://github.com/kareem2099/DotShare/releases/tag/v3.8.2)
 
 To build and configure from source instead:
 

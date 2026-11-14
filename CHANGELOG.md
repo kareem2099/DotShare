@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.8.2] - 2026-11-14 — "Skilled Agents"
+
+VS Code extension 3.8.2 and `dotshare-cli` 3.2.2. A rewritten agent skill that setup installs for every agent, and Antigravity support.
 
 ### Added
 - **A rewritten agent skill.** `skills/dotshare` now teaches agents to write strong, native posts for each platform: hooks, thread shape, LinkedIn's link in the first comment, hashtags, Dev.to article structure and a worked example of one source adapted everywhere. Agents compare choices and previews in small tables, talk at the user's level (plain results for most people, what each step does for those who ask), stay brief about costs and say what DotShare can't do (reply to others, edit or delete posts, publish a Dev.to draft). `SKILL.md` is a third shorter, with details in `references/` (writing, platforms, tools, scheduling, recovery, setup, CLI) loaded only when needed. A test checks its limit tables against the code.

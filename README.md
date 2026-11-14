@@ -24,15 +24,15 @@
 
 ---
 
-## 🆕 What's New in 3.8.1 — Fair X
+## 🆕 What's New in 3.8.2 — Skilled Agents
 
-- **X posts go through DotSuite** and count against your plan's monthly X budget (X charges per post). Your X token stays on DotSuite.
-- **See the cost before you post:** agents show the exact X charge and what's left, and the DotSuite dashboard lists every charge.
-- **Fair charges:** the most a post can cost is held while it's pending, then you pay what X actually took and the rest is released.
+- **A much better agent skill:** your AI agent writes native posts for each platform, compares choices and previews in small tables, and talks at your level. [What it changes](docs/AGENT_SKILL.md).
+- **Setup installs it for you** in Claude Code, Codex, Cursor and now **Antigravity**, or anywhere with `--skills-dir`. Run setup again after an upgrade to update it.
+- **Fair X charges:** the most a post can cost is held while it's pending, then you pay what X actually took and the rest is released.
 
-Builds on 3.7.0: sign-in on dotsuite.dev, browser sign-in for agents, `schedule_draft`, video and GIFs, Bluesky mentions, post stats and setup for Claude Code and Cursor.
+Builds on 3.8: X posts through DotSuite with a monthly X budget. And on 3.7: sign-in on dotsuite.dev, browser sign-in for agents, `schedule_draft`, video and GIFs, Bluesky mentions and post stats.
 
-[Download VS Code 3.8.1 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.8.1/dotshare-3.8.1.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.8.1)
+[Download VS Code 3.8.2 (.vsix)](https://github.com/kareem2099/DotShare/releases/download/v3.8.2/dotshare-3.8.2.vsix) · [CLI and MCP on npm](https://www.npmjs.com/package/dotshare-cli) · [Release notes and tarball](https://github.com/kareem2099/DotShare/releases/tag/v3.8.2)
 
 ---
 
@@ -109,7 +109,7 @@ composer drafts remain in their existing screen; no automatic migration occurs.
 code --install-extension freerave.dotshare
 ```
 
-**From GitHub:** download the `v3.8.1` VSIX above and run `code --install-extension ./dotshare-3.8.1.vsix`.
+**From GitHub:** download the `v3.8.2` VSIX above and run `code --install-extension ./dotshare-3.8.2.vsix`.
 For the shared Publishing Library, also complete the [MCP quick start](#quick-start-for-ai-agents).
 
 Also available on the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=freerave.dotshare) and [Open VSX](https://open-vsx.org/extension/freerave/dotshare) (VSCodium, Cursor, Windsurf and other compatible editors). Requires VS Code **1.90** or later.

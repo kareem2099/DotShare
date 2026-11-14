@@ -43,7 +43,7 @@ async function guarded(action: () => unknown | Promise<unknown>, okay?: (data: u
     }
 }
 
-export function createAgentServer(publisher = new AgentPublisher(), cloud = new AgentCloud(publisher.accounts), version = '3.2.1'): McpServer {
+export function createAgentServer(publisher = new AgentPublisher(), cloud = new AgentCloud(publisher.accounts), version = '3.2.2'): McpServer {
     const server = new McpServer({ name: 'dotshare', version }, { instructions: GUIDE });
     const drafts = new AgentDrafts(publisher);
     const templates = new AgentTemplates(publisher.accounts, drafts);

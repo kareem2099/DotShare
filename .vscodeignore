@@ -69,5 +69,6 @@ package.vscode.backup.json
 # Agent tooling ships in the separate CLI package
 scripts/
 docs/AGENT_INTEGRATION.md
+docs/AGENT_SKILL.md
 artifacts/
 **/*.tgz

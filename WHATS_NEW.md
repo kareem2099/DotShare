@@ -2,6 +2,17 @@
 
 ---
 
+## v3.8.2 — Skilled Agents
+
+*November 14, 2026*
+
+- **Your agent writes better posts.** The DotShare skill now teaches your AI agent the right shape for each platform: a thread on X and Bluesky, one strong post on LinkedIn with the link in the first comment, CamelCase hashtags on Mastodon, and well-structured Dev.to articles.
+- **Easy choices.** Options and previews come as small side-by-side tables, with a recommendation first, and your agent says plainly what it can't do.
+- **It talks at your level.** Just the result if you want it done; what each step does if you ask how it works.
+- **Installed for you.** `dotshare-agent setup` puts the skill where your agent loads it: Claude Code, Codex, Cursor and now Antigravity, or any agent with `--skills-dir`. Run setup again after upgrading, and `doctor` tells you if it's out of date.
+
+---
+
 ## v3.8.1 — Fair X
 
 *November 14, 2026*
