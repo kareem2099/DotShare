@@ -14,7 +14,7 @@
     "README.md",
     "LICENSE",
     "docs/AGENT_INTEGRATION.md",
-    "skills/dotshare/SKILL.md",
+    "skills/dotshare/",
     "out/agent/server.js",
     "out/agent/commands.js",
     "SECURITY.md"

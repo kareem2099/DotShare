@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **A rewritten agent skill.** `skills/dotshare` now teaches agents to write strong, native posts for each platform: hooks, thread shape, LinkedIn's link in the first comment, hashtags, Dev.to article structure and a worked example of one source adapted everywhere. Agents compare choices and previews in small tables, talk at the user's level (plain results for most people, what each step does for those who ask), stay brief about costs and say what DotShare can't do (reply to others, edit or delete posts, publish a Dev.to draft). `SKILL.md` is a third shorter, with details in `references/` (writing, platforms, tools, scheduling, recovery, setup, CLI) loaded only when needed. A test checks its limit tables against the code.
+- **`setup` installs the agent skill.** `dotshare-agent setup` now copies the `skills/dotshare` folder to where the client loads skills: `~/.claude/skills/dotshare` for Claude Code, `$CODEX_HOME/skills/dotshare` for Codex, `~/.cursor/skills/dotshare` for Cursor and `~/.gemini/config/skills/dotshare` for Antigravity. `--skills-dir <dir>` installs it for any other agent that reads `SKILL.md` skills (for example `~/.agents/skills`). Running setup again after an upgrade updates it. An older copy is replaced as a whole, in one rename. A different skill named `dotshare` is kept unless `--replace` is given (then backed up to `~/.dotshare/skill-backups`), a symlinked skill is never written through, and `--no-skill` skips it.
+- **Antigravity.** `setup --client antigravity` merges DotShare into `~/.gemini/config/mcp_config.json` (shared by the Antigravity app and CLI), keeping other servers and saving a backup. `doctor --client antigravity` checks it.
+- `doctor` checks the skill for the chosen client (or `--skills-dir`) and warns when it's missing, from another DotShare version, or replaced by a different skill.
+
 ## [3.8.1] - 2026-11-14
 
 VS Code extension 3.8.1 and `dotshare-cli` 3.2.1. X posts are now charged what X actually deducts.

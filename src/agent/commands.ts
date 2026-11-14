@@ -136,13 +136,15 @@ export function setupAgentCommands(program: Command): void {
             const result = await new AgentDrafts().schedule({ draftId, expectedRevision: Number(options.revision), previewId: options.previewId, requestId: options.requestId, scheduledAt: options.at });
             output(result); if (result.draft.status !== 'Scheduled') process.exitCode = 1;
         }));
-    program.command('setup').description('Connect DotShare to Codex, Claude Code or Cursor, or print a generic MCP client snippet')
-        .option('--client <client>', 'codex, claude, cursor or generic', 'codex')
-        .option('--config <path>', 'Custom config path (Codex config.toml or Cursor mcp.json)')
+    program.command('setup').description('Connect DotShare to Codex, Claude Code, Cursor or Antigravity and install its agent skill, or print a generic MCP client snippet')
+        .option('--client <client>', 'codex, claude, cursor, antigravity or generic', 'codex')
+        .option('--config <path>', 'Custom config path (Codex config.toml, Cursor mcp.json or Antigravity mcp_config.json)')
         .option('--media-root <paths...>', 'Explicit absolute image directories to allow')
         .option('--text-only', 'Disable local images in the client configuration')
         .option('--dry-run', 'Verify the server and preview configuration without writing it')
-        .option('--replace', 'Replace a conflicting dotshare entry; preserve all other MCP servers')
+        .option('--replace', 'Replace a conflicting dotshare entry or agent skill; preserve all other MCP servers')
+        .option('--skills-dir <path>', 'Install the agent skill in this skills directory instead, for any agent that reads SKILL.md skills (e.g. ~/.agents/skills)')
+        .option('--no-skill', "Don't install the DotShare agent skill")
         .option('--json', 'Machine-readable output')
         .action(command(async (options: SetupOptions & { json?: boolean }) => {
             const result = await runSetup(options);
@@ -150,13 +152,15 @@ export function setupAgentCommands(program: Command): void {
             process.stdout.write(`DotShare setup\n${result.dryRun ? 'Configuration preview; no settings written.' : result.changed ? 'Client configuration updated.' : 'Client configuration is already up to date.'}\nMCP verified: ${result.tools} tools.\n`);
             if (result.configPath) process.stdout.write(`Config: ${result.configPath}\n`);
             if (result.backupPath) process.stdout.write(`Backup: ${result.backupPath}\n`);
+            if (result.skill) process.stdout.write(`Skill: ${result.skill.message}${result.skill.backupPath ? ` (backup: ${result.skill.backupPath})` : ''}\n`);
             process.stdout.write(result.mediaRoots.length ? `Images: ${result.mediaRoots.join(', ')}\n` : 'Images: disabled (text-only).\n');
             if (result.dryRun) process.stdout.write(`\n${result.snippet}\n`);
             process.stdout.write(`\nNext steps:\n${result.nextSteps.map(step => `- ${step}`).join('\n')}\n`);
         }));
     program.command('doctor').description('Diagnose local setup and MCP connectivity without publishing')
-        .option('--client <client>', 'codex, claude, cursor or generic', 'codex')
-        .option('--config <path>', 'Custom config path (Codex config.toml or Cursor mcp.json)')
+        .option('--client <client>', 'codex, claude, cursor, antigravity or generic', 'codex')
+        .option('--config <path>', 'Custom config path (Codex config.toml, Cursor mcp.json or Antigravity mcp_config.json)')
+        .option('--skills-dir <path>', 'Check the agent skill in this skills directory')
         .option('--check-accounts', 'Read credentials and check platform identities; never publishes')
         .option('--account <id>', 'Check one account (implies --check-accounts)')
         .option('--skip-mcp', 'Skip the subprocess handshake; connectivity remains unverified')

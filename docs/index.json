@@ -1,5 +1,5 @@
 {
-  "version": "3.6.0",
+  "version": "3.8.2",
   "sections": [
     {
       "title": "Get started",
@@ -8,6 +8,11 @@
           "slug": "agent-setup",
           "title": "Set up the CLI and MCP",
           "file": "AGENT_INTEGRATION.md"
+        },
+        {
+          "slug": "agent-skill",
+          "title": "Install the agent skill",
+          "file": "AGENT_SKILL.md"
         },
         {
           "slug": "publishing-library",

@@ -49,15 +49,18 @@ server from npm, then connect your MCP client and a publishing account.
 
 ```sh
 npm install -g dotshare-cli
-dotshare-agent setup                     # Codex; or --client claude / --client cursor
+dotshare-agent setup                     # Codex; or --client claude / cursor / antigravity. Also installs the agent skill
 dotshare-agent accounts connect work-linkedin --platform linkedin   # LinkedIn/X: sign in in the browser
 dotshare-agent accounts add personal-mastodon --platform mastodon
 dotshare-agent doctor --account personal-mastodon
 ```
 
 `accounts connect` opens your browser to sign in to LinkedIn or X. For other platforms,
-`accounts add` asks for the credentials in hidden terminal prompts. After setup, reconnect
-or restart your MCP client. Try this prompt to save a draft and prepare a preview:
+`accounts add` asks for the credentials in hidden terminal prompts. Setup also installs the
+DotShare [agent skill](docs/AGENT_SKILL.md), which teaches your agent the
+draft → preview → approval workflow. Any other MCP client works too: `--client generic`
+prints the server entry, and `--skills-dir <dir>` puts the skill wherever your agent reads
+skills. After setup, reconnect or restart your MCP client. Try this prompt to save a draft and prepare a preview:
 
 > Use DotShare to save a draft titled “My first DotShare post” for `personal-mastodon` with the text “Hello from DotShare!” and prepare a preview for me to review.
 

@@ -14,7 +14,7 @@ Install the CLI and MCP server from npm. For an existing library, follow the [up
 
 ```sh
 npm install -g dotshare-cli
-dotshare-agent setup                     # Codex; or --client claude / --client cursor
+dotshare-agent setup                     # Codex; or --client claude / cursor / antigravity
 dotshare-agent accounts connect work-x --platform x          # LinkedIn and X: browser sign-in
 dotshare-agent accounts add personal-mastodon --platform mastodon --name "Personal Mastodon"
 dotshare-agent doctor --account personal-mastodon
@@ -55,11 +55,13 @@ local account stores only `{"via": "dotsuite"}`, and posts go through
 `POST /v1/x/posts` with the DotSuite key from `dotshare cloud login`:
 
 - Each plan has a monthly X budget. Preview calls `POST /v1/x/estimate` and shows the
-  exact charge and what's left, and refuses posts the budget can't cover.
-- Prices follow X's list ($0.015 per post, $0.20 with a link, plus images). Anything
-  that might be a link is priced as one, and if X deducts more than the estimate
-  (measured from DotSuite's X balance before and after each post), the actual amount
-  is charged.
+  most the posts can cost and the least that will be left, and refuses posts the
+  budget can't cover.
+- It works like a card payment. The most a post can cost is held while it's pending:
+  X's list price ($0.015 per post, $0.20 with a link, plus images), with anything that
+  might be a link priced as one. After the post, DotSuite reads its X balance and
+  charges exactly what X deducted, and the rest of the hold goes back to the budget.
+  If the deduction can't be confirmed, the hold is charged. Nothing is added later.
 - Publishing is idempotent by request ID, so retries never post or charge twice. A post
   X doesn't confirm is charged and never resent automatically.
 - Images and GIFs are uploaded to DotSuite first; videos aren't supported this way yet.
@@ -89,10 +91,39 @@ identified by its sign-in, not its current token. LinkedIn sign-ins last 60 days
 After packaging/installing the CLI, the same commands are available through
 `dotshare`, `dotshare-agent`, and the dedicated `dotshare-mcp` server entrypoint.
 
-The npm package also ships an agent skill at `skills/dotshare/SKILL.md` (in the
-installed package directory, e.g. `$(npm root -g)/dotshare-cli/skills/dotshare`). Copy
-that folder into your agent's skills directory so it follows DotShare's draft → preview
-→ approval → publish workflow and per-platform rules.
+### Agent skill
+
+The package ships an agent skill, the `skills/dotshare` folder, that teaches the agent
+to write strong posts for each platform and to follow DotShare's draft → preview →
+approval → publish workflow. It compares options and previews in small tables, talks
+at the user's level (plain results for most people, what each step does for those who
+ask), and says what DotShare can't do. `SKILL.md` stays short; the agent opens
+`references/` (writing, platform limits, tools, scheduling, recovery, setup, CLI) only
+when it needs them. A test keeps its limit tables in sync with the code. `setup`
+installs the whole folder where the client loads skills, and running `setup` again
+after an upgrade replaces it:
+
+| Client | Installed at |
+| --- | --- |
+| Claude Code | `~/.claude/skills/dotshare` (or `$CLAUDE_CONFIG_DIR/skills/dotshare`) |
+| Codex | `~/.codex/skills/dotshare` (or `$CODEX_HOME/skills/dotshare`) |
+| Cursor | `~/.cursor/skills/dotshare` |
+| Antigravity | `~/.gemini/config/skills/dotshare` |
+| Any other agent | `--skills-dir <dir>` installs it as `<dir>/dotshare`, e.g. `--skills-dir ~/.agents/skills` |
+
+The skill doesn't depend on a particular model or client. It's a standard `SKILL.md`
+(the open Agent Skills format), so any agent that reads skills can use it, and any MCP
+client can use the server itself. `--skills-dir` works with every `--client`, including
+`generic`, and replaces the client's default skills directory.
+
+An older DotShare copy is replaced as a whole, so files it no longer ships go away. A different skill already named `dotshare` is
+kept unless you pass `--replace`, and then it's backed up to `~/.dotshare/skill-backups`
+(outside the skills directory, so it isn't loaded twice). A symlinked
+skill is never written through. `--no-skill` skips it, and `doctor` (with the same
+`--client` or `--skills-dir`) warns when it's missing or from another version. You can
+also copy the folder yourself from `$(npm root -g)/dotshare-cli/skills/dotshare`. Start
+a new agent session to load it. [Install the agent skill](AGENT_SKILL.md) explains what
+it changes for you.
 
 ### Credential fields
 
@@ -179,7 +210,8 @@ dotshare-agent setup --text-only
 dotshare-agent setup --dry-run
 dotshare-agent setup --client claude
 dotshare-agent setup --client cursor
-dotshare-agent setup --client generic
+dotshare-agent setup --client antigravity
+dotshare-agent setup --client generic --skills-dir ~/.agents/skills
 dotshare-agent setup --config /absolute/path/to/config.toml --json
 ```
 
@@ -187,7 +219,10 @@ dotshare-agent setup --config /absolute/path/to/config.toml --json
 settings. `--client claude` adds DotShare to Claude Code's user scope by running
 `claude mcp add-json` (with `--dry-run` it prints that command instead).
 `--client cursor` merges a `dotshare` entry into `~/.cursor/mcp.json` (or `--config`),
-keeping other servers and settings and saving a backup. `--client generic` prints an
+keeping other servers and settings and saving a backup. `--client antigravity` does the
+same in `~/.gemini/config/mcp_config.json`, which the Antigravity app and CLI share; then
+refresh MCP servers in the agent panel (Customizations → MCP Servers) and start a new
+conversation. `--client generic` prints an
 `mcpServers` JSON snippet for manual import; adapt the wrapper key to your client's format. A different existing DotShare server
 is preserved unless `--replace` is explicitly supplied. Existing inline/dotted-key
 DotShare TOML entries must be converted to `[mcp_servers.dotshare]` before automatic

@@ -143,3 +143,107 @@ it('does not echo invalid inherited timeout or env_vars values into setup output
         expect(fs.readFileSync(file, 'utf8')).toBe(original);
     }
 });
+
+describe('agent skill', () => {
+    const SKILL = '---\nname: dotshare\ndescription: Current DotShare skill.\n---\n\n# DotShare\n';
+    let userHome: string;
+    beforeEach(() => {
+        fs.mkdirSync(path.join(root, 'skills/dotshare'), { recursive: true });
+        fs.writeFileSync(path.join(root, 'skills/dotshare/SKILL.md'), SKILL);
+        userHome = path.join(directory, 'home');
+    });
+    const run = jest.fn(async () => ({ code: 0, output: '' }));
+    const skillContext = (environment: Record<string, string> = {}) => ({ ...context(), userHome, environment, run });
+    const installed = (...parts: string[]) => path.join(userHome, ...parts, 'skills/dotshare/SKILL.md');
+
+    it('installs the skill where each client loads it, once', async () => {
+        const codexHome = path.join(directory, 'codex-home');
+        const codex = await runSetup({ config: file }, skillContext({ CODEX_HOME: codexHome }));
+        expect(codex.skill).toMatchObject({ state: 'missing', changed: true, file: path.join(codexHome, 'skills/dotshare/SKILL.md') });
+        expect(fs.readFileSync(path.join(codexHome, 'skills/dotshare/SKILL.md'), 'utf8')).toBe(SKILL);
+        expect((await runSetup({ config: file }, skillContext({ CODEX_HOME: codexHome }))).skill).toMatchObject({ state: 'current', changed: false });
+
+        expect((await runSetup({ client: 'claude' }, skillContext())).skill?.changed).toBe(true);
+        expect(fs.readFileSync(installed('.claude'), 'utf8')).toBe(SKILL);
+        expect((await runSetup({ client: 'cursor', config: path.join(directory, 'cursor.json') }, skillContext())).skill?.changed).toBe(true);
+        expect(fs.readFileSync(installed('.cursor'), 'utf8')).toBe(SKILL);
+        expect(fs.readdirSync(path.dirname(installed('.cursor')))).toEqual(['SKILL.md']);
+    });
+    it('updates an older DotShare copy but keeps a different skill unless --replace, with a backup', async () => {
+        fs.mkdirSync(path.dirname(installed('.claude')), { recursive: true });
+        fs.writeFileSync(installed('.claude'), '---\nname: dotshare\ndescription: Old.\n---\n');
+        expect((await runSetup({ client: 'claude' }, skillContext())).skill).toMatchObject({ state: 'outdated', changed: true });
+        expect(fs.readFileSync(installed('.claude'), 'utf8')).toBe(SKILL);
+
+        const mine = '---\nname: something-else\n---\nMy own notes\n';
+        fs.writeFileSync(installed('.claude'), mine);
+        const kept = await runSetup({ client: 'claude' }, skillContext());
+        expect(kept.skill).toMatchObject({ state: 'foreign', changed: false });
+        expect(kept.skill?.message).toContain('--replace');
+        expect(fs.readFileSync(installed('.claude'), 'utf8')).toBe(mine);
+
+        const replaced = await runSetup({ client: 'claude', replace: true }, skillContext());
+        expect(replaced.skill).toMatchObject({ state: 'foreign', changed: true });
+        expect(fs.readFileSync(installed('.claude'), 'utf8')).toBe(SKILL);
+        expect(fs.readFileSync(path.join(replaced.skill!.backupPath!, 'SKILL.md'), 'utf8')).toBe(mine);
+        // Outside the skills directory, so the client doesn't load the old skill twice.
+        expect(replaced.skill!.backupPath!.startsWith(path.join(directory, 'accounts', 'skill-backups'))).toBe(true);
+        expect(fs.readdirSync(path.join(userHome, '.claude/skills'))).toEqual(['dotshare']);
+    });
+    it('writes no skill with --no-skill or --dry-run, and tells generic clients where it is', async () => {
+        expect((await runSetup({ client: 'claude', skill: false }, skillContext())).skill).toBeUndefined();
+        const dry = await runSetup({ client: 'claude', dryRun: true }, skillContext());
+        expect(dry.skill).toMatchObject({ state: 'missing', changed: false });
+        expect(dry.skill?.message).toContain('would install');
+        expect(fs.existsSync(path.join(userHome, '.claude'))).toBe(false);
+        const generic = await runSetup({ client: 'generic' }, skillContext());
+        expect(generic.skill).toBeUndefined();
+        expect(generic.nextSteps.join('\n')).toContain(path.join(root, 'skills/dotshare'));
+    });
+    it('connects Antigravity through its mcp_config.json and installs the skill where it loads skills', async () => {
+        const config = path.join(directory, 'gemini/config/mcp_config.json');
+        fs.mkdirSync(path.dirname(config), { recursive: true });
+        fs.writeFileSync(config, JSON.stringify({ mcpServers: { other: { serverUrl: 'https://example.test/mcp' } } }));
+        const result = await runSetup({ client: 'antigravity', config }, skillContext());
+        expect(result.changed).toBe(true);
+        const servers = JSON.parse(fs.readFileSync(config, 'utf8')).mcpServers;
+        expect(servers.other).toEqual({ serverUrl: 'https://example.test/mcp' });
+        expect(servers.dotshare).toMatchObject({ command: process.execPath, args: [current.server], env: { DOTSHARE_MEDIA_ROOTS: '' } });
+        expect(result.skill).toMatchObject({ changed: true, file: installed('.gemini/config') });
+        expect(result.nextSteps[0]).toContain('Antigravity');
+        expect((await runSetup({ client: 'antigravity', config }, skillContext())).changed).toBe(false);
+    });
+    it('installs the skill for any agent with --skills-dir, ~ included', async () => {
+        const generic = await runSetup({ client: 'generic', skillsDir: '~/.agents/skills' }, skillContext());
+        expect(generic.skill).toMatchObject({ changed: true, file: installed('.agents') });
+        expect(generic.nextSteps.join('\n')).not.toContain('--skills-dir');
+        const custom = path.join(directory, 'my-agent/skills');
+        const codex = await runSetup({ config: file, skillsDir: custom }, skillContext({ CODEX_HOME: path.join(directory, 'codex-home') }));
+        expect(codex.skill?.file).toBe(path.join(custom, 'dotshare/SKILL.md'));
+        expect(fs.existsSync(path.join(directory, 'codex-home/skills'))).toBe(false);
+    });
+    it('copies the whole skill folder and drops files an older version had', async () => {
+        fs.mkdirSync(path.join(root, 'skills/dotshare/references'));
+        fs.writeFileSync(path.join(root, 'skills/dotshare/references/writing.md'), '# Writing\n');
+        const target = path.dirname(installed('.claude'));
+        fs.mkdirSync(path.join(target, 'references'), { recursive: true });
+        fs.writeFileSync(installed('.claude'), '---\nname: dotshare\n---\nold\n');
+        fs.writeFileSync(path.join(target, 'references/removed.md'), 'gone in the new version');
+        expect((await runSetup({ client: 'claude' }, skillContext())).skill).toMatchObject({ state: 'outdated', changed: true });
+        expect(fs.readFileSync(path.join(target, 'references/writing.md'), 'utf8')).toBe('# Writing\n');
+        expect(fs.existsSync(path.join(target, 'references/removed.md'))).toBe(false);
+        expect(fs.readdirSync(path.join(userHome, '.claude/skills'))).toEqual(['dotshare']);
+        // A missing reference file makes the copy out of date.
+        fs.rmSync(path.join(target, 'references/writing.md'));
+        expect((await runSetup({ client: 'claude' }, skillContext())).skill).toMatchObject({ state: 'outdated', changed: true });
+        expect((await runSetup({ client: 'claude' }, skillContext())).skill).toMatchObject({ state: 'current', changed: false });
+    });
+    it('never writes through a symlinked skill', async () => {
+        const elsewhere = path.join(directory, 'elsewhere');
+        fs.mkdirSync(elsewhere); fs.writeFileSync(path.join(elsewhere, 'SKILL.md'), '---\nname: dotshare\n---\nlinked copy\n');
+        fs.mkdirSync(path.join(userHome, '.claude/skills'), { recursive: true });
+        fs.symlinkSync(elsewhere, path.join(userHome, '.claude/skills/dotshare'));
+        expect((await runSetup({ client: 'claude' }, skillContext())).skill).toMatchObject({ state: 'linked', changed: false });
+        expect(fs.readFileSync(path.join(elsewhere, 'SKILL.md'), 'utf8')).toContain('linked copy');
+    });
+});

@@ -4,12 +4,13 @@ import { AccountStore, defaultAgentHome } from './accounts';
 import { loadKeyringBinding } from '../cli/credential-store';
 import { checkAccount, CheckAccount, AccountCheck } from './account-check';
 import { ProbeMcp, probeMcp } from './mcp-probe';
-import { SetupClient, SETUP_CLIENTS, Installation, installation, configPath, cursorConfigPath, readClientConfig, readJsonClientConfig, mediaRoots, object, sameServer, supportedNode, launchEnvironment, configTimeout, forwardedVariables } from './setup';
+import { skillDirectory, skillSource, skillStatus } from './skill';
+import { SetupClient, SETUP_CLIENTS, JSON_CLIENTS, Installation, installation, configPath, jsonConfigPath, readClientConfig, readJsonClientConfig, mediaRoots, object, sameServer, supportedNode, launchEnvironment, configTimeout, forwardedVariables } from './setup';
 
 export interface Diagnostic { id: string; status: 'pass' | 'warn' | 'fail'; message: string; fix?: string; }
-export interface DoctorOptions { client?: SetupClient; config?: string; checkAccounts?: boolean; account?: string; skipMcp?: boolean; }
+export interface DoctorOptions { client?: SetupClient; config?: string; checkAccounts?: boolean; account?: string; skipMcp?: boolean; skillsDir?: string; }
 export interface DoctorContext {
-    installation?: Installation; accounts?: AccountStore; environment?: Record<string, string | undefined>;
+    installation?: Installation; accounts?: AccountStore; environment?: Record<string, string | undefined>; userHome?: string;
     probe?: ProbeMcp; checkAccount?: CheckAccount; keyringBinding?: () => unknown;
 }
 export interface DoctorResult {
@@ -20,7 +21,7 @@ export interface DoctorResult {
 export async function runDoctor(options: DoctorOptions = {}, context: DoctorContext = {}): Promise<DoctorResult> {
     const client = options.client || 'codex';
     if (!SETUP_CLIENTS.includes(client)) throw new Error(`client must be one of: ${SETUP_CLIENTS.join(', ')}.`);
-    if ((client === 'generic' || client === 'claude') && options.config) throw new Error('--config is only used with --client codex or cursor.');
+    if ((client === 'generic' || client === 'claude') && options.config) throw new Error('--config is only used with --client codex, cursor or antigravity.');
     const current = context.installation || installation();
     const environment = context.environment || process.env;
     const checks: Diagnostic[] = [];
@@ -55,20 +56,24 @@ export async function runDoctor(options: DoctorOptions = {}, context: DoctorCont
                 }
             }
         } catch { add('client-config', 'fail', 'Codex configuration is unreadable or invalid. Its contents were not displayed.', 'Repair config.toml and run setup again.'); }
-    } else if (client === 'cursor') {
+    } else if (JSON_CLIENTS.includes(client)) {
+        const name = CLIENT_NAMES[client];
+        const file = jsonConfigPath(client, options.config);
         try {
-            const config = readJsonClientConfig(cursorConfigPath(options.config));
-            if (!config.entry) add('client-config', 'fail', 'Cursor has no dotshare MCP entry.', 'Run dotshare-agent setup --client cursor, then reload Cursor.');
-            else if (!sameServer(config.entry, current)) add('client-config', 'fail', 'Cursor points at another DotShare installation.', 'Run setup --client cursor --replace to select this installation.');
-            else if (config.entry.command !== current.node) add('client-config', 'fail', 'Cursor uses a different Node command from this verified runtime.', 'Run setup --client cursor using the Node runtime you want Cursor to use.');
+            const config = readJsonClientConfig(file);
+            if (!config.entry) add('client-config', 'fail', `${name} has no dotshare MCP entry.`, `Run dotshare-agent setup --client ${client}, then reload ${name}.`);
+            else if (!sameServer(config.entry, current)) add('client-config', 'fail', `${name} points at another DotShare installation.`, `Run setup --client ${client} --replace to select this installation.`);
+            else if (config.entry.command !== current.node) add('client-config', 'fail', `${name} uses a different Node command from this verified runtime.`, `Run setup --client ${client} using the Node runtime you want ${name} to use.`);
+            else if (config.entry.disabled === true) add('client-config', 'fail', `DotShare is disabled in ${name}.`, `Enable it in ${name}'s MCP settings, or run setup --client ${client} again.`);
             else {
                 extra = object(config.entry.env) || {};
                 if (config.entry.env !== undefined && !object(config.entry.env)) throw new Error();
-                configReady = true; add('client-config', 'pass', 'Cursor points to this DotShare installation. Reload Cursor after configuration changes.');
+                configReady = true; add('client-config', 'pass', `${name} points to this DotShare installation. Reload ${name} after configuration changes.`);
             }
-        } catch { add('client-config', 'fail', 'Cursor configuration is unreadable or invalid. Its contents were not displayed.', 'Repair ~/.cursor/mcp.json and run setup --client cursor again.'); }
+        } catch { add('client-config', 'fail', `${name} configuration is unreadable or invalid. Its contents were not displayed.`, `Repair ${file} and run setup --client ${client} again.`); }
     } else if (client === 'claude') add('client-config', 'warn', 'Claude Code configuration is not inspected. Check it with: claude mcp get dotshare');
     else add('client-config', 'warn', 'Generic MCP client configuration is not inspected. This checks the standalone server only.');
+    checkSkill(client, current, environment, context.userHome, options.skillsDir, add);
     let effective: Record<string, string> = {};
     try { effective = launchEnvironment(environment, extra); }
     catch { add('environment', 'fail', 'A configured MCP environment value is not a string.', 'Repair the DotShare env table in the client configuration.'); }
@@ -123,4 +128,23 @@ export function formatDoctor(report: DoctorResult): string {
     for (const account of report.accounts) lines.push(`${account.status.toUpperCase()} account ${account.id} (${account.platform})${account.identity ? `: ${account.identity}` : ''}: ${account.message}${account.fix ? `\n  Fix: ${account.fix}` : ''}`);
     lines.push(`MCP ready: ${report.mcpReady === null ? 'not tested' : report.mcpReady ? 'yes' : 'no'}`, ...report.notes);
     return `${lines.join('\n')}\n`;
+}
+
+const CLIENT_NAMES: Record<SetupClient, string> = { codex: 'Codex', claude: 'Claude Code', cursor: 'Cursor', antigravity: 'Antigravity', generic: 'your agent' };
+
+/** Is the agent skill installed where this client loads skills, and is it this version's? */
+function checkSkill(client: SetupClient, current: Installation, environment: Record<string, string | undefined>, userHome: string | undefined, skillsDir: string | undefined,
+    add: (id: string, status: Diagnostic['status'], message: string, fix?: string) => void): void {
+    const source = skillSource(current);
+    const directory = skillDirectory(client, environment, userHome, skillsDir);
+    if (!source || !directory) return;
+    const name = CLIENT_NAMES[client];
+    const setup = `dotshare-agent setup${client === 'codex' ? '' : ` --client ${client}`}${skillsDir ? ` --skills-dir ${skillsDir}` : ''}`;
+    const { file, state } = skillStatus(source, directory);
+    if (state === 'current') add('skill', 'pass', `The DotShare agent skill is installed for ${name} and up to date.`);
+    else if (state === 'missing') add('skill', 'warn', `The DotShare agent skill isn't installed for ${name}, so agents don't learn the draft → preview → approval workflow.`, `Run ${setup}, then start a new ${name} session.`);
+    else if (state === 'outdated') add('skill', 'warn', `The DotShare agent skill for ${name} is from another DotShare version.`, `Run ${setup} to update it, then start a new ${name} session.`);
+    else if (state === 'foreign') add('skill', 'warn', `Another skill named "dotshare" is installed at ${file}.`, `Run ${setup} --replace to replace it (a backup is kept).`);
+    else if (state === 'linked') add('skill', 'warn', `The DotShare agent skill at ${file} is a symlink to a different version.`, 'Point the link at this installation\'s skills/dotshare, or remove it and run setup again.');
+    else add('skill', 'warn', `The DotShare agent skill at ${file} is unreadable.`, 'Check its permissions, or remove it and run setup again.');
 }

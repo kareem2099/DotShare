@@ -7,18 +7,24 @@ import { execFile } from 'child_process';
 import { defaultAgentHome } from './accounts';
 import { McpLaunch, ProbeMcp, probeMcp } from './mcp-probe';
 import { withFileLock } from '../security/locks';
+import { SkillInstall, installSkill, skillDirectory, skillSource } from './skill';
 
-export type SetupClient = 'codex' | 'claude' | 'cursor' | 'generic';
-export const SETUP_CLIENTS: readonly SetupClient[] = ['codex', 'claude', 'cursor', 'generic'];
+export type SetupClient = 'codex' | 'claude' | 'cursor' | 'antigravity' | 'generic';
+export const SETUP_CLIENTS: readonly SetupClient[] = ['codex', 'claude', 'cursor', 'antigravity', 'generic'];
+/** Clients whose MCP settings are a JSON file with an `mcpServers` object. */
+export const JSON_CLIENTS: readonly SetupClient[] = ['cursor', 'antigravity'];
 /** Runs the Claude Code CLI; replaceable in tests. Resolves with its exit code and output. */
 export type RunCommand = (command: string, args: string[]) => Promise<{ code: number; output: string }>;
 export interface Installation { root: string; server: string; node: string; }
-export interface SetupOptions { client?: SetupClient; config?: string; mediaRoot?: string[]; textOnly?: boolean; dryRun?: boolean; replace?: boolean; }
-export interface SetupContext { installation?: Installation; home?: string; environment?: Record<string, string | undefined>; probe?: ProbeMcp; run?: RunCommand; }
+export interface SetupOptions { client?: SetupClient; config?: string; mediaRoot?: string[]; textOnly?: boolean; dryRun?: boolean; replace?: boolean; skill?: boolean; skillsDir?: string; }
+/** `home` is DOTSHARE_HOME (accounts); `userHome` is the OS home directory that holds the clients' skills. */
+export interface SetupContext { installation?: Installation; home?: string; userHome?: string; environment?: Record<string, string | undefined>; probe?: ProbeMcp; run?: RunCommand; }
 export interface ClientConfig { file: string; original: string; document: Record<string, unknown>; entry?: Record<string, unknown>; }
 export interface SetupResult {
     success: boolean; client: SetupClient; configPath?: string; changed: boolean; dryRun: boolean;
     backupPath?: string; mediaRoots: string[]; snippet: string; tools: number; nextSteps: string[];
+    /** The agent skill in the client's skills directory; absent for the generic client, with --no-skill, or in a build without it. */
+    skill?: SkillInstall;
 }
 const SESSION_VARIABLES = ['DBUS_SESSION_BUS_ADDRESS', 'XDG_RUNTIME_DIR', 'DISPLAY', 'WAYLAND_DISPLAY'];
 export const installation = (): Installation => {
@@ -57,6 +63,14 @@ export function configPath(file?: string, environment = process.env): string {
 /** Cursor reads MCP servers from ~/.cursor/mcp.json (`mcpServers`). */
 export function cursorConfigPath(file?: string): string {
     return path.resolve(file || path.join(os.homedir(), '.cursor', 'mcp.json'));
+}
+/** Antigravity (App and CLI) reads global MCP servers from ~/.gemini/config/mcp_config.json (`mcpServers`). */
+export function antigravityConfigPath(file?: string): string {
+    return path.resolve(file || path.join(os.homedir(), '.gemini', 'config', 'mcp_config.json'));
+}
+/** The MCP settings file of a JSON client. */
+export function jsonConfigPath(client: SetupClient, file?: string): string {
+    return client === 'antigravity' ? antigravityConfigPath(file) : cursorConfigPath(file);
 }
 export interface JsonClientConfig { file: string; original: string; document: Record<string, unknown>; entry?: Record<string, unknown>; }
 export function readJsonClientConfig(file: string): JsonClientConfig {
@@ -199,14 +213,14 @@ async function addToClaudeCode(entry: Record<string, unknown>, replace: boolean,
 export async function runSetup(options: SetupOptions = {}, context: SetupContext = {}): Promise<SetupResult> {
     const client = options.client || 'codex';
     if (!SETUP_CLIENTS.includes(client)) throw new Error(`client must be one of: ${SETUP_CLIENTS.join(', ')}.`);
-    if ((client === 'generic' || client === 'claude') && options.config) throw new Error('--config is only used with --client codex or cursor.');
+    if ((client === 'generic' || client === 'claude') && options.config) throw new Error('--config is only used with --client codex, cursor or antigravity.');
     if (options.textOnly && options.mediaRoot?.length) throw new Error('Use --text-only or --media-root, not both.');
     if (!supportedNode()) throw new Error('DotShare requires Node.js 22.12 or newer.');
     const current = context.installation || installation();
     if (!fs.existsSync(current.server)) throw new Error('DotShare MCP launcher is missing. Reinstall the CLI package or use a complete source checkout.');
     const environment = context.environment || process.env;
     const config = client === 'codex' ? readClientConfig(configPath(options.config, environment)) : undefined;
-    const json = client === 'cursor' ? readJsonClientConfig(cursorConfigPath(options.config)) : undefined;
+    const json = JSON_CLIENTS.includes(client) ? readJsonClientConfig(jsonConfigPath(client, options.config)) : undefined;
     const prior = config?.entry || json?.entry;
     const conflict = prior && !sameServer(prior, current);
     if (conflict && !options.replace) throw new Error('Another DotShare server is already configured. Use --replace to replace only that entry, or --client generic to generate a snippet.');
@@ -225,7 +239,7 @@ export async function runSetup(options: SetupOptions = {}, context: SetupContext
     const launch: McpLaunch = { command: current.node, args: [current.server], cwd: current.root, env: launchEnvironment(environment, entry.env) };
     const probe = await (context.probe || probeMcp)(launch);
     if (!probe.success) throw new Error(probe.message);
-    // JSON clients (Claude Code, Cursor, generic) take an absolute server path and no cwd.
+    // JSON clients (Claude Code, Cursor, Antigravity, generic) take an absolute server path and no cwd.
     const jsonEntry = { command: managed.command, args: managed.args, env: managed.env };
     // Never include inherited client secrets or other server settings in the output.
     const snippet = client === 'codex' ? stringify({ mcp_servers: { dotshare: managed } })
@@ -246,17 +260,30 @@ export async function runSetup(options: SetupOptions = {}, context: SetupContext
     } else if (client === 'claude' && !options.dryRun) {
         changed = await addToClaudeCode(jsonEntry, Boolean(options.replace), context.run || runCommand);
     }
+    const skill = setupSkill(client, current, options, environment, context.userHome, path.join(home, 'skill-backups'));
     const reload = client === 'codex' ? 'Restart/reconnect Codex to load DotShare.'
         : client === 'cursor' ? 'Reload Cursor (or toggle DotShare in Settings → MCP) to load DotShare.'
+            : client === 'antigravity' ? 'Refresh MCP servers in Antigravity (agent panel → Customizations → MCP Servers) and start a new conversation to load DotShare and its skill.'
             : client === 'claude' ? options.dryRun ? 'Run the command in snippet to add DotShare to Claude Code, then start a new session.' : 'Start a new Claude Code session (or run /mcp) to load DotShare.'
                 : 'Merge this snippet into your MCP client configuration and reconnect it.';
     return {
         success: true, client, configPath: configFile, changed: changed && !options.dryRun,
         dryRun: Boolean(options.dryRun) || client === 'generic', backupPath, mediaRoots: roots, snippet, tools: probe.tools.length,
+        ...(skill && { skill }),
         nextSteps: [reload,
+            ...(client === 'generic' && !skill && options.skill !== false && skillSource(current) ? [`Install the agent skill so your agent follows DotShare's draft → preview → approval workflow: run setup --client generic --skills-dir <your agent's skills directory> (for example ~/.agents/skills), or copy ${skillSource(current)} there.`] : []),
             'Connect LinkedIn or X in your browser with: dotshare-agent accounts connect <id> --platform linkedin|x',
             'Connect other platforms with: dotshare-agent accounts add <id> --platform <platform>',
             'Verify account access with: dotshare-agent doctor --check-accounts',
             ...(roots.length ? [] : ['Local images are disabled. Enable specific directories with: dotshare-agent setup --media-root /absolute/image/directory'])],
     };
+}
+
+/** Copies the agent skill into the client's skills directory. Never fails setup. */
+function setupSkill(client: SetupClient, current: Installation, options: SetupOptions, environment: Record<string, string | undefined>, userHome: string | undefined, backupRoot: string): SkillInstall | undefined {
+    const source = skillSource(current);
+    const directory = skillDirectory(client, environment, userHome, options.skillsDir);
+    if (options.skill === false || !source || !directory) return undefined;
+    try { return installSkill(source, directory, { replace: options.replace, dryRun: options.dryRun, backupRoot }); }
+    catch { return { file: path.join(directory, 'SKILL.md'), state: 'unreadable', changed: false, message: `Could not write the agent skill to ${directory}. Check that directory's permissions; the MCP setup itself is complete.` }; }
 }

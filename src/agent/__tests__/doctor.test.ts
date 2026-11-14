@@ -115,3 +115,32 @@ it('does not report malformed client timeout settings as a ready connection', as
     expect(result.mcpReady).toBe(false);
     expect(JSON.stringify(result)).not.toContain('private-invalid-timeout');
 });
+
+it('warns when the agent skill is missing or outdated, and passes once setup installs it', async () => {
+    fs.mkdirSync(path.join(directory, 'skills/dotshare'), { recursive: true });
+    fs.writeFileSync(path.join(directory, 'skills/dotshare/SKILL.md'), '---\nname: dotshare\n---\ncurrent\n');
+    const userHome = path.join(directory, 'home');
+    const skill = async () => (await runDoctor({ client: 'claude' }, { ...context(), userHome })).checks.find(check => check.id === 'skill');
+    expect(await skill()).toMatchObject({ status: 'warn', fix: expect.stringContaining('dotshare-agent setup --client claude') });
+    fs.mkdirSync(path.join(userHome, '.claude/skills/dotshare'), { recursive: true });
+    fs.writeFileSync(path.join(userHome, '.claude/skills/dotshare/SKILL.md'), '---\nname: dotshare\n---\nolder\n');
+    expect((await skill())?.message).toContain('another DotShare version');
+    await runSetup({ client: 'claude' }, { installation: current, home: store.home, userHome, environment: {}, probe, run: async () => ({ code: 0, output: '' }) });
+    expect(await skill()).toMatchObject({ status: 'pass' });
+});
+
+it('checks an Antigravity configuration and its skill', async () => {
+    fs.mkdirSync(path.join(directory, 'skills/dotshare'), { recursive: true });
+    fs.writeFileSync(path.join(directory, 'skills/dotshare/SKILL.md'), '---\nname: dotshare\n---\ncurrent\n');
+    const userHome = path.join(directory, 'home');
+    const config = path.join(directory, 'mcp_config.json');
+    const missing = await runDoctor({ client: 'antigravity', config }, { ...context(), userHome });
+    expect(missing.checks.find(check => check.id === 'client-config')).toMatchObject({ status: 'fail', fix: expect.stringContaining('--client antigravity') });
+    await runSetup({ client: 'antigravity', config }, { installation: current, home: store.home, userHome, environment: {}, probe });
+    const ready = await runDoctor({ client: 'antigravity', config }, { ...context(), userHome });
+    expect(ready.checks.find(check => check.id === 'client-config')?.status).toBe('pass');
+    expect(ready.checks.find(check => check.id === 'skill')?.status).toBe('pass');
+    expect(ready.mcpReady).toBe(true);
+    const custom = await runDoctor({ client: 'generic', skillsDir: path.join(directory, 'agents/skills') }, { ...context(), userHome });
+    expect(custom.checks.find(check => check.id === 'skill')).toMatchObject({ status: 'warn', fix: expect.stringContaining('--skills-dir') });
+});
